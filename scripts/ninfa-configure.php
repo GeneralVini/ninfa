@@ -89,13 +89,14 @@ file_put_contents(
 file_put_contents($contextDir . '/paths.txt', implode(PHP_EOL, $paths) . ($paths === [] ? '' : PHP_EOL));
 
 $writeConfig = static function (string $path, string $content) use ($force): void {
-    if (is_file($path) && !$force) {
+    $existed = is_file($path);
+    if ($existed && !$force) {
         echo '[MANTIDO] ' . basename($path) . " já existe.\n";
         return;
     }
 
     file_put_contents($path, $content);
-    echo ($force && is_file($path) ? '[SOBRESCRITO] ' : '[GERADO] ') . basename($path) . "\n";
+    echo ($existed ? '[SOBRESCRITO] ' : '[GERADO] ') . basename($path) . "\n";
 };
 
 if ($paths !== []) {
