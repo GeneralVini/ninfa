@@ -47,9 +47,28 @@ Para implantação completa em Linux:
 - `sha256sum`;
 - Lefthook opcional para hooks locais.
 
-## Para implantar o Ninfa em um projeto já pronto
+## Como o Ninfa entende o projeto
 
-O Ninfa foi projetado para ser incorporado sem substituir automaticamente o `README.md`, a documentação existente em `docs/`, o `composer.json` ou configurações próprias do projeto.
+Antes de configurar a esteira, o Ninfa coleta contexto do próprio projeto.
+
+A precedência é:
+
+1. `composer.json` — fonte técnica principal para framework e dependências;
+2. estrutura real de diretórios — fonte técnica para caminhos analisados;
+3. `README.md` — contexto funcional e arquitetural;
+4. `docs/*.md` — contexto complementar, decisões e particularidades do projeto.
+
+O Ninfa reconhece inicialmente Yii 3, Yii 2, Laravel, Symfony e PHP genérico. Os diretórios convencionais detectados incluem `src`, `app`, `config`, `modules`, `console`, `commands`, `public`, `web` e `tests`.
+
+O resultado da descoberta fica registrado em:
+
+```text
+.ninfa/context.json
+```
+
+Se `README.md` ou `docs/` divergirem do `composer.json`, a evidência técnica do Composer tem precedência e a divergência deve ser tratada como revisão manual.
+
+## Para implantar o Ninfa em um projeto já pronto
 
 Clone o Ninfa em um diretório temporário:
 
@@ -69,7 +88,15 @@ Execute o instalador estrutural:
 php /tmp/ninfa/bin/ninfa-install.php .
 ```
 
-O instalador cria os arquivos ausentes e preserva os existentes. Arquivos diferentes já presentes no projeto são marcados como `MANTIDO` para revisão manual.
+O instalador:
+
+- lê `composer.json`;
+- localiza os diretórios existentes;
+- consulta `README.md` e `docs/*.md` como contexto complementar;
+- copia os arquivos Ninfa ausentes;
+- preserva configurações existentes;
+- registra o contexto detectado em `.ninfa/context.json`;
+- informa conflitos e divergências que realmente exigem revisão manual.
 
 Instale as dependências PHP usadas pela esteira:
 
@@ -91,9 +118,12 @@ php scripts/merge-composer.php composer.json composer.ninfa.example.json
 Depois execute:
 
 ```bash
+make install
 make setup
 composer check
 ```
+
+`make install` volta a inspecionar o projeto antes de instalar as dependências. Isso permite reexecutar a descoberta quando a estrutura do projeto evoluir.
 
 Revise as alterações e versione a integração:
 
@@ -111,6 +141,7 @@ cd /caminho/do/projeto
 php /tmp/ninfa/bin/ninfa-install.php .
 composer require --dev symplify/easy-coding-standard rector/rector phpstan/phpstan vimeo/psalm phpunit/phpunit
 php scripts/merge-composer.php composer.json composer.ninfa.example.json
+make install
 make setup
 composer check
 
@@ -118,105 +149,44 @@ composer check
 rm -rf /tmp/ninfa
 ```
 
-O projeto consumidor passa a carregar os arquivos do Ninfa em seu próprio repositório.
-
 ## Em uma máquina nova, depois que o projeto já usa Ninfa
 
 Depois que a integração já foi versionada no projeto consumidor, não é necessário clonar o repositório do Ninfa novamente.
 
-Basta clonar o próprio projeto:
-
 ```bash
 git clone URL_DO_PROJETO
 cd NOME_DO_PROJETO
+make install
 make setup
 composer check
 ```
 
-O `make setup` instala as dependências Composer, prepara as ferramentas locais de segurança e instala os hooks quando o Lefthook estiver disponível.
+## Quando revisar manualmente
 
-As ferramentas externas ficam isoladas no próprio projeto:
+A revisão manual deixa de ser uma etapa obrigatória para todos os projetos. Ela é necessária principalmente quando:
 
-```text
-.tools/semgrep/
-.tools/zap/
-```
+- houver divergência entre `composer.json` e documentação;
+- a estrutura do projeto não usar diretórios convencionais;
+- já existir configuração própria de ECS, Rector, PHPStan, Psalm, PHPUnit ou Semgrep;
+- houver código gerado, módulos especiais ou diretórios que devam ser excluídos;
+- o framework ou arquitetura não puder ser identificado com segurança.
 
-Esses diretórios não devem ser versionados.
-
-## O que o instalador incorpora
-
-A instalação estrutural inclui, quando ainda não existem:
-
-```text
-Makefile
-composer.ninfa.example.json
-ecs.php
-rector.php
-phpstan.neon.dist
-psalm.xml
-phpunit.xml.dist
-lefthook.yml
-scripts/bootstrap.sh
-scripts/install-security-tools.sh
-scripts/merge-composer.php
-scripts/semgrep-scan.sh
-scripts/zap-scan.sh
-security/semgrep.yml
-.github/workflows/ninfa.yml
-docs/NINFA.md
-docs/README-NINFA.md
-```
-
-Configurações já existentes são preservadas. Isso é intencional: projetos maduros podem ter paths, níveis, bootstrap de testes e regras próprias que não devem ser substituídos silenciosamente.
-
-## Ajustes após a instalação
-
-Revise principalmente os caminhos analisados em:
-
-- `ecs.php`;
-- `rector.php`;
-- `phpstan.neon.dist`;
-- `psalm.xml`;
-- `phpunit.xml.dist`;
-- `security/semgrep.yml`.
-
-O baseline assume principalmente `src/` e `tests/`. Projetos Yii, Symfony, Laravel ou estruturas próprias podem exigir também `config/`, `app/`, `modules/`, `public/` ou outros diretórios.
+Arquivos já existentes são preservados por padrão.
 
 ## Comandos
 
 | Comando | Finalidade |
 | --- | --- |
-| `make setup` | prepara dependências, ferramentas e hooks locais |
+| `make install` | inspeciona contexto do projeto e instala dependências Composer |
+| `make configure` | refaz somente a descoberta contextual |
+| `make setup` | prepara ferramentas locais, hooks e executa validação |
 | `composer qa` | qualidade, análise estática e testes |
 | `composer security` | dependências, taint analysis e Semgrep |
 | `composer check` | executa `qa` + `security` |
 | `composer fix` | aplica correções automáticas disponíveis |
 | `composer security:dast` | executa OWASP ZAP contra aplicação local autorizada |
 
-## Fluxo diário
-
-Para correções automáticas antes do commit:
-
-```bash
-composer fix && git add . && git commit -m "feat: descrição da alteração" && git push
-```
-
-Antes de integrar ou entregar:
-
-```bash
-composer check
-```
-
-Para executar apenas segurança:
-
-```bash
-composer security
-```
-
 ## DAST com OWASP ZAP
-
-O DAST não faz parte de `composer check` porque exige uma aplicação em execução e realiza testes ativos.
 
 Com a aplicação local iniciada:
 
@@ -224,7 +194,7 @@ Com a aplicação local iniciada:
 NINFA_ZAP_TARGET=http://127.0.0.1:8080 composer security:dast
 ```
 
-Por segurança, o wrapper padrão aceita apenas `localhost` e `127.0.0.1`. Ambientes remotos devem possuir procedimento próprio e autorização explícita.
+Por segurança, o wrapper padrão aceita apenas `localhost` e `127.0.0.1`.
 
 ## GitHub Actions
 
@@ -234,7 +204,7 @@ O instalador disponibiliza o workflow em:
 .github/workflows/ninfa.yml
 ```
 
-A pipeline executa a validação de qualidade e segurança por meio de:
+A pipeline executa:
 
 ```bash
 composer check
@@ -246,74 +216,16 @@ O OWASP ZAP permanece fora desse workflow padrão porque depende de um alvo em e
 
 - execução nativa em Linux;
 - sem Docker obrigatório;
+- detecção contextual do projeto antes da configuração;
+- `composer.json` e filesystem como evidência técnica principal;
+- `README.md` e `docs/*.md` como contexto complementar;
+- preservação de configurações existentes;
 - ferramentas PHP instaladas pelo Composer do projeto;
-- Semgrep CE instalado em ambiente Python local do projeto;
-- OWASP ZAP instalado localmente no projeto;
-- versões das ferramentas externas fixadas pelo instalador;
-- análise de dependências com `composer audit`;
-- análise de fluxo de dados com Psalm Taint;
-- regras Semgrep pequenas, explícitas e customizáveis;
+- Semgrep CE e OWASP ZAP instalados localmente no projeto;
+- Composer Audit + Psalm Taint como baseline mínimo de segurança;
+- Semgrep CE e ZAP como camadas complementares;
 - DAST separado da validação comum;
-- nenhuma supressão ampla apenas para deixar a pipeline verde;
-- integração incremental em projetos existentes.
-
-## Estrutura do repositório Ninfa
-
-```text
-.
-├── README.md
-├── Makefile
-├── composer.ninfa.example.json
-├── ecs.php
-├── rector.php
-├── phpstan.neon.dist
-├── psalm.xml
-├── phpunit.xml.dist
-├── lefthook.yml
-├── bin/
-│   └── ninfa-install.php
-├── security/
-│   └── semgrep.yml
-├── scripts/
-│   ├── bootstrap.sh
-│   ├── install-security-tools.sh
-│   ├── merge-composer.php
-│   ├── semgrep-scan.sh
-│   └── zap-scan.sh
-├── templates/
-│   └── github-actions/
-│       └── qa-security.yml
-└── docs/
-    ├── INSTALACAO.md
-    ├── INTEGRACAO.md
-    ├── COMANDOS.md
-    ├── CUSTOMIZACAO.md
-    └── SEGURANCA.md
-```
-
-## README e documentação do projeto consumidor
-
-O Ninfa não deve substituir o `README.md` do projeto consumidor.
-
-O instalador disponibiliza `docs/README-NINFA.md` como referência para incorporar uma seção resumida ao README já existente e `docs/NINFA.md` como documentação técnica da esteira.
-
-Se o projeto já possui documentação equivalente, prefira incorporar o conteúdo nela em vez de criar arquivos duplicados.
-
-## Compatibilidade
-
-O baseline foi pensado para PHP moderno e pode ser usado com Yii, Symfony, Laravel ou PHP sem framework. Cada projeto deve ajustar diretórios analisados, bootstrap de testes e regras específicas de segurança.
-
-## Escopo das ferramentas
-
-**ECS** verifica estilo e padrões de código. **Rector** verifica e automatiza refatorações. **PHPStan** e **Psalm** realizam análise estática. **PHPUnit** executa testes. **Composer Audit** identifica vulnerabilidades conhecidas em dependências. **Psalm Taint Analysis** rastreia dados potencialmente não confiáveis até sinks sensíveis. **Semgrep CE** aplica regras de segurança e padrões específicos do projeto. **OWASP ZAP** testa dinamicamente a aplicação em execução.
-
-A combinação mínima de segurança priorizada é:
-
-```text
-Composer Audit + Psalm Taint Analysis
-```
-
-Semgrep CE e OWASP ZAP acrescentam camadas complementares.
+- nenhuma supressão ampla apenas para deixar a pipeline verde.
 
 ## Documentação complementar
 
