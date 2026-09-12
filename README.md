@@ -187,29 +187,17 @@ Assumindo que o terminal já está na raiz do projeto consumidor:
 
 ```bash
 git clone --depth 1 https://github.com/GeneralVini/ninfa.git /tmp/ninfa
-php /tmp/ninfa/bin/ninfa-install.php .
-composer require --dev symplify/easy-coding-standard rector/rector phpstan/phpstan vimeo/psalm phpunit/phpunit
-php scripts/merge-composer.php composer.json composer.ninfa.example.json
-make install
-make setup
-composer check
 
-# Após validar a integração, remova o clone temporário do Ninfa
-rm -rf /tmp/ninfa
-```
-
-### Sequência completa forçando regeneração
-
-Use somente quando quiser substituir os arquivos gerenciados pelo Ninfa:
-
-```bash
-git clone --depth 1 https://github.com/GeneralVini/ninfa.git /tmp/ninfa
+# --force sobrescreve os arquivos gerenciados pelo Ninfa e regenera as configurações com base no contexto atual do projeto
 php /tmp/ninfa/bin/ninfa-install.php . --force
+
 composer require --dev symplify/easy-coding-standard rector/rector phpstan/phpstan vimeo/psalm phpunit/phpunit
 php scripts/merge-composer.php composer.json composer.ninfa.example.json
 make install-force
 make setup
 composer check
+
+# Após validar a integração, remova o clone temporário do Ninfa
 rm -rf /tmp/ninfa
 ```
 
