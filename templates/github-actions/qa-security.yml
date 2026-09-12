@@ -23,6 +23,9 @@ jobs:
           coverage: none
           tools: composer:v2
 
+      - name: Detect project context
+        run: php scripts/ninfa-configure.php .
+
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
