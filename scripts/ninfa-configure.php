@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
-$projectRoot = $argv[1] ?? getcwd();
+$args = $argv;
+array_shift($args);
+$force = in_array('--force', $args, true);
+$args = array_values(array_filter($args, static fn (string $arg): bool => $arg !== '--force'));
+
+$projectRoot = $args[0] ?? getcwd();
 $projectRoot = realpath($projectRoot) ?: $projectRoot;
 
 if (!is_file($projectRoot . '/composer.json')) {
@@ -83,14 +88,14 @@ file_put_contents(
 );
 file_put_contents($contextDir . '/paths.txt', implode(PHP_EOL, $paths) . ($paths === [] ? '' : PHP_EOL));
 
-$writeIfMissing = static function (string $path, string $content): void {
-    if (is_file($path)) {
+$writeConfig = static function (string $path, string $content) use ($force): void {
+    if (is_file($path) && !$force) {
         echo '[MANTIDO] ' . basename($path) . " já existe.\n";
         return;
     }
 
     file_put_contents($path, $content);
-    echo '[GERADO] ' . basename($path) . "\n";
+    echo ($force && is_file($path) ? '[SOBRESCRITO] ' : '[GERADO] ') . basename($path) . "\n";
 };
 
 if ($paths !== []) {
@@ -109,22 +114,22 @@ if ($paths !== []) {
         $paths,
     ));
 
-    $writeIfMissing(
+    $writeConfig(
         $projectRoot . '/ecs.php',
         "<?php\n\ndeclare(strict_types=1);\n\nuse Symplify\\EasyCodingStandard\\Config\\ECSConfig;\n\nreturn ECSConfig::configure()\n    ->withPaths([\n{$phpPathLines},\n    ])\n    ->withRootFiles()\n    ->withPreparedSets(psr12: true);\n",
     );
 
-    $writeIfMissing(
+    $writeConfig(
         $projectRoot . '/rector.php',
         "<?php\n\ndeclare(strict_types=1);\n\nuse Rector\\Config\\RectorConfig;\n\nreturn RectorConfig::configure()\n    ->withPaths([\n{$phpPathLines},\n    ])\n    ->withPreparedSets(\n        deadCode: true,\n        codeQuality: true,\n        typeDeclarations: true,\n    );\n",
     );
 
-    $writeIfMissing(
+    $writeConfig(
         $projectRoot . '/phpstan.neon.dist',
         "parameters:\n  level: max\n  paths:\n{$yamlPathLines}\n  tmpDir: runtime/phpstan\n",
     );
 
-    $writeIfMissing(
+    $writeConfig(
         $projectRoot . '/psalm.xml',
         "<?xml version=\"1.0\"?>\n<psalm\n    errorLevel=\"1\"\n    resolveFromConfigFile=\"true\"\n    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n    xmlns=\"https://getpsalm.org/schema/config\"\n    xsi:schemaLocation=\"https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd\"\n>\n    <projectFiles>\n{$xmlPathLines}\n        <ignoreFiles>\n            <directory name=\"vendor\" />\n            <directory name=\".tools\" />\n            <directory name=\"runtime\" />\n        </ignoreFiles>\n    </projectFiles>\n</psalm>\n",
     );
@@ -133,7 +138,7 @@ if ($paths !== []) {
         ? "            <directory>tests</directory>\n"
         : '';
 
-    $writeIfMissing(
+    $writeConfig(
         $projectRoot . '/phpunit.xml.dist',
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<phpunit xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:noNamespaceSchemaLocation=\"https://schema.phpunit.de/11.5/phpunit.xsd\"\n         colors=\"true\"\n         cacheDirectory=\"runtime/phpunit\">\n    <testsuites>\n        <testsuite name=\"Project\">\n{$testsDirectory}        </testsuite>\n    </testsuites>\n</phpunit>\n",
     );
