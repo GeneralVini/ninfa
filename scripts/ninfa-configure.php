@@ -38,11 +38,34 @@ if ($paths === []) {
 }
 
 $documentation = [];
+$documentationText = '';
 if (is_file($projectRoot . '/README.md')) {
     $documentation[] = 'README.md';
+    $documentationText .= "\n" . strtolower((string) file_get_contents($projectRoot . '/README.md'));
 }
 foreach (glob($projectRoot . '/docs/*.md') ?: [] as $file) {
-    $documentation[] = 'docs/' . basename($file);
+    $relative = 'docs/' . basename($file);
+    $documentation[] = $relative;
+    $documentationText .= "\n" . strtolower((string) file_get_contents($file));
+}
+
+$documentedFrameworks = [];
+$signals = [
+    'yii 3' => 'Yii 3',
+    'yii3' => 'Yii 3',
+    'yii 2' => 'Yii 2',
+    'yii2' => 'Yii 2',
+    'laravel' => 'Laravel',
+    'symfony' => 'Symfony',
+];
+foreach ($signals as $needle => $name) {
+    if (str_contains($documentationText, $needle)) {
+        $documentedFrameworks[$name] = true;
+    }
+}
+
+if ($framework !== 'PHP genérico' && $documentedFrameworks !== [] && !isset($documentedFrameworks[$framework])) {
+    echo "[AVISO] README/docs mencionam framework diferente do composer.json. O Composer terá precedência técnica.\n";
 }
 
 $contextDir = $projectRoot . '/.ninfa';
@@ -56,6 +79,7 @@ file_put_contents(
         'framework' => $framework,
         'paths' => $paths,
         'documentation' => $documentation,
+        'documented_frameworks' => array_keys($documentedFrameworks),
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
 );
 
