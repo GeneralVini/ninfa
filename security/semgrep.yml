@@ -1,0 +1,30 @@
+rules:
+  - id: ninfa.php.dangerous-shell-execution
+    languages: [php]
+    severity: WARNING
+    message: Execução direta de shell exige revisão de segurança e validação rigorosa dos argumentos.
+    patterns:
+      - pattern-either:
+          - pattern: exec(...)
+          - pattern: shell_exec(...)
+          - pattern: system(...)
+          - pattern: passthru(...)
+          - pattern: proc_open(...)
+          - pattern: popen(...)
+
+  - id: ninfa.php.unsafe-unserialize
+    languages: [php]
+    severity: ERROR
+    message: unserialize() exige revisão de segurança; prefira formatos seguros e dados com origem controlada.
+    pattern: unserialize(...)
+
+  - id: ninfa.php.sql-string-concatenation
+    languages: [php]
+    severity: WARNING
+    message: SQL construído por concatenação exige revisão. Prefira parâmetros/bindings e allowlist para identificadores dinâmicos.
+    patterns:
+      - pattern-either:
+          - pattern: $DB->query($A . $B)
+          - pattern: $DB->createCommand($A . $B)
+          - pattern: $PDO->exec($A . $B)
+          - pattern: $PDO->query($A . $B)

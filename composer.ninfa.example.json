@@ -1,0 +1,35 @@
+{
+  "scripts": {
+    "lint": "ecs check --ansi",
+    "lint:fix": "ecs check --ansi --fix",
+    "rector": "rector process --dry-run --no-progress-bar",
+    "rector:fix": "rector process --no-progress-bar",
+    "stan": "phpstan analyse --no-progress",
+    "psalm": "psalm --no-progress",
+    "psalm:taint": "psalm --taint-analysis --no-progress",
+    "test": "phpunit",
+    "security:dependencies": "@composer audit --locked --no-interaction",
+    "security:semgrep": "bash scripts/semgrep-scan.sh",
+    "security:dast": "bash scripts/zap-scan.sh",
+    "qa": [
+      "@lint",
+      "@rector",
+      "@stan",
+      "@psalm",
+      "@test"
+    ],
+    "security": [
+      "@security:dependencies",
+      "@psalm:taint",
+      "@security:semgrep"
+    ],
+    "check": [
+      "@qa",
+      "@security"
+    ],
+    "fix": [
+      "@rector:fix",
+      "@lint:fix"
+    ]
+  }
+}

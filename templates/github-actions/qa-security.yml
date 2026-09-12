@@ -1,0 +1,38 @@
+name: Ninfa - Quality and Security
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: PHP quality and security
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install Semgrep CE
+        run: python3 -m pip install --disable-pip-version-check semgrep==1.177.0
+
+      - name: Validate Composer metadata
+        run: composer validate --no-interaction
+
+      - name: Run Ninfa checks
+        env:
+          NINFA_SEMGREP_BIN: semgrep
+        run: composer check
