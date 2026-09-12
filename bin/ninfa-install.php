@@ -51,6 +51,16 @@ foreach ($files as $sourceRelative => $targetRelative) {
     echo "[CRIADO] {$targetRelative}\n";
 }
 
+$gitignorePath = $projectRoot . '/.gitignore';
+$gitignore = is_file($gitignorePath) ? (string) file_get_contents($gitignorePath) : '';
+foreach (['/.tools/', '/.ninfa/'] as $entry) {
+    if (!preg_match('/^' . preg_quote($entry, '/') . '$/m', $gitignore)) {
+        $gitignore = rtrim($gitignore) . ($gitignore === '' ? '' : PHP_EOL) . $entry . PHP_EOL;
+        echo "[GITIGNORE] {$entry}\n";
+    }
+}
+file_put_contents($gitignorePath, $gitignore);
+
 passthru('php ' . escapeshellarg($projectRoot . '/scripts/ninfa-configure.php') . ' ' . escapeshellarg($projectRoot), $status);
 if ($status !== 0) {
     exit($status);
