@@ -1,10 +1,14 @@
-.PHONY: setup install hooks fix qa check security security-dast lint rector stan psalm psalm-taint test audit semgrep
+.PHONY: setup install configure hooks fix qa check security security-dast lint rector stan psalm psalm-taint test audit semgrep
+
+install:
+	php scripts/ninfa-configure.php .
+	composer install
+
+configure:
+	php scripts/ninfa-configure.php .
 
 setup:
 	bash scripts/bootstrap.sh
-
-install:
-	composer install
 
 hooks:
 	lefthook install
