@@ -13,7 +13,12 @@ Antes de configurar a esteira, o Ninfa usa esta precedência:
 
 `composer.json` e filesystem têm precedência técnica. README e docs complementam o entendimento e ajudam a detectar divergências.
 
-O contexto detectado é salvo em `.ninfa/context.json`.
+O contexto detectado é salvo em:
+
+```text
+.ninfa/context.json
+.ninfa/paths.txt
+```
 
 ## 2. Frameworks e caminhos reconhecidos
 
@@ -33,9 +38,27 @@ web/
 tests/
 ```
 
-Estruturas fora desse padrão devem ser revisadas manualmente.
+Se nenhum desses diretórios existir, o Ninfa não cria uma estrutura fictícia. Ele informa que o projeto possui estrutura não convencional e exige definição manual dos paths.
 
-## 3. Pré-requisitos
+## 3. Geração automática
+
+Com os caminhos detectados, o Ninfa gera automaticamente, quando ausentes:
+
+```text
+ecs.php
+rector.php
+phpstan.neon.dist
+psalm.xml
+phpunit.xml.dist
+```
+
+Os arquivos gerados já recebem os diretórios reais encontrados no projeto.
+
+Para o Semgrep, os caminhos são gravados em `.ninfa/paths.txt` e utilizados automaticamente por `scripts/semgrep-scan.sh`.
+
+Se qualquer uma dessas configurações já existir, ela é preservada e marcada como `MANTIDO`. O Ninfa nunca substitui silenciosamente uma configuração madura.
+
+## 4. Pré-requisitos
 
 - PHP compatível com as dependências do projeto;
 - Composer 2;
@@ -46,9 +69,9 @@ Estruturas fora desse padrão devem ser revisadas manualmente.
 - `sha256sum`;
 - Lefthook opcional para hooks locais.
 
-## 4. Implantação inicial
+## 5. Implantação inicial
 
-Depois de copiar a estrutura do Ninfa para o projeto e instalar as dependências PHP, execute:
+Depois de executar o instalador do Ninfa e instalar as dependências PHP, execute:
 
 ```bash
 make install
@@ -56,33 +79,33 @@ make setup
 composer check
 ```
 
-`make install` executa a descoberta contextual antes de `composer install`.
+`make install` executa novamente a descoberta contextual, gera apenas configurações ainda ausentes e então executa `composer install`.
 
-Para refazer somente a descoberta:
+Para refazer somente a descoberta e a geração de arquivos ausentes:
 
 ```bash
 make configure
 ```
 
-## 5. Preservação de configurações existentes
+## 6. Preservação de configurações existentes
 
-O Ninfa não deve sobrescrever silenciosamente configurações maduras do projeto.
-
-Arquivos existentes são preservados. A revisão manual deve ficar restrita a casos como:
+A revisão manual deixa de ser uma etapa comum. Ela deve ficar restrita a casos como:
 
 - divergência entre documentação e `composer.json`;
 - estrutura não convencional;
-- configuração própria de ECS, Rector, PHPStan, Psalm, PHPUnit ou Semgrep;
+- configuração existente que precise ser comparada com os paths atuais;
 - diretórios gerados ou que devam ser excluídos;
 - framework ou arquitetura não identificados com segurança.
 
-## 6. README e docs existentes
+Uma configuração existente de ECS, Rector, PHPStan, Psalm ou PHPUnit nunca é reescrita pelo configurador.
+
+## 7. README e docs existentes
 
 Não substitua o `README.md` do projeto. Use `templates/README-NINFA.md` como referência para incorporar uma seção operacional.
 
 Como os projetos normalmente já possuem `docs/`, copie ou incorpore `templates/docs/NINFA.md` ao documento equivalente já existente.
 
-## 7. Validação
+## 8. Validação
 
 A integração está concluída quando:
 
