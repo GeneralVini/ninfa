@@ -1,5 +1,21 @@
 # Comandos do Ninfa
 
+## Instalação contextual
+
+```bash
+make install
+```
+
+Detecta framework e caminhos do projeto, consulta `README.md` e `docs/*.md`, gera apenas configurações ausentes e executa `composer install`.
+
+## Reconfiguração contextual
+
+```bash
+make configure
+```
+
+Refaz a descoberta do projeto e atualiza `.ninfa/context.json` e `.ninfa/paths.txt`. Também gera `ecs.php`, `rector.php`, `phpstan.neon.dist`, `psalm.xml` e `phpunit.xml.dist` apenas quando esses arquivos ainda não existirem.
+
 ## Setup
 
 ```bash
@@ -22,7 +38,7 @@ Executa ECS, Rector em dry-run, PHPStan, Psalm e PHPUnit.
 composer security
 ```
 
-Executa Composer Audit, Psalm Taint Analysis e Semgrep CE.
+Executa Composer Audit, Psalm Taint Analysis e Semgrep CE. O Semgrep usa por padrão os caminhos detectados em `.ninfa/paths.txt`.
 
 ## Validação completa
 
