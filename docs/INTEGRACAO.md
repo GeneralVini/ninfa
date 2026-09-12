@@ -2,7 +2,40 @@
 
 O Ninfa deve ser incorporado de forma incremental ao projeto existente.
 
-## 1. Pré-requisitos
+## 1. Fontes de contexto
+
+Antes de configurar a esteira, o Ninfa usa esta precedência:
+
+1. `composer.json` para framework e dependências;
+2. estrutura real do filesystem para caminhos analisados;
+3. `README.md` para contexto funcional e arquitetural;
+4. `docs/*.md` para decisões, particularidades e convenções do projeto.
+
+`composer.json` e filesystem têm precedência técnica. README e docs complementam o entendimento e ajudam a detectar divergências.
+
+O contexto detectado é salvo em `.ninfa/context.json`.
+
+## 2. Frameworks e caminhos reconhecidos
+
+O baseline reconhece inicialmente Yii 3, Yii 2, Laravel, Symfony e PHP genérico.
+
+Os caminhos convencionais pesquisados incluem:
+
+```text
+src/
+app/
+config/
+modules/
+console/
+commands/
+public/
+web/
+tests/
+```
+
+Estruturas fora desse padrão devem ser revisadas manualmente.
+
+## 3. Pré-requisitos
 
 - PHP compatível com as dependências do projeto;
 - Composer 2;
@@ -13,77 +46,54 @@ O Ninfa deve ser incorporado de forma incremental ao projeto existente.
 - `sha256sum`;
 - Lefthook opcional para hooks locais.
 
-## 2. Dependências PHP
+## 4. Implantação inicial
 
-No projeto consumidor, instale as ferramentas de desenvolvimento compatíveis com a versão de PHP adotada:
-
-```bash
-composer require --dev symplify/easy-coding-standard rector/rector phpstan/phpstan vimeo/psalm phpunit/phpunit
-```
-
-Não copie um `composer.json` completo do Ninfa. Incorpore apenas os scripts de `composer.ninfa.example.json` ao `composer.json` já existente.
-
-## 3. Arquivos a incorporar
-
-Copie ou adapte:
-
-```text
-Makefile
-ecs.php
-rector.php
-phpstan.neon.dist
-psalm.xml
-phpunit.xml.dist
-lefthook.yml
-security/semgrep.yml
-scripts/bootstrap.sh
-scripts/install-security-tools.sh
-scripts/semgrep-scan.sh
-scripts/zap-scan.sh
-```
-
-Copie `templates/github-actions/qa-security.yml` para `.github/workflows/ninfa.yml`.
-
-## 4. README e docs existentes
-
-Não substitua o `README.md` do projeto. Use `templates/README-NINFA.md` como seção a incorporar.
-
-Como os projetos normalmente já possuem `docs/`, copie `templates/docs/NINFA.md` para `docs/NINFA.md` e adapte apenas o que for específico do projeto.
-
-Se já existir documentação equivalente, incorpore o conteúdo nela em vez de criar duplicação.
-
-## 5. Ajustes obrigatórios
-
-Revise os caminhos analisados em:
-
-- `ecs.php`;
-- `rector.php`;
-- `phpstan.neon.dist`;
-- `psalm.xml`;
-- `phpunit.xml.dist`.
-
-O template assume inicialmente `src/` e `tests/`. Frameworks podem exigir `config/`, `app/`, `public/`, `modules/` ou outros diretórios.
-
-## 6. Validação
-
-Execute:
+Depois de copiar a estrutura do Ninfa para o projeto e instalar as dependências PHP, execute:
 
 ```bash
+make install
 make setup
+composer check
 ```
 
-Depois, o comando canônico de validação passa a ser:
+`make install` executa a descoberta contextual antes de `composer install`.
+
+Para refazer somente a descoberta:
+
+```bash
+make configure
+```
+
+## 5. Preservação de configurações existentes
+
+O Ninfa não deve sobrescrever silenciosamente configurações maduras do projeto.
+
+Arquivos existentes são preservados. A revisão manual deve ficar restrita a casos como:
+
+- divergência entre documentação e `composer.json`;
+- estrutura não convencional;
+- configuração própria de ECS, Rector, PHPStan, Psalm, PHPUnit ou Semgrep;
+- diretórios gerados ou que devam ser excluídos;
+- framework ou arquitetura não identificados com segurança.
+
+## 6. README e docs existentes
+
+Não substitua o `README.md` do projeto. Use `templates/README-NINFA.md` como referência para incorporar uma seção operacional.
+
+Como os projetos normalmente já possuem `docs/`, copie ou incorpore `templates/docs/NINFA.md` ao documento equivalente já existente.
+
+## 7. Validação
+
+A integração está concluída quando:
 
 ```bash
 composer check
 ```
 
-O DAST é separado:
+executa com sucesso localmente e no GitHub Actions, sem supressões genéricas criadas apenas para contornar achados.
+
+O DAST permanece separado:
 
 ```bash
 NINFA_ZAP_TARGET=http://127.0.0.1:8080 composer security:dast
 ```
-
-## 7. Critério de adoção
-
-A integração está concluída quando `composer check` executa com sucesso no ambiente local e no GitHub Actions sem supressões genéricas criadas apenas para contornar achados.
