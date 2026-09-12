@@ -113,9 +113,12 @@ composer require --dev symplify/easy-coding-standard rector/rector phpstan/phpst
 php scripts/merge-composer.php composer.json composer.ninfa.example.json
 make setup
 composer check
+
+# Após validar a integração, remova o clone temporário do Ninfa
+rm -rf /tmp/ninfa
 ```
 
-Após validar a integração, o clone temporário pode ser removido. O projeto consumidor passa a carregar os arquivos do Ninfa em seu próprio repositório.
+O projeto consumidor passa a carregar os arquivos do Ninfa em seu próprio repositório.
 
 ## Em uma máquina nova, depois que o projeto já usa Ninfa
 
