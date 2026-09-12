@@ -8,6 +8,14 @@ make install
 
 Detecta framework e caminhos do projeto, consulta `README.md` e `docs/*.md`, gera apenas configurações ausentes e executa `composer install`.
 
+Para sobrescrever as configurações gerenciadas pelo Ninfa:
+
+```bash
+make install-force
+```
+
+Esse comando refaz a descoberta contextual, regenera `ecs.php`, `rector.php`, `phpstan.neon.dist`, `psalm.xml` e `phpunit.xml.dist` e depois executa `composer install`.
+
 ## Reconfiguração contextual
 
 ```bash
@@ -15,6 +23,28 @@ make configure
 ```
 
 Refaz a descoberta do projeto e atualiza `.ninfa/context.json` e `.ninfa/paths.txt`. Também gera `ecs.php`, `rector.php`, `phpstan.neon.dist`, `psalm.xml` e `phpunit.xml.dist` apenas quando esses arquivos ainda não existirem.
+
+Para regenerar e sobrescrever esses arquivos:
+
+```bash
+make configure-force
+```
+
+Equivale a:
+
+```bash
+php scripts/ninfa-configure.php . --force
+```
+
+## Instalador inicial com force
+
+Durante a primeira implantação, o instalador também aceita `--force`:
+
+```bash
+php /tmp/ninfa/bin/ninfa-install.php . --force
+```
+
+Nesse modo, os arquivos de infraestrutura gerenciados pelo Ninfa são substituídos e o configurador contextual também é executado com `--force`.
 
 ## Setup
 
