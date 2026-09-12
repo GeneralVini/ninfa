@@ -83,7 +83,21 @@ phpunit.xml.dist
 
 Os caminhos detectados são aplicados diretamente nessas configurações. O Semgrep também usa automaticamente `.ninfa/paths.txt` como lista de alvos de análise.
 
-Arquivos de configuração já existentes nunca são sobrescritos automaticamente. Nesse caso, o Ninfa informa `MANTIDO` e preserva a configuração do projeto.
+Arquivos de configuração já existentes são preservados no modo normal e aparecem como `MANTIDO`.
+
+Para regenerar e sobrescrever as configurações gerenciadas pelo Ninfa, use `--force`:
+
+```bash
+php scripts/ninfa-configure.php . --force
+```
+
+Ou pelo Makefile:
+
+```bash
+make configure-force
+```
+
+O modo `--force` deve ser usado somente quando a intenção for substituir o baseline existente pelos arquivos gerados a partir do contexto atual do projeto.
 
 Se nenhum diretório convencional for encontrado, o Ninfa não inventa uma estrutura: registra o aviso e deixa a definição dos caminhos para revisão manual.
 
@@ -103,6 +117,14 @@ Execute o instalador apontando `.` para a raiz atual do projeto:
 php /tmp/ninfa/bin/ninfa-install.php .
 ```
 
+Para sobrescrever os arquivos gerenciados pelo Ninfa durante a implantação:
+
+```bash
+php /tmp/ninfa/bin/ninfa-install.php . --force
+```
+
+Com `--force`, o instalador substitui arquivos de infraestrutura Ninfa já existentes e também repassa `--force` ao configurador contextual, regenerando `ecs.php`, `rector.php`, `phpstan.neon.dist`, `psalm.xml` e `phpunit.xml.dist`.
+
 O instalador cria os arquivos de integração **na raiz do projeto consumidor**. Isso é intencional: `Makefile`, `ecs.php`, `rector.php`, `phpstan.neon.dist`, `psalm.xml`, `phpunit.xml.dist`, `security/`, `scripts/` e `.github/workflows/ninfa.yml` passam a fazer parte do próprio projeto auditado.
 
 O clone temporário do Ninfa permanece somente em `/tmp/ninfa` e pode ser removido ao final.
@@ -114,7 +136,8 @@ O instalador:
 - consulta `README.md` e `docs/*.md` como contexto complementar;
 - copia a infraestrutura Ninfa ausente;
 - gera automaticamente as configurações de ECS, Rector, PHPStan, Psalm e PHPUnit quando ainda não existem;
-- preserva configurações existentes;
+- preserva configurações existentes no modo normal;
+- sobrescreve os arquivos gerenciados quando `--force` é informado;
 - registra o contexto detectado em `.ninfa/context.json` e `.ninfa/paths.txt`;
 - configura os alvos do Semgrep pelos paths detectados;
 - informa apenas conflitos e divergências que realmente exigem revisão manual.
@@ -144,7 +167,11 @@ make setup
 composer check
 ```
 
-`make install` volta a inspecionar o projeto antes de instalar as dependências. Isso permite reexecutar a descoberta quando a estrutura do projeto evoluir, sem sobrescrever configurações já existentes.
+Para regenerar as configurações existentes antes de instalar as dependências:
+
+```bash
+make install-force
+```
 
 Revise as alterações e versione a integração:
 
@@ -168,6 +195,21 @@ make setup
 composer check
 
 # Após validar a integração, remova o clone temporário do Ninfa
+rm -rf /tmp/ninfa
+```
+
+### Sequência completa forçando regeneração
+
+Use somente quando quiser substituir os arquivos gerenciados pelo Ninfa:
+
+```bash
+git clone --depth 1 https://github.com/GeneralVini/ninfa.git /tmp/ninfa
+php /tmp/ninfa/bin/ninfa-install.php . --force
+composer require --dev symplify/easy-coding-standard rector/rector phpstan/phpstan vimeo/psalm phpunit/phpunit
+php scripts/merge-composer.php composer.json composer.ninfa.example.json
+make install-force
+make setup
+composer check
 rm -rf /tmp/ninfa
 ```
 
@@ -198,7 +240,9 @@ A revisão manual não é uma etapa obrigatória. Ela fica restrita principalmen
 | Comando | Finalidade |
 | --- | --- |
 | `make install` | detecta contexto, gera configs ausentes e instala dependências Composer |
+| `make install-force` | detecta contexto, sobrescreve configs Ninfa e instala dependências Composer |
 | `make configure` | refaz descoberta e gera apenas configurações ainda ausentes |
+| `make configure-force` | refaz descoberta e sobrescreve as configurações gerenciadas pelo Ninfa |
 | `make setup` | prepara ferramentas locais, hooks e executa validação |
 | `composer qa` | qualidade, análise estática e testes |
 | `composer security` | dependências, taint analysis e Semgrep |
@@ -238,9 +282,10 @@ O OWASP ZAP permanece fora desse workflow padrão porque depende de um alvo em e
 - sem Docker obrigatório;
 - detecção contextual do projeto antes da configuração;
 - geração automática das configurações ausentes a partir dos paths reais;
+- modo `--force` explícito para regeneração destrutiva dos arquivos gerenciados;
 - `composer.json` e filesystem como evidência técnica principal;
 - `README.md` e `docs/*.md` como contexto complementar;
-- preservação integral de configurações existentes;
+- preservação de configurações existentes no modo normal;
 - ferramentas PHP instaladas pelo Composer do projeto;
 - Semgrep CE e OWASP ZAP instalados localmente no projeto;
 - Composer Audit + Psalm Taint como baseline mínimo de segurança;
