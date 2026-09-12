@@ -6,32 +6,44 @@ $ninfaRoot = dirname(__DIR__);
 $projectRoot = $argv[1] ?? getcwd();
 $projectRoot = realpath($projectRoot) ?: $projectRoot;
 
-if (!is_file($projectRoot . '/composer.json')) {
-    fwrite(STDERR, "[ERRO] composer.json não encontrado em {$projectRoot}\n");
+if (!is_dir($projectRoot) || !is_file($projectRoot . '/composer.json')) {
+    fwrite(STDERR, "[ERRO] Informe a raiz de um projeto PHP com composer.json.\n");
     exit(1);
 }
 
 $files = [
-    'scripts/bootstrap.sh',
-    'scripts/install-security-tools.sh',
-    'scripts/semgrep-scan.sh',
-    'scripts/zap-scan.sh',
-    'security/semgrep.yml',
-    'ecs.php',
-    'rector.php',
-    'phpstan.neon.dist',
-    'psalm.xml',
-    'phpunit.xml.dist',
-    'lefthook.yml',
-    'Makefile',
+    'scripts/bootstrap.sh' => 'scripts/bootstrap.sh',
+    'scripts/install-security-tools.sh' => 'scripts/install-security-tools.sh',
+    'scripts/semgrep-scan.sh' => 'scripts/semgrep-scan.sh',
+    'scripts/zap-scan.sh' => 'scripts/zap-scan.sh',
+    'scripts/merge-composer.php' => 'scripts/merge-composer.php',
+    'security/semgrep.yml' => 'security/semgrep.yml',
+    'ecs.php' => 'ecs.php',
+    'rector.php' => 'rector.php',
+    'phpstan.neon.dist' => 'phpstan.neon.dist',
+    'psalm.xml' => 'psalm.xml',
+    'phpunit.xml.dist' => 'phpunit.xml.dist',
+    'lefthook.yml' => 'lefthook.yml',
+    'Makefile' => 'Makefile',
+    'composer.ninfa.example.json' => 'composer.ninfa.example.json',
+    'templates/github-actions/qa-security.yml' => '.github/workflows/ninfa.yml',
+    'templates/docs/NINFA.md' => 'docs/NINFA.md',
+    'templates/README-NINFA.md' => 'docs/README-NINFA.md',
 ];
 
-foreach ($files as $relative) {
-    $source = $ninfaRoot . '/' . $relative;
-    $target = $projectRoot . '/' . $relative;
+$conflicts = [];
+
+foreach ($files as $sourceRelative => $targetRelative) {
+    $source = $ninfaRoot . '/' . $sourceRelative;
+    $target = $projectRoot . '/' . $targetRelative;
 
     if (is_file($target)) {
-        echo "[MANTIDO] {$relative}\n";
+        if (hash_file('sha256', $source) === hash_file('sha256', $target)) {
+            echo "[OK] {$targetRelative}\n";
+        } else {
+            echo "[MANTIDO] {$targetRelative} já existe.\n";
+            $conflicts[] = $targetRelative;
+        }
         continue;
     }
 
@@ -41,8 +53,17 @@ foreach ($files as $relative) {
     }
 
     copy($source, $target);
-    echo "[CRIADO] {$relative}\n";
+    echo "[CRIADO] {$targetRelative}\n";
 }
 
-echo "\n[NINFA] Arquivos básicos integrados sem sobrescrever configurações existentes.\n";
-echo "Consulte docs/INTEGRACAO.md para concluir a implantação.\n";
+echo "\n[NINFA] Estrutura copiada sem sobrescrever arquivos do projeto.\n";
+
+if ($conflicts !== []) {
+    echo "[NINFA] Revise os arquivos marcados como MANTIDO antes de concluir a integração.\n";
+}
+
+echo "\nPróximos passos:\n";
+echo "  1. Instalar as dependências PHP indicadas em docs/INTEGRACAO.md\n";
+echo "  2. Mesclar os scripts de composer.ninfa.example.json no composer.json\n";
+echo "  3. Executar make setup\n";
+echo "  4. Executar composer check\n";
