@@ -33,8 +33,7 @@ foreach ($candidates as $candidate) {
 }
 
 if ($paths === []) {
-    $paths = ['src'];
-    echo "[AVISO] Estrutura não convencional; usando src como baseline.\n";
+    echo "[AVISO] Nenhum caminho convencional encontrado. Configurações automáticas não serão geradas.\n";
 }
 
 $documentation = [];
@@ -82,9 +81,64 @@ file_put_contents(
         'documented_frameworks' => array_keys($documentedFrameworks),
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
 );
+file_put_contents($contextDir . '/paths.txt', implode(PHP_EOL, $paths) . ($paths === [] ? '' : PHP_EOL));
 
-file_put_contents($contextDir . '/paths.txt', implode(PHP_EOL, $paths) . PHP_EOL);
+$writeIfMissing = static function (string $path, string $content): void {
+    if (is_file($path)) {
+        echo '[MANTIDO] ' . basename($path) . " já existe.\n";
+        return;
+    }
+
+    file_put_contents($path, $content);
+    echo '[GERADO] ' . basename($path) . "\n";
+};
+
+if ($paths !== []) {
+    $phpPathLines = implode(",\n", array_map(
+        static fn (string $path): string => "        __DIR__ . '/{$path}'",
+        $paths,
+    ));
+
+    $yamlPathLines = implode("\n", array_map(
+        static fn (string $path): string => "    - {$path}",
+        $paths,
+    ));
+
+    $xmlPathLines = implode("\n", array_map(
+        static fn (string $path): string => "        <directory name=\"{$path}\" />",
+        $paths,
+    ));
+
+    $writeIfMissing(
+        $projectRoot . '/ecs.php',
+        "<?php\n\ndeclare(strict_types=1);\n\nuse Symplify\\EasyCodingStandard\\Config\\ECSConfig;\n\nreturn ECSConfig::configure()\n    ->withPaths([\n{$phpPathLines},\n    ])\n    ->withRootFiles()\n    ->withPreparedSets(psr12: true);\n",
+    );
+
+    $writeIfMissing(
+        $projectRoot . '/rector.php',
+        "<?php\n\ndeclare(strict_types=1);\n\nuse Rector\\Config\\RectorConfig;\n\nreturn RectorConfig::configure()\n    ->withPaths([\n{$phpPathLines},\n    ])\n    ->withPreparedSets(\n        deadCode: true,\n        codeQuality: true,\n        typeDeclarations: true,\n    );\n",
+    );
+
+    $writeIfMissing(
+        $projectRoot . '/phpstan.neon.dist',
+        "parameters:\n  level: max\n  paths:\n{$yamlPathLines}\n  tmpDir: runtime/phpstan\n",
+    );
+
+    $writeIfMissing(
+        $projectRoot . '/psalm.xml',
+        "<?xml version=\"1.0\"?>\n<psalm\n    errorLevel=\"1\"\n    resolveFromConfigFile=\"true\"\n    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n    xmlns=\"https://getpsalm.org/schema/config\"\n    xsi:schemaLocation=\"https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd\"\n>\n    <projectFiles>\n{$xmlPathLines}\n        <ignoreFiles>\n            <directory name=\"vendor\" />\n            <directory name=\".tools\" />\n            <directory name=\"runtime\" />\n        </ignoreFiles>\n    </projectFiles>\n</psalm>\n",
+    );
+
+    $testsDirectory = in_array('tests', $paths, true)
+        ? "            <directory>tests</directory>\n"
+        : '';
+
+    $writeIfMissing(
+        $projectRoot . '/phpunit.xml.dist',
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<phpunit xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:noNamespaceSchemaLocation=\"https://schema.phpunit.de/11.5/phpunit.xsd\"\n         colors=\"true\"\n         cacheDirectory=\"runtime/phpunit\">\n    <testsuites>\n        <testsuite name=\"Project\">\n{$testsDirectory}        </testsuite>\n    </testsuites>\n</phpunit>\n",
+    );
+}
 
 echo "[NINFA] Framework: {$framework}\n";
-echo '[NINFA] Caminhos detectados: ' . implode(', ', $paths) . PHP_EOL;
+echo '[NINFA] Caminhos detectados: ' . ($paths === [] ? 'nenhum' : implode(', ', $paths)) . PHP_EOL;
 echo '[NINFA] Documentação consultada: ' . ($documentation === [] ? 'nenhuma' : implode(', ', $documentation)) . PHP_EOL;
