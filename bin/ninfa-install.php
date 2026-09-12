@@ -2,8 +2,13 @@
 
 declare(strict_types=1);
 
+$args = $argv;
+array_shift($args);
+$force = in_array('--force', $args, true);
+$args = array_values(array_filter($args, static fn (string $arg): bool => $arg !== '--force'));
+
 $ninfaRoot = dirname(__DIR__);
-$projectRoot = $argv[1] ?? getcwd();
+$projectRoot = $args[0] ?? getcwd();
 $projectRoot = realpath($projectRoot) ?: $projectRoot;
 
 if (!is_dir($projectRoot) || !is_file($projectRoot . '/composer.json')) {
@@ -35,11 +40,14 @@ foreach ($files as $sourceRelative => $targetRelative) {
     if (is_file($target)) {
         if (hash_file('sha256', $source) === hash_file('sha256', $target)) {
             echo "[OK] {$targetRelative}\n";
-        } else {
+            continue;
+        }
+
+        if (!$force) {
             echo "[MANTIDO] {$targetRelative} já existe.\n";
             $conflicts[] = $targetRelative;
+            continue;
         }
-        continue;
     }
 
     $directory = dirname($target);
@@ -47,8 +55,9 @@ foreach ($files as $sourceRelative => $targetRelative) {
         mkdir($directory, 0775, true);
     }
 
+    $existed = is_file($target);
     copy($source, $target);
-    echo "[CRIADO] {$targetRelative}\n";
+    echo ($existed ? '[SOBRESCRITO] ' : '[CRIADO] ') . $targetRelative . PHP_EOL;
 }
 
 $gitignorePath = $projectRoot . '/.gitignore';
@@ -61,13 +70,19 @@ foreach (['/.tools/', '/.ninfa/'] as $entry) {
 }
 file_put_contents($gitignorePath, $gitignore);
 
-passthru('php ' . escapeshellarg($projectRoot . '/scripts/ninfa-configure.php') . ' ' . escapeshellarg($projectRoot), $status);
+$configureCommand = 'php ' . escapeshellarg($projectRoot . '/scripts/ninfa-configure.php') . ' ' . escapeshellarg($projectRoot);
+if ($force) {
+    $configureCommand .= ' --force';
+}
+passthru($configureCommand, $status);
 if ($status !== 0) {
     exit($status);
 }
 
-echo "\n[NINFA] Estrutura copiada e configurações ausentes geradas conforme o projeto.\n";
-if ($conflicts !== []) {
+echo "\n[NINFA] Estrutura copiada e configurações geradas conforme o projeto.\n";
+if ($force) {
+    echo "[NINFA] --force ativo: arquivos gerenciados pelo Ninfa foram sobrescritos.\n";
+} elseif ($conflicts !== []) {
     echo "[NINFA] Revise apenas os arquivos marcados como MANTIDO ou divergências reportadas.\n";
 }
 
