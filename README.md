@@ -64,9 +64,28 @@ O resultado da descoberta fica registrado em:
 
 ```text
 .ninfa/context.json
+.ninfa/paths.txt
 ```
 
 Se `README.md` ou `docs/` divergirem do `composer.json`, a evidência técnica do Composer tem precedência e a divergência deve ser tratada como revisão manual.
+
+## Geração automática das configurações
+
+Depois de detectar os caminhos reais do projeto, o Ninfa gera automaticamente, **somente quando ainda não existirem**:
+
+```text
+ecs.php
+rector.php
+phpstan.neon.dist
+psalm.xml
+phpunit.xml.dist
+```
+
+Os caminhos detectados são aplicados diretamente nessas configurações. O Semgrep também usa automaticamente `.ninfa/paths.txt` como lista de alvos de análise.
+
+Arquivos de configuração já existentes nunca são sobrescritos automaticamente. Nesse caso, o Ninfa informa `MANTIDO` e preserva a configuração do projeto.
+
+Se nenhum diretório convencional for encontrado, o Ninfa não inventa uma estrutura: registra o aviso e deixa a definição dos caminhos para revisão manual.
 
 ## Para implantar o Ninfa em um projeto já pronto
 
@@ -93,10 +112,12 @@ O instalador:
 - lê `composer.json`;
 - localiza os diretórios existentes;
 - consulta `README.md` e `docs/*.md` como contexto complementar;
-- copia os arquivos Ninfa ausentes;
+- copia a infraestrutura Ninfa ausente;
+- gera automaticamente as configurações de ECS, Rector, PHPStan, Psalm e PHPUnit quando ainda não existem;
 - preserva configurações existentes;
-- registra o contexto detectado em `.ninfa/context.json`;
-- informa conflitos e divergências que realmente exigem revisão manual.
+- registra o contexto detectado em `.ninfa/context.json` e `.ninfa/paths.txt`;
+- configura os alvos do Semgrep pelos paths detectados;
+- informa apenas conflitos e divergências que realmente exigem revisão manual.
 
 Instale as dependências PHP usadas pela esteira:
 
@@ -123,7 +144,7 @@ make setup
 composer check
 ```
 
-`make install` volta a inspecionar o projeto antes de instalar as dependências. Isso permite reexecutar a descoberta quando a estrutura do projeto evoluir.
+`make install` volta a inspecionar o projeto antes de instalar as dependências. Isso permite reexecutar a descoberta quando a estrutura do projeto evoluir, sem sobrescrever configurações já existentes.
 
 Revise as alterações e versione a integração:
 
@@ -163,22 +184,20 @@ composer check
 
 ## Quando revisar manualmente
 
-A revisão manual deixa de ser uma etapa obrigatória para todos os projetos. Ela é necessária principalmente quando:
+A revisão manual não é uma etapa obrigatória. Ela fica restrita principalmente a:
 
-- houver divergência entre `composer.json` e documentação;
-- a estrutura do projeto não usar diretórios convencionais;
-- já existir configuração própria de ECS, Rector, PHPStan, Psalm, PHPUnit ou Semgrep;
-- houver código gerado, módulos especiais ou diretórios que devam ser excluídos;
-- o framework ou arquitetura não puder ser identificado com segurança.
-
-Arquivos já existentes são preservados por padrão.
+- divergência entre `composer.json` e documentação;
+- ausência de diretórios convencionais reconhecíveis;
+- configurações existentes que precisem ser comparadas com os paths atuais;
+- código gerado, módulos especiais ou diretórios que devam ser excluídos;
+- framework ou arquitetura não identificados com segurança.
 
 ## Comandos
 
 | Comando | Finalidade |
 | --- | --- |
-| `make install` | inspeciona contexto do projeto e instala dependências Composer |
-| `make configure` | refaz somente a descoberta contextual |
+| `make install` | detecta contexto, gera configs ausentes e instala dependências Composer |
+| `make configure` | refaz descoberta e gera apenas configurações ainda ausentes |
 | `make setup` | prepara ferramentas locais, hooks e executa validação |
 | `composer qa` | qualidade, análise estática e testes |
 | `composer security` | dependências, taint analysis e Semgrep |
@@ -217,9 +236,10 @@ O OWASP ZAP permanece fora desse workflow padrão porque depende de um alvo em e
 - execução nativa em Linux;
 - sem Docker obrigatório;
 - detecção contextual do projeto antes da configuração;
+- geração automática das configurações ausentes a partir dos paths reais;
 - `composer.json` e filesystem como evidência técnica principal;
 - `README.md` e `docs/*.md` como contexto complementar;
-- preservação de configurações existentes;
+- preservação integral de configurações existentes;
 - ferramentas PHP instaladas pelo Composer do projeto;
 - Semgrep CE e OWASP ZAP instalados localmente no projeto;
 - Composer Audit + Psalm Taint como baseline mínimo de segurança;
