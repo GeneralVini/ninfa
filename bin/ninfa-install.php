@@ -19,11 +19,6 @@ $files = [
     'scripts/zap-scan.sh' => 'scripts/zap-scan.sh',
     'scripts/merge-composer.php' => 'scripts/merge-composer.php',
     'security/semgrep.yml' => 'security/semgrep.yml',
-    'ecs.php' => 'ecs.php',
-    'rector.php' => 'rector.php',
-    'phpstan.neon.dist' => 'phpstan.neon.dist',
-    'psalm.xml' => 'psalm.xml',
-    'phpunit.xml.dist' => 'phpunit.xml.dist',
     'lefthook.yml' => 'lefthook.yml',
     'Makefile' => 'Makefile',
     'composer.ninfa.example.json' => 'composer.ninfa.example.json',
@@ -61,7 +56,7 @@ if ($status !== 0) {
     exit($status);
 }
 
-echo "\n[NINFA] Estrutura copiada sem sobrescrever arquivos do projeto.\n";
+echo "\n[NINFA] Estrutura copiada e configurações ausentes geradas conforme o projeto.\n";
 if ($conflicts !== []) {
     echo "[NINFA] Revise apenas os arquivos marcados como MANTIDO ou divergências reportadas.\n";
 }
