@@ -89,23 +89,23 @@ Se nenhum diretório convencional for encontrado, o Ninfa não inventa uma estru
 
 ## Para implantar o Ninfa em um projeto já pronto
 
-Clone o Ninfa em um diretório temporário:
+**Execute os comandos abaixo já estando na raiz do projeto consumidor.**
+
+O repositório do Ninfa é clonado temporariamente fora do projeto, em `/tmp/ninfa`:
 
 ```bash
 git clone --depth 1 https://github.com/GeneralVini/ninfa.git /tmp/ninfa
 ```
 
-Entre na raiz do projeto PHP que receberá a esteira:
-
-```bash
-cd /caminho/do/projeto
-```
-
-Execute o instalador estrutural:
+Execute o instalador apontando `.` para a raiz atual do projeto:
 
 ```bash
 php /tmp/ninfa/bin/ninfa-install.php .
 ```
+
+O instalador cria os arquivos de integração **na raiz do projeto consumidor**. Isso é intencional: `Makefile`, `ecs.php`, `rector.php`, `phpstan.neon.dist`, `psalm.xml`, `phpunit.xml.dist`, `security/`, `scripts/` e `.github/workflows/ninfa.yml` passam a fazer parte do próprio projeto auditado.
+
+O clone temporário do Ninfa permanece somente em `/tmp/ninfa` e pode ser removido ao final.
 
 O instalador:
 
@@ -156,9 +156,10 @@ git push
 
 ### Sequência completa
 
+Assumindo que o terminal já está na raiz do projeto consumidor:
+
 ```bash
 git clone --depth 1 https://github.com/GeneralVini/ninfa.git /tmp/ninfa
-cd /caminho/do/projeto
 php /tmp/ninfa/bin/ninfa-install.php .
 composer require --dev symplify/easy-coding-standard rector/rector phpstan/phpstan vimeo/psalm phpunit/phpunit
 php scripts/merge-composer.php composer.json composer.ninfa.example.json
