@@ -6,7 +6,7 @@ final class FrontendDetector
 {
     public function hasJavaScript(string $root): bool
     {
-        if ($this->packageDeclaresFrontendTooling($root)) {
+        if ($this->packageHasAny($root, ['eslint', 'prettier', 'typescript', 'vite', 'webpack', 'rollup', 'esbuild'])) {
             return true;
         }
 
@@ -26,7 +26,38 @@ final class FrontendDetector
         return false;
     }
 
-    private function packageDeclaresFrontendTooling(string $root): bool
+    public function hasEslint(string $root): bool
+    {
+        if (is_file($root . '/node_modules/.bin/eslint') || $this->packageHasAny($root, ['eslint'])) {
+            return true;
+        }
+
+        foreach (['eslint.config.js', 'eslint.config.mjs', 'eslint.config.cjs', '.eslintrc', '.eslintrc.js', '.eslintrc.cjs', '.eslintrc.json'] as $file) {
+            if (is_file($root . '/' . $file)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function hasPrettier(string $root): bool
+    {
+        if (is_file($root . '/node_modules/.bin/prettier') || $this->packageHasAny($root, ['prettier'])) {
+            return true;
+        }
+
+        foreach (['.prettierrc', '.prettierrc.json', '.prettierrc.yaml', '.prettierrc.yml', '.prettierrc.js', '.prettierrc.cjs', 'prettier.config.js', 'prettier.config.cjs'] as $file) {
+            if (is_file($root . '/' . $file)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @param list<string> $tools */
+    private function packageHasAny(string $root, array $tools): bool
     {
         $file = $root . '/package.json';
         if (!is_file($file)) {
@@ -47,7 +78,7 @@ final class FrontendDetector
             is_array($package['devDependencies'] ?? null) ? array_keys($package['devDependencies']) : [],
         );
 
-        foreach (['eslint', 'prettier', 'typescript', 'vite', 'webpack', 'rollup', 'esbuild'] as $tool) {
+        foreach ($tools as $tool) {
             if (in_array($tool, $dependencies, true)) {
                 return true;
             }
