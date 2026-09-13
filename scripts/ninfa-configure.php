@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/ExternalConfigGenerator.php';
+require_once dirname(__DIR__) . '/src/SemanticHints.php';
 
 $args = $argv;
 array_shift($args);
@@ -19,6 +20,17 @@ if (!is_string($projectRoot) || $projectRoot === '') {
 try {
     $context = ProjectContext::fromRoot($projectRoot);
     $configs = (new ExternalConfigGenerator())->generate($context);
+    $semanticHints = SemanticHints::fromProject($context->root());
+    $semanticIndex = $context->workspace()->file('semantic-index.json');
+    file_put_contents(
+        $semanticIndex,
+        json_encode([
+            'profile' => $context->profile(),
+            'files' => $semanticHints->files(),
+            'symbols' => $semanticHints->symbols(),
+            'profile_signals' => $semanticHints->profileSignals(),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL,
+    );
 } catch (Throwable $error) {
     fwrite(STDERR, '[ERRO] ' . $error->getMessage() . PHP_EOL);
     exit(1);
@@ -33,6 +45,9 @@ echo '[NINFA] Projeto: ' . $context->root() . PHP_EOL;
 echo '[NINFA] PHP: ' . $context->phpVersion() . PHP_EOL;
 echo '[NINFA] Workspace: ' . $context->workspace()->path() . PHP_EOL;
 echo '[NINFA] Caminhos: ' . implode(', ', $context->paths()) . PHP_EOL;
+echo '[NINFA] Semantica: ' . $semanticIndex . PHP_EOL;
+echo '[NINFA] Docs semanticos: ' . ($semanticHints->files() === [] ? 'nenhum' : implode(', ', $semanticHints->files())) . PHP_EOL;
+echo '[NINFA] Simbolos documentados: ' . count($semanticHints->symbols()) . PHP_EOL;
 
 if ($context->profile() === 'glpi-plugin') {
     echo '[NINFA] GLPI host: ' . $context->glpiRoot() . PHP_EOL;
