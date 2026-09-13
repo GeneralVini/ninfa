@@ -11,13 +11,20 @@ array_shift($args);
 $operation = $args[0] ?? null;
 $root = $args[1] ?? getcwd();
 
-if (!in_array($operation, ['check', 'fix', 'security'], true)) {
-    fwrite(STDERR, "Uso: ninfa <check|fix|security> <root>\n");
+if ($args === ['--help']) {
+    echo "Uso: ninfa <check|fix|security> [root]\nRoot omitido: diretorio atual.\n";
+    exit(0);
+}
+if (count($args) > 2 || !in_array($operation, ['check', 'fix', 'security'], true) || (is_string($root) && str_starts_with($root, '-'))) {
+    fwrite(STDERR, "Uso: ninfa <check|fix|security> [root]\n");
     exit(2);
 }
 
 try {
     $context = ProjectContext::fromRoot((string) $root);
+    echo '[NINFA] Projeto consumidor: ' . $context->root() . PHP_EOL;
+    echo '[NINFA] Profile: ' . $context->profile() . PHP_EOL;
+    echo '[NINFA] Workspace externo: ' . $context->workspace()->path() . PHP_EOL;
     $status = (new RecheckingPipelineRunner())->run($operation, $context);
 } catch (Throwable $error) {
     fwrite(STDERR, '[ERRO] ' . $error->getMessage() . PHP_EOL);
