@@ -10,6 +10,7 @@ Profiles especializados têm precedência sobre `php-generic`. O profile genéri
 ninfa check [root]
 ninfa fix [root]
 ninfa security [root]
+ninfa assist [root]
 ```
 
 Quando `root` é omitido, o diretório atual é usado.
@@ -24,10 +25,12 @@ Não existem comandos públicos separados para PHPStan, Psalm, Rector ou ECS. Es
 
 `check` executa qualidade e testes. `security` permanece separado. `fix` aplica os hooks corrigíveis e executa um único `check` ao final.
 
+`assist` é separado do `fix`: captura PHPStan/Psalm em formato estruturado, apresenta `Regra`, `Corrigir` e `Correção`, grava o resultado bruto e `findings.json` no workspace externo e não altera o consumidor. Essa separação permite auditoria e evita que correções semânticas sejam aplicadas silenciosamente.
+
 Em projetos com JavaScript/TypeScript aplicável, ESLint e Prettier entram no mesmo pipeline e respeitam a ordem definida pelo plano.
 
 No profile `glpi-plugin`, PHPStan e Psalm usam nível 8 e o host precisa ser GLPI 11 com versão identificável.
 
 No profile `php-generic`, os paths são descobertos apenas entre diretórios ou arquivos PHP existentes; não há estrutura de framework presumida.
 
-Configurações e hooks são gerados em workspace externo; o CLI não exige boilerplate Ninfa dentro do consumidor.
+Configurações, hooks e auditorias são gerados em workspace externo; o CLI não exige boilerplate Ninfa dentro do consumidor.
