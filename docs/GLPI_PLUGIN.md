@@ -2,6 +2,8 @@
 
 O profile `glpi-plugin` é dedicado a plugins GLPI 11 e faz parte do MVP inicial do Ninfa.
 
+Nos exemplos abaixo, o Ninfa está clonado em `/opt/ninfa`, fora do plugin consumidor.
+
 ## Detecção
 
 A detecção usa sinais técnicos combinados, incluindo `setup.php`, `hook.php`, hooks de instalação/inicialização e namespaces `GlpiPlugin\\...`. O projeto também precisa possuir `composer.json` e paths analisáveis.
@@ -18,7 +20,8 @@ O host precisa fornecer `src/autoload/constants.php`. Apenas versões `11.x` sã
 Exemplo:
 
 ```bash
-NINFA_GLPI_ROOT=/opt/glpi bin/ninfa check /caminho/do/plugin
+NINFA_GLPI_ROOT=/opt/glpi \
+/opt/ninfa/bin/ninfa check /caminho/do/plugin
 ```
 
 ## Paths do plugin
@@ -84,7 +87,7 @@ Se o plugin contiver JavaScript/TypeScript real, `check` e `fix` também incluem
 ## Segurança
 
 ```bash
-bin/ninfa security /caminho/do/plugin
+/opt/ninfa/bin/ninfa security /caminho/do/plugin
 ```
 
 Executa Composer Audit, Psalm Taint e Semgrep. DAST é opcional e somente local por padrão:
@@ -92,7 +95,7 @@ Executa Composer Audit, Psalm Taint e Semgrep. DAST é opcional e somente local 
 ```bash
 NINFA_DAST=1 \
 NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
-bin/ninfa security /caminho/do/plugin
+/opt/ninfa/bin/ninfa security /caminho/do/plugin
 ```
 
 ## Escopo do MVP
