@@ -86,6 +86,27 @@ final class ProjectContext
         return $this->profile === 'glpi-plugin' ? 8 : 1;
     }
 
+    public function hasJavaScript(): bool
+    {
+        if (is_file($this->root . '/package.json')) {
+            return true;
+        }
+
+        foreach (['js', 'ts', 'assets', 'resources', 'frontend', 'web'] as $directory) {
+            if (is_dir($this->root . '/' . $directory)) {
+                return true;
+            }
+        }
+
+        foreach (['*.js', '*.mjs', '*.cjs', '*.ts', '*.tsx', '*.jsx'] as $pattern) {
+            if ((glob($this->root . '/' . $pattern) ?: []) !== []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function glpiRoot(): ?string
     {
         return $this->glpiRoot;
