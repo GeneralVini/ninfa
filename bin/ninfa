@@ -1,0 +1,27 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/src/ProjectContext.php';
+require_once dirname(__DIR__) . '/src/PipelineRunner.php';
+
+$args = $argv;
+array_shift($args);
+$operation = $args[0] ?? null;
+$root = $args[1] ?? getcwd();
+
+if (!in_array($operation, ['check', 'fix', 'security'], true)) {
+    fwrite(STDERR, "Uso: ninfa <check|fix|security> <root>\n");
+    exit(2);
+}
+
+try {
+    $context = ProjectContext::fromRoot((string) $root);
+    $status = (new PipelineRunner())->run($operation, $context);
+} catch (Throwable $error) {
+    fwrite(STDERR, '[ERRO] ' . $error->getMessage() . PHP_EOL);
+    exit(1);
+}
+
+exit($status);
