@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/FrontendAwarePipelineRunner.php';
+require_once __DIR__ . '/PipelineRunner.php';
 
 final class RecheckingPipelineRunner
 {
     public function __construct(
-        private readonly FrontendAwarePipelineRunner $runner = new FrontendAwarePipelineRunner(),
+        private readonly PipelineRunner $runner = new PipelineRunner(),
     ) {
     }
 
