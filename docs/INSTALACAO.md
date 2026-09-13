@@ -13,12 +13,20 @@ git clone --branch feature/glpi-plugin-profile --single-branch \
 
 Não use o clone padrão sem `--branch` nesta fase, porque ele aponta para o branch default do repositório e pode não conter o MVP atual.
 
+Adicione `/opt/ninfa/bin` ao `PATH` da sessão:
+
+```bash
+export PATH="/opt/ninfa/bin:$PATH"
+```
+
+Para persistir a configuração, adicione a mesma linha ao arquivo de inicialização do shell, por exemplo `~/.bashrc` ou `~/.zshrc`, e recarregue a sessão.
+
 Depois disso, já é possível executar o Ninfa diretamente. Não existe uma etapa obrigatória de instalação ou preparação do workspace:
 
 ```bash
-/opt/ninfa/bin/ninfa check /caminho/do/projeto
-/opt/ninfa/bin/ninfa fix /caminho/do/projeto
-/opt/ninfa/bin/ninfa security /caminho/do/projeto
+ninfa check /caminho/do/projeto
+ninfa fix /caminho/do/projeto
+ninfa security /caminho/do/projeto
 ```
 
 Cada execução detecta o profile do projeto e gera/regenera automaticamente o workspace externo correspondente, por padrão em:
@@ -70,7 +78,7 @@ export NINFA_GLPI_ROOT=/opt/glpi
 Depois execute normalmente:
 
 ```bash
-/opt/ninfa/bin/ninfa check /caminho/do/plugin
+ninfa check /caminho/do/plugin
 ```
 
 ## DAST
@@ -80,7 +88,7 @@ DAST é desabilitado por padrão. Para um alvo local autorizado:
 ```bash
 NINFA_DAST=1 \
 NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
-/opt/ninfa/bin/ninfa security /caminho/do/projeto
+ninfa security /caminho/do/projeto
 ```
 
 ## Estado atual
