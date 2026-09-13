@@ -9,6 +9,8 @@ require_once __DIR__ . '/ToolResolver.php';
 
 final class PipelineRunner
 {
+    private static bool $legendShown = false;
+
     public function __construct(
         private readonly ProcessRunner $processRunner = new ProcessRunner(),
         private readonly PipelinePlan $plan = new PipelinePlan(),
@@ -19,6 +21,7 @@ final class PipelineRunner
 
     public function run(string $operation, ProjectContext $context): int
     {
+        $this->showLegend();
         $configs = $this->configGenerator->generate($context);
         $hooks = match ($operation) {
             'check' => $this->plan->check($context),
@@ -37,10 +40,17 @@ final class PipelineRunner
                 continue;
             }
 
-            echo '[NINFA] ' . $hook['id'] . ' (' . $hook['mode'] . ')' . PHP_EOL;
-            $status = $operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true)
+            echo CliStyle::info('[NINFA] ' . $hook['id']) . ' (' . $hook['mode'] . ')' . PHP_EOL;
+            $structured = $operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true);
+            $status = $structured
                 ? $this->runStaticAnalysis($hook['id'], $command, $context)
                 : $this->processRunner->run($command, $context->root());
+
+            if (!$structured) {
+                echo $status === 0
+                    ? CliStyle::success('✓ ' . $hook['id'] . ': concluido.') . PHP_EOL
+                    : CliStyle::error('✗ ' . $hook['id'] . ': falhou (codigo ' . $status . ').') . PHP_EOL;
+            }
 
             if ($status !== 0) {
                 return $status;
@@ -89,7 +99,7 @@ final class PipelineRunner
                 ? FindingRenderer::phpStan($result->stdout, $context->root())
                 : FindingRenderer::psalm($result->stdout, $context->root());
         } catch (JsonException $error) {
-            fwrite(STDERR, '[ERRO] Saída estruturada inválida de ' . $tool . ': ' . $error->getMessage() . PHP_EOL);
+            fwrite(STDERR, CliStyle::error('[ERRO] Saida estruturada invalida de ' . $tool . ': ' . $error->getMessage()) . PHP_EOL);
             if (trim($result->stdout) !== '') {
                 fwrite(STDERR, $result->stdout . PHP_EOL);
             }
@@ -108,17 +118,28 @@ final class PipelineRunner
                 if (trim($result->stdout) !== '') {
                     fwrite(STDERR, $result->stdout . PHP_EOL);
                 }
+                fwrite(STDERR, CliStyle::error('✗ ' . $tool . ': terminou com codigo ' . $result->exitCode . '.') . PHP_EOL);
             } else {
-                echo '[NINFA] ' . $tool . ': nenhum achado.' . PHP_EOL;
+                echo CliStyle::success('✓ ' . $tool . ': nenhum achado.') . PHP_EOL;
             }
 
             return $result->exitCode;
         }
 
         FindingRenderer::render($findings, false);
-        echo '[NINFA] ' . $tool . ': ' . count($findings) . ' achado(s).' . PHP_EOL;
+        echo CliStyle::error('✗ ' . $tool . ': ' . count($findings) . ' achado(s) bloqueante(s).') . PHP_EOL;
 
         return $result->exitCode === 0 ? 1 : $result->exitCode;
+    }
+
+    private function showLegend(): void
+    {
+        if (self::$legendShown) {
+            return;
+        }
+
+        self::$legendShown = true;
+        echo '[NINFA] Legenda: ' . CliStyle::legend() . PHP_EOL;
     }
 
     private function optionalHookEnabled(string $id): bool
