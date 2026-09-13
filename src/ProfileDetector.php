@@ -20,16 +20,46 @@ final class ProfileDetector
             return 'yii2';
         }
 
-        if (array_filter(
-            $packages,
-            static fn (string $package): bool => str_starts_with($package, 'yiisoft/'),
-        ) !== []) {
+        if ($this->isYii3($packages)) {
             return 'yii3';
         }
 
         throw new RuntimeException(
             'Profile não reconhecido. Suportados: glpi-plugin, yii3, yii2.',
         );
+    }
+
+    /** @param list<string> $packages */
+    private function isYii3(array $packages): bool
+    {
+        $applicationMarkers = [
+            'yiisoft/yii-http',
+            'yiisoft/yii-console',
+            'yiisoft/yii-runner-http',
+            'yiisoft/yii-runner-console',
+        ];
+        $foundationMarkers = [
+            'yiisoft/config',
+            'yiisoft/di',
+            'yiisoft/aliases',
+        ];
+
+        return $this->containsAny($packages, $applicationMarkers)
+            && $this->containsAny($packages, $foundationMarkers);
+    }
+
+    /** @param list<string> $packages
+     *  @param list<string> $markers
+     */
+    private function containsAny(array $packages, array $markers): bool
+    {
+        foreach ($markers as $marker) {
+            if (in_array($marker, $packages, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isGlpiPlugin(string $projectRoot): bool
