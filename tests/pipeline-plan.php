@@ -57,7 +57,15 @@ try {
     assert(array_column($security, 'id') === ['composer-audit', 'psalm-taint', 'semgrep', 'dast']);
     assert($security[3]['optional'] === true);
 
-    echo "[OK] Pipelines check, fix, frontend, lefthook e security definidos.\n";
+    $recheckingSource = (string) file_get_contents(dirname(__DIR__) . '/src/RecheckingPipelineRunner.php');
+    assert(substr_count($recheckingSource, "run('check'") === 1);
+    assert(!is_file(dirname(__DIR__) . '/src/FrontendAwarePipelineRunner.php'));
+
+    $runnerSource = (string) file_get_contents(dirname(__DIR__) . '/src/PipelineRunner.php');
+    assert(str_contains($runnerSource, "'eslint' =>"));
+    assert(str_contains($runnerSource, "'prettier' =>"));
+
+    echo "[OK] Pipelines, frontend unificado, recheck único e security definidos.\n";
 } finally {
     putenv('NINFA_GLPI_ROOT');
     if (is_dir($root)) {
