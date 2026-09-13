@@ -23,9 +23,11 @@ ninfa --help
 
 Não existem comandos públicos separados para PHPStan, Psalm, Rector ou ECS. Essas ferramentas são detalhes internos dos pipelines.
 
-`check` executa qualidade e testes. `security` permanece separado. `fix` aplica os hooks corrigíveis e executa um único `check` ao final.
+`check` executa qualidade e testes. Os findings de PHPStan e Psalm são capturados em formato estruturado e apresentados por um renderer único do Ninfa, com arquivo, linha, regra e problema, em vez de expor a tabela nativa de cada ferramenta.
 
-`assist` é separado do `fix`: captura PHPStan/Psalm em formato estruturado, apresenta `Regra`, `Corrigir` e `Correção`, grava o resultado bruto e `findings.json` no workspace externo e não altera o consumidor. Essa separação permite auditoria e evita que correções semânticas sejam aplicadas silenciosamente.
+`security` permanece separado. `fix` aplica os hooks corrigíveis e executa um único `check` ao final.
+
+`assist` é separado do `fix`: reutiliza o mesmo renderer do `check`, acrescenta orientação de correção, grava o resultado bruto e `findings.json` no workspace externo e não altera o consumidor. Essa separação permite auditoria e evita que correções semânticas sejam aplicadas silenciosamente.
 
 Em projetos com JavaScript/TypeScript aplicável, ESLint e Prettier entram no mesmo pipeline e respeitam a ordem definida pelo plano.
 
