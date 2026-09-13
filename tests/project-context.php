@@ -38,11 +38,27 @@ try {
     $yii3Root = $root . '/yii3';
     mkdir($yii3Root . '/src', 0775, true);
     file_put_contents($yii3Root . '/composer.json', json_encode([
-        'require' => ['php' => '>=8.2', 'yiisoft/di' => '^1.0'],
+        'require' => [
+            'php' => '>=8.2',
+            'yiisoft/yii-http' => '^1.0',
+            'yiisoft/di' => '^1.0',
+        ],
     ], JSON_THROW_ON_ERROR));
     assert(ProjectContext::fromRoot($yii3Root)->profile() === 'yii3');
 
-    echo "[OK] ProjectContext cobre glpi-plugin, yii2 e yii3.\n";
+    $libraryRoot = $root . '/yiisoft-library';
+    mkdir($libraryRoot . '/src', 0775, true);
+    file_put_contents($libraryRoot . '/composer.json', json_encode([
+        'require' => ['php' => '>=8.2', 'yiisoft/di' => '^1.0'],
+    ], JSON_THROW_ON_ERROR));
+    try {
+        ProjectContext::fromRoot($libraryRoot);
+        assert(false, 'Uma biblioteca yiisoft isolada não deve ser classificada como Yii3.');
+    } catch (RuntimeException $error) {
+        assert(str_contains($error->getMessage(), 'Profile não reconhecido'));
+    }
+
+    echo "[OK] ProjectContext cobre glpi-plugin, yii2, yii3 e rejeita yiisoft isolado.\n";
 } finally {
     $iterator = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
