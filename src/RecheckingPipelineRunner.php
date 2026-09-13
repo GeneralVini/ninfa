@@ -18,6 +18,12 @@ final class RecheckingPipelineRunner
             return $status;
         }
 
-        return $this->runner->run('check', $context);
+        $status = $this->runner->run('check', $context);
+        if ($status !== 0) {
+            echo '[NINFA] Permanecem achados sem correção automática.' . PHP_EOL;
+            echo '[NINFA] Execute para orientação auditável: ninfa assist ' . $context->root() . PHP_EOL;
+        }
+
+        return $status;
     }
 }
