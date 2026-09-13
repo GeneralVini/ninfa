@@ -11,15 +11,19 @@ $root = sys_get_temp_dir() . '/ninfa-tooling-' . bin2hex(random_bytes(4));
 try {
     mkdir($root . '/src', 0775, true);
     mkdir($root . '/vendor/bin', 0775, true);
+    mkdir($root . '/node_modules/.bin', 0775, true);
     file_put_contents($root . '/composer.json', json_encode([
         'require' => ['php' => '>=8.2', 'yiisoft/yii2' => '^2.0'],
     ], JSON_THROW_ON_ERROR));
 
-    $tool = $root . '/vendor/bin/phpstan';
-    file_put_contents($tool, 'fixture');
+    $phpstan = $root . '/vendor/bin/phpstan';
+    file_put_contents($phpstan, 'fixture');
+    $eslint = $root . '/node_modules/.bin/eslint';
+    file_put_contents($eslint, 'fixture');
 
     $resolver = new ToolResolver();
-    assert($resolver->resolve('phpstan', $root) === $tool);
+    assert($resolver->resolve('phpstan', $root) === $phpstan);
+    assert($resolver->resolve('eslint', $root) === $eslint);
     assert($resolver->resolve('tool-that-does-not-exist', $root) === 'tool-that-does-not-exist');
 
     $context = ProjectContext::fromRoot($root);
