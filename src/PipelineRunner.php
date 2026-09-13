@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/ProcessRunner.php';
 require_once __DIR__ . '/PipelinePlan.php';
 require_once __DIR__ . '/ExternalConfigGenerator.php';
+require_once __DIR__ . '/ToolResolver.php';
 
 final class PipelineRunner
 {
@@ -12,6 +13,7 @@ final class PipelineRunner
         private readonly ProcessRunner $processRunner = new ProcessRunner(),
         private readonly PipelinePlan $plan = new PipelinePlan(),
         private readonly ExternalConfigGenerator $configGenerator = new ExternalConfigGenerator(),
+        private readonly ToolResolver $toolResolver = new ToolResolver(),
     ) {
     }
 
@@ -50,19 +52,24 @@ final class PipelineRunner
      */
     private function commandFor(string $id, string $mode, ProjectContext $context, array $configs): ?array
     {
-        $vendor = $context->root() . '/vendor/bin/';
-
         return match ($id) {
-            'ecs' => [$vendor . 'ecs', 'check', '--config', $configs['ecs'], ...($mode === 'fix' ? ['--fix'] : [])],
-            'rector' => [$vendor . 'rector', 'process', '--config', $configs['rector'], '--no-progress-bar', ...($mode === 'dry-run' ? ['--dry-run'] : [])],
-            'phpstan' => [$vendor . 'phpstan', 'analyse', '--configuration', $configs['phpstan'], '--no-progress'],
-            'psalm' => [$vendor . 'psalm', '--config=' . $configs['psalm'], '--no-progress'],
-            'psalm-taint' => [$vendor . 'psalm', '--config=' . $configs['psalm'], '--taint-analysis', '--no-progress'],
-            'test' => is_file($vendor . 'phpunit') ? [$vendor . 'phpunit'] : null,
-            'composer-audit' => ['composer', 'audit', '--locked', '--no-interaction'],
+            'ecs' => [$this->tool('ecs', $context), 'check', '--config', $configs['ecs'], ...($mode === 'fix' ? ['--fix'] : [])],
+            'rector' => [$this->tool('rector', $context), 'process', '--config', $configs['rector'], '--no-progress-bar', ...($mode === 'dry-run' ? ['--dry-run'] : [])],
+            'phpstan' => [$this->tool('phpstan', $context), 'analyse', '--configuration', $configs['phpstan'], '--no-progress'],
+            'psalm' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--no-progress'],
+            'psalm-taint' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--taint-analysis', '--no-progress'],
+            'test' => is_file($context->root() . '/vendor/bin/phpunit')
+                ? [$this->tool('phpunit', $context)]
+                : null,
+            'composer-audit' => [$this->tool('composer', $context), 'audit', '--locked', '--no-interaction'],
             'semgrep' => $this->semgrepCommand($context),
             default => null,
         };
+    }
+
+    private function tool(string $name, ProjectContext $context): string
+    {
+        return $this->toolResolver->resolve($name, $context->root());
     }
 
     /** @return list<string> */
@@ -70,7 +77,7 @@ final class PipelineRunner
     {
         $binary = getenv('NINFA_SEMGREP_BIN');
         if (!is_string($binary) || $binary === '') {
-            $binary = 'semgrep';
+            $binary = $this->tool('semgrep', $context);
         }
 
         $command = [
