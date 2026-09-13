@@ -36,7 +36,7 @@ foreach (glob($projectRoot . '/src/*.php') ?: [] as $sourceFile) {
 }
 $glpiPluginScore += $glpiNamespaceDetected ? 4 : 0;
 $glpiPluginScore += is_dir($projectRoot . '/src') || is_dir($projectRoot . '/inc') ? 1 : 0;
-$glpiPluginScore += 1; // composer.json já foi validado acima
+$glpiPluginScore += 1;
 $isGlpiPlugin = $glpiPluginScore >= 8;
 
 $framework = 'PHP genérico';
@@ -154,6 +154,7 @@ if ($isGlpiPlugin) {
         'host_detected' => $glpiHostDetected,
         'root' => $glpiRoot,
         'version' => $glpiVersion,
+        'phpstan_extension_declared' => in_array('glpi-project/phpstan-glpi', $packages, true),
     ];
 }
 
@@ -173,6 +174,14 @@ $writeConfig = static function (string $path, string $content) use ($force): voi
     file_put_contents($path, $content);
     echo ($existed ? '[SOBRESCRITO] ' : '[GERADO] ') . basename($path) . "\n";
 };
+
+if ($isGlpiPlugin && $glpiRoot !== null) {
+    $bootstrapRoot = var_export($glpiRoot, true);
+    $writeConfig(
+        $contextDir . '/phpstan-glpi-bootstrap.php',
+        "<?php\n\ndeclare(strict_types=1);\n\n\$glpiRoot = {$bootstrapRoot};\n\n\$vendorAutoload = \$glpiRoot . '/vendor/autoload.php';\nif (is_file(\$vendorAutoload)) {\n    require_once \$vendorAutoload;\n}\n\nspl_autoload_register(static function (string \$class) use (\$glpiRoot): void {\n    if (str_starts_with(\$class, 'Glpi\\\\')) {\n        \$relative = substr(\$class, strlen('Glpi\\\\'));\n        \$file = \$glpiRoot . '/src/Glpi/' . str_replace('\\\\', '/', \$relative) . '.php';\n    } elseif (!str_contains(\$class, '\\\\')) {\n        \$file = \$glpiRoot . '/src/' . \$class . '.php';\n    } else {\n        return;\n    }\n\n    if (is_file(\$file)) {\n        require_once \$file;\n    }\n});\n",
+    );
+}
 
 if ($paths !== []) {
     $phpPathLines = implode(",\n", array_map(
@@ -202,17 +211,22 @@ if ($paths !== []) {
     $phpStanExtra = '';
     if ($isGlpiPlugin && $glpiRoot !== null) {
         $glpiRootForNeon = str_replace('\\', '/', $glpiRoot);
-        $extension = $glpiRoot . '/vendor/glpi-project/phpstan-glpi/extension.neon';
-        if (is_file($extension)) {
+        $pluginExtension = $projectRoot . '/vendor/glpi-project/phpstan-glpi/extension.neon';
+        $hostExtension = $glpiRoot . '/vendor/glpi-project/phpstan-glpi/extension.neon';
+        $extension = is_file($pluginExtension) ? $pluginExtension : (is_file($hostExtension) ? $hostExtension : null);
+
+        if ($extension !== null) {
             $phpStanHeader = "includes:\n  - " . str_replace('\\', '/', $extension) . "\n\n";
         } else {
-            echo "[AVISO] Extensão oficial glpi-project/phpstan-glpi não encontrada no host GLPI.\n";
+            echo "[AVISO] glpi-project/phpstan-glpi não está instalado. Para tipar globais do GLPI (ex.: \$DB), execute: composer require --dev glpi-project/phpstan-glpi:^1.3\n";
         }
 
         $scanFiles = [];
         foreach ([
+            $glpiRoot . '/src/autoload/constants.php',
             $glpiRoot . '/src/autoload/dbutils-aliases.php',
-            $glpiRoot . '/src/autoload/functions.php',
+            $glpiRoot . '/src/autoload/i18n.php',
+            $glpiRoot . '/src/autoload/misc-functions.php',
         ] as $scanFile) {
             if (is_file($scanFile)) {
                 $scanFiles[] = '    - ' . str_replace('\\', '/', $scanFile);
@@ -220,8 +234,11 @@ if ($paths !== []) {
         }
 
         $bootstrapFiles = [];
+        $generatedBootstrap = $contextDir . '/phpstan-glpi-bootstrap.php';
+        if (is_file($generatedBootstrap)) {
+            $bootstrapFiles[] = '    - ' . str_replace('\\', '/', $generatedBootstrap);
+        }
         foreach ([
-            $glpiRoot . '/vendor/autoload.php',
             $glpiRoot . '/stubs/db_config_classes.php',
             $glpiRoot . '/stubs/glpi_constants.php',
             $glpiRoot . '/stubs/plugins_migrations_classes.php',
@@ -237,6 +254,10 @@ if ($paths !== []) {
         }
         if ($bootstrapFiles !== []) {
             $phpStanExtra .= "  bootstrapFiles:\n" . implode("\n", $bootstrapFiles) . "\n";
+        }
+        $phpStanExtra .= "  glpi:\n    glpiPath: {$glpiRootForNeon}\n";
+        if ($glpiVersion !== null) {
+            $phpStanExtra .= "    glpiVersion: '{$glpiVersion}'\n";
         }
     }
 
