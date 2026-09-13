@@ -23,8 +23,10 @@ final class PipelinePlan
             ['id' => 'psalm', 'mode' => 'check', 'fixable' => false],
         ];
 
-        if ($this->frontendDetector->hasJavaScript($context->root())) {
+        if ($this->frontendDetector->hasEslint($context->root())) {
             $hooks[] = ['id' => 'eslint', 'mode' => 'check', 'fixable' => true];
+        }
+        if ($this->frontendDetector->hasPrettier($context->root())) {
             $hooks[] = ['id' => 'prettier', 'mode' => 'check', 'fixable' => true];
         }
 
