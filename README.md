@@ -34,6 +34,7 @@ Depois execute diretamente:
 ninfa check /path/to/project
 ninfa fix /path/to/project
 ninfa security /path/to/project
+ninfa assist /path/to/project
 ```
 
 Quando `root` é omitido, o Ninfa usa o diretório atual. Não existe etapa obrigatória de instalação ou preparação do projeto consumidor.
@@ -71,7 +72,7 @@ Somente GLPI 11 é aceito e a versão do host precisa ser identificável.
 
 O profile `php-generic` é usado somente quando não há correspondência com um profile especializado e existem sinais reais de código PHP.
 
-São suportados projetos Composer e projetos PHP simples sem `composer.json`, por exemplo:
+São suportados projetos Composer e projetos PHP simples sem Composer, por exemplo:
 
 ```bash
 ninfa check /path/to/php-library
@@ -87,9 +88,12 @@ O Ninfa detecta apenas paths existentes e não exige `src/`, `public/` ou `tests
 ninfa check [root]
 ninfa fix [root]
 ninfa security [root]
+ninfa assist [root]
 ```
 
-`check` executa qualidade, análise estática e testes disponíveis. `fix` aplica correções automáticas e executa **um único `check`** ao final. `security` permanece separado.
+`check` executa qualidade, análise estática e testes disponíveis. Findings de PHPStan e Psalm são apresentados pelo renderer visual do Ninfa com arquivo, linha, regra e problema, sem expor como interface principal as tabelas nativas das ferramentas.
+
+`fix` aplica correções automáticas e executa **um único `check`** ao final. `security` permanece separado. `assist` reutiliza o renderer do `check`, acrescenta orientação de correção e grava auditoria estruturada no workspace externo sem alterar o consumidor.
 
 ## Arquitetura externa
 
@@ -130,6 +134,16 @@ PHPUnit          # quando disponível
 ```
 
 `fix` executa apenas hooks corrigíveis e revalida o projeto uma vez ao final.
+
+## Assistência auditável
+
+`assist` é a camada para findings sem correção mecânica segura:
+
+```bash
+ninfa assist /path/to/project
+```
+
+O comando não modifica o projeto. PHPStan e Psalm são executados em formato estruturado, os achados são exibidos com orientação de correção e a evidência completa fica em `/tmp/ninfa/<hash>/assist/`.
 
 ## Segurança
 
