@@ -163,18 +163,20 @@ final class ProjectContext
                 continue;
             }
 
-            $this->glpiRoot = $root;
             $constants = (string) file_get_contents($root . '/src/autoload/constants.php');
-            if (preg_match("/define\\('GLPI_VERSION',\\s*'([^']+)'\\);/", $constants, $matches) === 1) {
-                $this->glpiVersion = $matches[1];
+            if (preg_match("/define\\('GLPI_VERSION',\\s*'([^']+)'\\);/", $constants, $matches) !== 1) {
+                throw new RuntimeException('Host GLPI localizado, mas não foi possível determinar a versão.');
             }
 
-            if ($this->glpiVersion !== null && !str_starts_with($this->glpiVersion, '11.')) {
+            $version = $matches[1];
+            if (!str_starts_with($version, '11.')) {
                 throw new RuntimeException(
-                    'O profile glpi-plugin suporta somente GLPI 11. Detectado: ' . $this->glpiVersion,
+                    'O profile glpi-plugin suporta somente GLPI 11. Detectado: ' . $version,
                 );
             }
 
+            $this->glpiRoot = $root;
+            $this->glpiVersion = $version;
             return;
         }
 
