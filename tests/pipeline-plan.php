@@ -33,9 +33,18 @@ try {
     assert(array_unique(array_column($fix, 'mode')) === ['fix']);
     assert($plan->lefthookFixHooks($context) === ['ecs', 'rector']);
 
+    mkdir($projectRoot . '/assets', 0775, true);
+    file_put_contents($projectRoot . '/assets/logo.svg', '<svg></svg>');
     file_put_contents($projectRoot . '/package.json', '{"private":true}');
+    $noFrontendCheck = $plan->check(ProjectContext::fromRoot($projectRoot));
+    assert(!in_array('eslint', array_column($noFrontendCheck, 'id'), true));
+    assert(!in_array('prettier', array_column($noFrontendCheck, 'id'), true));
+
+    file_put_contents($projectRoot . '/package.json', json_encode([
+        'private' => true,
+        'devDependencies' => ['eslint' => '^9.0', 'prettier' => '^3.0'],
+    ], JSON_THROW_ON_ERROR));
     $frontendContext = ProjectContext::fromRoot($projectRoot);
-    assert($frontendContext->hasJavaScript() === true);
 
     $frontendCheck = $plan->check($frontendContext);
     assert(array_column($frontendCheck, 'id') === ['ecs', 'rector', 'phpstan', 'psalm', 'eslint', 'prettier', 'test']);
