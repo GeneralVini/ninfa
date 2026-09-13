@@ -4,11 +4,14 @@ O Ninfa é um orquestrador externo. O projeto consumidor não recebe cópias de 
 
 ## Uso inicial
 
-Clone ou mantenha o Ninfa fora do projeto consumidor:
+Enquanto o MVP ainda estiver na branch `feature/glpi-plugin-profile`, clone explicitamente essa branch fora do projeto consumidor:
 
 ```bash
-git clone https://github.com/GeneralVini/ninfa.git /opt/ninfa
+git clone --branch feature/glpi-plugin-profile --single-branch \
+  https://github.com/GeneralVini/ninfa.git /opt/ninfa
 ```
+
+Não use o clone padrão sem `--branch` nesta fase, porque ele aponta para o branch default do repositório e pode não conter o MVP atual.
 
 Prepare o contexto e o workspace externo:
 
