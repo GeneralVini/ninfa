@@ -1,55 +1,65 @@
 # Instalação do Ninfa
 
-## Adoção inicial
+O Ninfa é um orquestrador externo. O projeto consumidor não recebe cópias de `Makefile`, scripts, configs ou workflows do Ninfa.
 
-Clone o repositório Ninfa em um diretório auxiliar e execute `bin/ninfa-install.php`, informando a raiz do projeto PHP que receberá a esteira.
+## Uso inicial
 
-O instalador exige um `composer.json` e usa `composer.json`, filesystem, `README.md` e `docs/*.md` para identificar o contexto do projeto.
-
-Com os caminhos detectados, o Ninfa gera automaticamente, quando ainda não existirem:
-
-```text
-ecs.php
-rector.php
-phpstan.neon.dist
-psalm.xml
-phpunit.xml.dist
-```
-
-As configurações existentes são preservadas. O Semgrep usa os caminhos gravados em `.ninfa/paths.txt`.
-
-Depois da instalação estrutural, instale no projeto consumidor as dependências de desenvolvimento do ECS, Rector, PHPStan, Psalm e PHPUnit. Em seguida, use `scripts/merge-composer.php` com `composer.ninfa.example.json` para acrescentar os scripts Ninfa que ainda não existem no `composer.json`.
-
-Finalize com:
+Clone ou mantenha o Ninfa fora do projeto consumidor:
 
 ```bash
-make install
-make setup
-composer check
+git clone https://github.com/GeneralVini/ninfa.git /opt/ninfa
 ```
 
-`make install` instala primeiro as dependências Composer e então refaz a descoberta contextual. Essa ordem permite detectar extensões de análise estática instaladas no próprio projeto.
-
-## Máquina nova
-
-Depois que o Ninfa já estiver integrado e versionado no projeto consumidor, basta clonar o próprio projeto, entrar na raiz e executar:
+Prepare o contexto e o workspace externo:
 
 ```bash
-make install
-make setup
-composer check
+php /opt/ninfa/bin/ninfa-install.php /caminho/do/projeto
 ```
 
-Não é necessário clonar o Ninfa novamente, porque scripts, configurações e workflow já fazem parte do repositório consumidor.
+O instalador apenas valida a raiz e delega para o configurador do próprio Ninfa. Ele não altera `.gitignore`, `composer.json` nem cria boilerplate no consumidor.
 
-## Quando há revisão manual
+Também é possível chamar o configurador diretamente:
 
-A revisão manual fica restrita a divergências entre documentação e `composer.json`, estruturas não convencionais, configurações maduras já existentes ou diretórios especiais que devam ser excluídos da análise.
+```bash
+php /opt/ninfa/scripts/ninfa-configure.php /caminho/do/projeto
+```
 
-## Documentação existente
+O workspace é criado fora do projeto, por padrão em `/tmp/ninfa/<hash>`.
 
-O Ninfa não substitui `README.md` nem documentos existentes em `docs/`. O instalador copia referências próprias para que o conteúdo necessário seja incorporado à documentação já utilizada pelo projeto.
+## Execução
 
-## Segurança dinâmica
+```bash
+/opt/ninfa/bin/ninfa check /caminho/do/projeto
+/opt/ninfa/bin/ninfa fix /caminho/do/projeto
+/opt/ninfa/bin/ninfa security /caminho/do/projeto
+```
 
-O DAST permanece separado do check comum e deve ser executado somente contra aplicação local autorizada. O wrapper padrão aceita localhost e 127.0.0.1.
+O projeto deve possuir `composer.json` e corresponder a um dos profiles suportados: `glpi-plugin`, `yii3` ou `yii2`.
+
+## Dependências de ferramentas
+
+O Ninfa tenta resolver ferramentas no ambiente do projeto, no ambiente do próprio Ninfa e depois no `PATH`. Ferramentas Node também são procuradas em `node_modules/.bin`.
+
+No MVP, é esperado que projetos de teste tenham disponíveis as ferramentas que pretendem executar, como ECS, Rector, PHPStan, Psalm, PHPUnit, ESLint, Prettier, Composer e Semgrep.
+
+## GLPI
+
+Plugins GLPI precisam de um host GLPI 11. Quando o plugin não estiver em `<glpi>/plugins/<plugin>`, informe:
+
+```bash
+export NINFA_GLPI_ROOT=/opt/glpi
+```
+
+## DAST
+
+DAST é desabilitado por padrão. Para um alvo local autorizado:
+
+```bash
+NINFA_DAST=1 \
+NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
+/opt/ninfa/bin/ninfa security /caminho/do/projeto
+```
+
+## Estado atual
+
+Esta instalação corresponde ao MVP experimental. O foco atual é testar a arquitetura externa em projetos reais antes de definir empacotamento/distribuição definitiva.
