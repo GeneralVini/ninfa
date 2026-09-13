@@ -1,6 +1,6 @@
 # Comandos do Ninfa
 
-A API pública do MVP possui três comandos. Os exemplos abaixo assumem que `/opt/ninfa/bin` já está no `PATH`:
+A API pública do MVP possui quatro comandos. Os exemplos abaixo assumem que `/opt/ninfa/bin` já está no `PATH`:
 
 ```bash
 export PATH="/opt/ninfa/bin:$PATH"
@@ -29,7 +29,33 @@ ESLint --fix      # frontend
 Prettier --write  # frontend
 ```
 
-Ao terminar, executa `check` novamente.
+Ao terminar, executa `check` novamente. Achados sem correção mecânica permanecem bloqueantes e podem ser detalhados pelo `assist`.
+
+## Assist
+
+```bash
+ninfa assist /caminho/do/projeto
+```
+
+É a camada separada para achados semânticos de PHPStan/Psalm. Não altera o projeto consumidor. A saída evita a tabela bruta como interface principal e apresenta cada achado em três campos:
+
+```text
+Regra: argument.type
+Corrigir: Parameter #1 ... expects string, mixed given
+Correção: Faça o valor atender ao contrato exigido antes da chamada...
+```
+
+A auditoria completa fica no workspace externo:
+
+```text
+/tmp/ninfa/<hash>/assist/findings.json
+/tmp/ninfa/<hash>/assist/phpstan.json
+/tmp/ninfa/<hash>/assist/phpstan.stderr.log
+/tmp/ninfa/<hash>/assist/psalm.json
+/tmp/ninfa/<hash>/assist/psalm.stderr.log
+```
+
+O comando retorna `1` quando ainda existem achados e `0` quando PHPStan/Psalm não retornam findings.
 
 ## Security
 
@@ -67,4 +93,4 @@ Dentro do repositório Ninfa:
 make profile-test
 ```
 
-Esse target executa os testes de profiles, configs externas, instalação sem boilerplate, pipelines, semântica, tooling e fixture GLPI.
+Esse target executa os testes de profiles, configs externas, pipelines, semântica, tooling, `assist` e fixture GLPI.
