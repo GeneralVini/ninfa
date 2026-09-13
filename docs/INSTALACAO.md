@@ -13,23 +13,7 @@ git clone --branch feature/glpi-plugin-profile --single-branch \
 
 Não use o clone padrão sem `--branch` nesta fase, porque ele aponta para o branch default do repositório e pode não conter o MVP atual.
 
-Prepare o contexto e o workspace externo:
-
-```bash
-php /opt/ninfa/bin/ninfa-install.php /caminho/do/projeto
-```
-
-O instalador apenas valida a raiz e delega para o configurador do próprio Ninfa. Ele não altera `.gitignore`, `composer.json` nem cria boilerplate no consumidor.
-
-Também é possível chamar o configurador diretamente:
-
-```bash
-php /opt/ninfa/scripts/ninfa-configure.php /caminho/do/projeto
-```
-
-O workspace é criado fora do projeto, por padrão em `/tmp/ninfa/<hash>`.
-
-## Execução
+Depois disso, já é possível executar o Ninfa diretamente. Não existe uma etapa obrigatória de instalação ou preparação do workspace:
 
 ```bash
 /opt/ninfa/bin/ninfa check /caminho/do/projeto
@@ -37,7 +21,37 @@ O workspace é criado fora do projeto, por padrão em `/tmp/ninfa/<hash>`.
 /opt/ninfa/bin/ninfa security /caminho/do/projeto
 ```
 
-O projeto deve possuir `composer.json` e corresponder a um dos profiles suportados: `glpi-plugin`, `yii3` ou `yii2`.
+Cada execução detecta o profile do projeto e gera/regenera automaticamente o workspace externo correspondente, por padrão em:
+
+```text
+/tmp/ninfa/<hash-do-projeto>/
+```
+
+Portanto, os três locais têm funções diferentes:
+
+```text
+/opt/ninfa/                  código do Ninfa
+/caminho/do/projeto/         projeto consumidor analisado
+/tmp/ninfa/<hash-do-projeto> workspace externo gerado
+```
+
+O projeto deve possuir `composer.json` e corresponder a um dos profiles ativos: `glpi-plugin`, `yii3` ou `yii2`.
+
+## Diagnóstico e preparação manual
+
+Normalmente não é necessário chamar o instalador ou configurador diretamente. Eles ficam disponíveis para diagnóstico, inspeção do profile e geração manual do workspace:
+
+```bash
+php /opt/ninfa/bin/ninfa-install.php /caminho/do/projeto
+```
+
+ou:
+
+```bash
+php /opt/ninfa/scripts/ninfa-configure.php /caminho/do/projeto
+```
+
+Esses comandos não alteram `.gitignore`, `composer.json` nem criam boilerplate no consumidor.
 
 ## Dependências de ferramentas
 
@@ -51,6 +65,12 @@ Plugins GLPI precisam de um host GLPI 11. Quando o plugin não estiver em `<glpi
 
 ```bash
 export NINFA_GLPI_ROOT=/opt/glpi
+```
+
+Depois execute normalmente:
+
+```bash
+/opt/ninfa/bin/ninfa check /caminho/do/plugin
 ```
 
 ## DAST
