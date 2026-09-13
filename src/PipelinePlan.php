@@ -11,13 +11,21 @@ final class PipelinePlan
     {
         $this->assertSupported($context);
 
-        return [
+        $hooks = [
             ['id' => 'ecs', 'mode' => 'check', 'fixable' => true],
             ['id' => 'rector', 'mode' => 'dry-run', 'fixable' => true],
             ['id' => 'phpstan', 'mode' => 'check', 'fixable' => false],
             ['id' => 'psalm', 'mode' => 'check', 'fixable' => false],
-            ['id' => 'test', 'mode' => 'check', 'fixable' => false],
         ];
+
+        if ($context->hasJavaScript()) {
+            $hooks[] = ['id' => 'eslint', 'mode' => 'check', 'fixable' => true];
+            $hooks[] = ['id' => 'prettier', 'mode' => 'check', 'fixable' => true];
+        }
+
+        $hooks[] = ['id' => 'test', 'mode' => 'check', 'fixable' => false];
+
+        return $hooks;
     }
 
     /** @return list<array{id:string,mode:string,fixable:bool}> */
