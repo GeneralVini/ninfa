@@ -60,8 +60,32 @@ final class PipelineRunner
             'psalm-taint' => [$vendor . 'psalm', '--config=' . $configs['psalm'], '--taint-analysis', '--no-progress'],
             'test' => is_file($vendor . 'phpunit') ? [$vendor . 'phpunit'] : null,
             'composer-audit' => ['composer', 'audit', '--locked', '--no-interaction'],
-            'semgrep' => ['bash', dirname(__DIR__) . '/scripts/semgrep-scan.sh'],
+            'semgrep' => $this->semgrepCommand($context),
             default => null,
         };
+    }
+
+    /** @return list<string> */
+    private function semgrepCommand(ProjectContext $context): array
+    {
+        $binary = getenv('NINFA_SEMGREP_BIN');
+        if (!is_string($binary) || $binary === '') {
+            $binary = 'semgrep';
+        }
+
+        $command = [
+            $binary,
+            '--config', dirname(__DIR__) . '/security/semgrep.yml',
+            '--error',
+            '--metrics=off',
+            '--exclude', 'vendor',
+            '--exclude', 'runtime',
+        ];
+
+        foreach ($context->paths() as $path) {
+            $command[] = $context->root() . '/' . $path;
+        }
+
+        return $command;
     }
 }
