@@ -17,6 +17,7 @@ try {
     mkdir($projectRoot . '/node_modules/.bin', 0775, true);
     mkdir($ninfaRoot . '/.tools/semgrep/bin', 0775, true);
 
+    file_put_contents($projectRoot . '/src/Example.php', "<?php final class Example {}\n");
     file_put_contents($projectRoot . '/composer.json', json_encode([
         'require' => ['php' => '>=8.2', 'yiisoft/yii2' => '^2.0'],
     ], JSON_THROW_ON_ERROR));
@@ -52,6 +53,11 @@ try {
         assert(str_contains($error->getMessage(), 'Falha ao iniciar a ferramenta'));
     }
 
+    $captured = (new ProcessRunner())->runCaptured([PHP_BINARY, '-r', 'fwrite(STDOUT, "out"); fwrite(STDERR, "err"); exit(3);'], $projectRoot);
+    assert($captured->exitCode === 3);
+    assert($captured->stdout === 'out');
+    assert($captured->stderr === 'err');
+
     $context = ProjectContext::fromRoot($projectRoot);
     $lefthook = (new LefthookConfigGenerator())->generate($context);
     assert(is_file($lefthook));
@@ -63,7 +69,46 @@ try {
     assert(str_contains($contents, 'ninfa-check'));
     assert(str_contains($contents, 'stage_fixed: true'));
 
-    echo "[OK] ToolResolver encontra tooling gerenciado, falha de forma explícita e Lefthook permanece externo.\n";
+    $stanJson = json_encode([
+        'totals' => ['errors' => 0, 'file_errors' => 1],
+        'files' => [
+            $projectRoot . '/src/Example.php' => [
+                'errors' => 1,
+                'messages' => [[
+                    'message' => 'Parameter #1 $string expects string, mixed given.',
+                    'line' => 19,
+                    'identifier' => 'argument.type',
+                ]],
+            ],
+        ],
+        'errors' => [],
+    ], JSON_THROW_ON_ERROR);
+    file_put_contents($phpstan, "#!/usr/bin/env php\n<?php echo " . var_export($stanJson, true) . "; exit(1);\n");
+    chmod($phpstan, 0755);
+
+    $psalm = $projectRoot . '/vendor/bin/psalm';
+    file_put_contents($psalm, "#!/usr/bin/env php\n<?php echo '[]'; exit(0);\n");
+    chmod($psalm, 0755);
+
+    $assist = (new ProcessRunner())->runCaptured([
+        PHP_BINARY,
+        dirname(__DIR__) . '/scripts/ninfa-configure.php',
+        $projectRoot,
+        '--assist',
+    ], $projectRoot);
+    assert($assist->exitCode === 1);
+    assert(str_contains($assist->stdout, 'Regra: argument.type'));
+    assert(str_contains($assist->stdout, 'Corrigir:'));
+    assert(str_contains($assist->stdout, 'Correção:'));
+
+    $audit = $context->workspace()->file('assist/findings.json');
+    assert(is_file($audit));
+    $auditData = json_decode((string) file_get_contents($audit), true, 512, JSON_THROW_ON_ERROR);
+    assert(($auditData['findings'][0]['rule'] ?? null) === 'argument.type');
+    assert(is_file($context->workspace()->file('assist/phpstan.json')));
+    assert(is_file($context->workspace()->file('assist/psalm.json')));
+
+    echo "[OK] ToolResolver, captura de processo, assist auditável e Lefthook externo integrados.\n";
 } finally {
     if (is_dir($root)) {
         $iterator = new RecursiveIteratorIterator(
