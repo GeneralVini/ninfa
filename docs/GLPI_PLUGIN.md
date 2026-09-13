@@ -35,11 +35,13 @@ ajax
 tests
 ```
 
+Esses caminhos são os alvos da análise. O core GLPI não é colocado em `paths`.
+
 `src/` é o layout preferencial. `inc/` continua sendo reconhecido durante a descoberta para não deixar código existente fora da análise.
 
 ## Descoberta do host GLPI
 
-A análise estática de um plugin precisa conhecer o core GLPI. O Ninfa procura o host nesta ordem:
+A análise estática de um plugin precisa conhecer o contrato do core GLPI. O Ninfa procura o host nesta ordem:
 
 1. variável de ambiente `NINFA_GLPI_ROOT`;
 2. instalação pai quando o projeto está em `<glpi>/plugins/<plugin>`.
@@ -59,23 +61,45 @@ src/autoload/constants.php
 
 A versão é lida de `src/autoload/constants.php`. Se um host for encontrado e sua major não for 11, a configuração é interrompida.
 
-Quando nenhum host é encontrado, o profile ainda é detectado e os paths do plugin são configurados, mas o Ninfa emite aviso de que a análise PHPStan integrada ao core GLPI não está disponível.
+O profile não exige `vendor/bin/phpstan`, `composer.lock` ou dependências `require-dev` no host GLPI. O PHPStan continua sendo o instalado no próprio plugin consumidor pelo Ninfa.
 
 ## PHPStan
 
-O GLPI 11 já possui integração própria com PHPStan. Por isso o Ninfa prioriza os recursos oficiais do host em vez de manter uma cópia paralela da API GLPI.
+O desenho separa claramente alvo de análise e contexto externo:
 
-Com um host GLPI 11 válido, o `phpstan.neon.dist` gerado pode acrescentar:
+```text
+plugin -> paths -> código analisado
+GLPI   -> symbol discovery/autoload -> API externa conhecida
+```
 
-- `vendor/glpi-project/phpstan-glpi/extension.neon` em `includes`, quando instalado no host;
-- `<GLPI_ROOT>/src` em `scanDirectories`;
-- aliases globais de `src/autoload/`, como `dbutils-aliases.php`, em `scanFiles` quando presentes;
-- `<GLPI_ROOT>/vendor/autoload.php` em `bootstrapFiles` quando presente;
-- stubs oficiais do próprio GLPI, como `stubs/db_config_classes.php`, `stubs/glpi_constants.php` e `stubs/plugins_migrations_classes.php`, quando presentes.
+Com um host GLPI 11 válido, o `phpstan.neon.dist` gerado:
 
-O objetivo é permitir que o PHPStan reconheça o runtime real do GLPI, incluindo classes, aliases, funções e tipos dinâmicos usados pelos plugins, sem criar uma lista ampla de `ignoreErrors` no Ninfa.
+- mantém apenas os diretórios do plugin em `paths`;
+- usa `<GLPI_ROOT>/src` em `scanDirectories` apenas para descoberta de símbolos;
+- usa arquivos reais do autoload GLPI 11 em `scanFiles`, incluindo `constants.php`, `dbutils-aliases.php`, `i18n.php` e `misc-functions.php` quando presentes;
+- gera `.ninfa/phpstan-glpi-bootstrap.php`, que registra explicitamente o mapeamento de classes do GLPI 11 (`Glpi\\` -> `src/Glpi/` e classes globais -> `src/`), sem inicializar a aplicação GLPI;
+- aproveita stubs oficiais presentes no host quando disponíveis;
+- procura `glpi-project/phpstan-glpi` primeiro no `vendor` do próprio plugin e só depois no host.
 
-O profile não reduz automaticamente o nível do PHPStan e não ignora erros de `mixed`, tipos de retorno ou contratos do plugin. Depois que o core GLPI é conhecido, esses problemas devem continuar aparecendo quando forem reais.
+### Extensão oficial `phpstan-glpi`
+
+Para plugins GLPI, recomenda-se instalar a extensão oficial no próprio plugin:
+
+```bash
+composer require --dev glpi-project/phpstan-glpi:^1.3
+```
+
+Essa extensão é especialmente importante para tipos dinâmicos/globais do GLPI. Por exemplo, ela informa ao PHPStan que `global $DB` é um `DBmysql`, evitando a cascata de falsos `method.nonObject` causada por `$DB` inferido como `mixed`.
+
+O profile não depende de a instalação GLPI possuir dependências de desenvolvimento. Se a extensão estiver instalada no plugin, o Ninfa inclui:
+
+```text
+vendor/glpi-project/phpstan-glpi/extension.neon
+```
+
+Se não estiver instalada, o Ninfa mantém a descoberta básica de símbolos do host e emite um aviso com o comando de instalação.
+
+O profile não reduz automaticamente o nível do PHPStan e não cria `ignoreErrors` amplos. Depois que classes, funções e globais do GLPI estiverem resolvidos, erros de tipos do plugin continuam sendo reportados normalmente.
 
 ## Contexto gerado
 
@@ -90,7 +114,8 @@ O profile não reduz automaticamente o nível do PHPStan e não ignora erros de 
     "detection_score": 18,
     "host_detected": true,
     "root": "/opt/glpi",
-    "version": "11.0.x"
+    "version": "11.0.x",
+    "phpstan_extension_declared": true
   }
 }
 ```
@@ -106,7 +131,7 @@ export NINFA_GLPI_ROOT=/opt/glpi
 composer check
 ```
 
-O Ninfa não baixa nem instala GLPI automaticamente. A versão do host usado em CI deve ser gerenciada explicitamente pela equipe responsável pela pipeline.
+O host GLPI pode ser uma instalação de runtime sem dependências de desenvolvimento. O PHPStan e `glpi-project/phpstan-glpi` pertencem ao ambiente de desenvolvimento do plugin.
 
 ## Escopo atual
 
@@ -116,6 +141,8 @@ Esta primeira versão do profile trata:
 - paths específicos;
 - descoberta do host;
 - validação da major 11;
-- integração do PHPStan com a extensão, stubs e símbolos oficiais disponíveis no core GLPI.
+- autoload independente do tooling dev do host;
+- integração opcional com a extensão oficial `glpi-project/phpstan-glpi` instalada no plugin;
+- descoberta dos símbolos reais do core sem colocar o GLPI em `paths`.
 
-Regras Semgrep específicas de segurança GLPI e validações especializadas de hooks/permissões ficam fora deste primeiro incremento para evitar misturar descoberta de runtime com novas políticas de segurança.
+Regras Semgrep específicas de segurança GLPI e validações especializadas de hooks/permissões ficam fora deste primeiro incremento.
