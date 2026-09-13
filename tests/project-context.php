@@ -1,0 +1,57 @@
+<?php
+
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/src/ProjectContext.php';
+
+$root = sys_get_temp_dir() . '/ninfa-project-context-' . bin2hex(random_bytes(4));
+$glpiRoot = $root . '/glpi';
+$pluginRoot = $glpiRoot . '/plugins/example';
+
+try {
+    mkdir($pluginRoot . '/src', 0775, true);
+    mkdir($glpiRoot . '/src/autoload', 0775, true);
+
+    file_put_contents($glpiRoot . '/src/autoload/constants.php', "<?php define('GLPI_VERSION', '11.0.8');\n");
+    file_put_contents($pluginRoot . '/setup.php', "<?php function plugin_init_example(): void {}\n");
+    file_put_contents($pluginRoot . '/hook.php', "<?php function plugin_example_install(): bool { return true; }\n");
+    file_put_contents($pluginRoot . '/src/Example.php', "<?php namespace GlpiPlugin\\Example; final class Example {}\n");
+    file_put_contents($pluginRoot . '/composer.json', json_encode([
+        'name' => 'example/plugin',
+        'require' => ['php' => '>=8.2'],
+    ], JSON_THROW_ON_ERROR));
+
+    $context = ProjectContext::fromRoot($pluginRoot);
+    assert($context->profile() === 'glpi-plugin');
+    assert($context->phpStanLevel() === 8);
+    assert($context->psalmLevel() === 8);
+    assert($context->glpiVersion() === '11.0.8');
+    assert(!str_starts_with($context->workspace()->path(), $pluginRoot));
+
+    $yii2Root = $root . '/yii2';
+    mkdir($yii2Root . '/src', 0775, true);
+    file_put_contents($yii2Root . '/composer.json', json_encode([
+        'require' => ['php' => '>=8.2', 'yiisoft/yii2' => '^2.0'],
+    ], JSON_THROW_ON_ERROR));
+    assert(ProjectContext::fromRoot($yii2Root)->profile() === 'yii2');
+
+    $yii3Root = $root . '/yii3';
+    mkdir($yii3Root . '/src', 0775, true);
+    file_put_contents($yii3Root . '/composer.json', json_encode([
+        'require' => ['php' => '>=8.2', 'yiisoft/di' => '^1.0'],
+    ], JSON_THROW_ON_ERROR));
+    assert(ProjectContext::fromRoot($yii3Root)->profile() === 'yii3');
+
+    echo "[OK] ProjectContext cobre glpi-plugin, yii2 e yii3.\n";
+} finally {
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST,
+    );
+    foreach ($iterator as $item) {
+        $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+    }
+    if (is_dir($root)) {
+        rmdir($root);
+    }
+}
