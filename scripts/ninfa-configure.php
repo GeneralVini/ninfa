@@ -18,8 +18,36 @@ if (!is_file($projectRoot . '/composer.json')) {
 $composer = json_decode((string) file_get_contents($projectRoot . '/composer.json'), true, 512, JSON_THROW_ON_ERROR);
 $packages = array_merge(array_keys($composer['require'] ?? []), array_keys($composer['require-dev'] ?? []));
 
+$setupContents = is_file($projectRoot . '/setup.php')
+    ? (string) file_get_contents($projectRoot . '/setup.php')
+    : '';
+$hookContents = is_file($projectRoot . '/hook.php')
+    ? (string) file_get_contents($projectRoot . '/hook.php')
+    : '';
+
+$glpiPluginScore = 0;
+$glpiPluginScore += is_file($projectRoot . '/setup.php') ? 5 : 0;
+$glpiPluginScore += is_file($projectRoot . '/hook.php') ? 4 : 0;
+$glpiPluginScore += preg_match('/function\s+plugin_init_[a-z0-9]+\s*\(/i', $setupContents) === 1 ? 4 : 0;
+$glpiPluginScore += preg_match('/function\s+plugin_[a-z0-9]+_install\s*\(/i', $hookContents) === 1 ? 3 : 0;
+
+$glpiNamespaceDetected = false;
+foreach (glob($projectRoot . '/src/*.php') ?: [] as $sourceFile) {
+    $sourceContents = (string) file_get_contents($sourceFile);
+    if (preg_match('/namespace\s+GlpiPlugin\\\\[A-Za-z0-9_\\\\]+\s*;/', $sourceContents) === 1) {
+        $glpiNamespaceDetected = true;
+        break;
+    }
+}
+$glpiPluginScore += $glpiNamespaceDetected ? 4 : 0;
+$glpiPluginScore += is_dir($projectRoot . '/src') || is_dir($projectRoot . '/inc') ? 1 : 0;
+$glpiPluginScore += is_file($projectRoot . '/composer.json') ? 1 : 0;
+$isGlpiPlugin = $glpiPluginScore >= 8;
+
 $framework = 'PHP genérico';
-if (in_array('laravel/framework', $packages, true)) {
+if ($isGlpiPlugin) {
+    $framework = 'GLPI Plugin 11';
+} elseif (in_array('laravel/framework', $packages, true)) {
     $framework = 'Laravel';
 } elseif (in_array('yiisoft/yii2', $packages, true)) {
     $framework = 'Yii 2';
@@ -29,7 +57,9 @@ if (in_array('laravel/framework', $packages, true)) {
     $framework = 'Symfony';
 }
 
-$candidates = ['src', 'app', 'config', 'modules', 'console', 'commands', 'public', 'web', 'tests'];
+$candidates = $isGlpiPlugin
+    ? ['src', 'inc', 'front', 'ajax', 'tests']
+    : ['src', 'app', 'config', 'modules', 'console', 'commands', 'public', 'web', 'tests'];
 $paths = [];
 foreach ($candidates as $candidate) {
     if (is_dir($projectRoot . '/' . $candidate)) {
@@ -39,6 +69,43 @@ foreach ($candidates as $candidate) {
 
 if ($paths === []) {
     echo "[AVISO] Nenhum caminho convencional encontrado. Configurações automáticas não serão geradas.\n";
+}
+
+$glpiRoot = null;
+$glpiVersion = null;
+$glpiHostDetected = false;
+if ($isGlpiPlugin) {
+    $configuredGlpiRoot = getenv('NINFA_GLPI_ROOT');
+    if (is_string($configuredGlpiRoot) && $configuredGlpiRoot !== '') {
+        $candidateRoot = realpath($configuredGlpiRoot) ?: $configuredGlpiRoot;
+        if (is_dir($candidateRoot . '/src') && is_file($candidateRoot . '/src/autoload/constants.php')) {
+            $glpiRoot = $candidateRoot;
+        } else {
+            echo "[AVISO] NINFA_GLPI_ROOT não aponta para uma instalação GLPI reconhecível.\n";
+        }
+    }
+
+    if ($glpiRoot === null && basename(dirname($projectRoot)) === 'plugins') {
+        $candidateRoot = dirname(dirname($projectRoot));
+        if (is_dir($candidateRoot . '/src') && is_file($candidateRoot . '/src/autoload/constants.php')) {
+            $glpiRoot = realpath($candidateRoot) ?: $candidateRoot;
+        }
+    }
+
+    if ($glpiRoot !== null) {
+        $constants = (string) file_get_contents($glpiRoot . '/src/autoload/constants.php');
+        if (preg_match("/define\\('GLPI_VERSION',\\s*'([^']+)'\\);/", $constants, $matches) === 1) {
+            $glpiVersion = $matches[1];
+        }
+        $glpiHostDetected = true;
+
+        if ($glpiVersion !== null && !str_starts_with($glpiVersion, '11.')) {
+            fwrite(STDERR, "[ERRO] O profile glpi-plugin do Ninfa suporta somente GLPI 11. Detectado: {$glpiVersion}.\n");
+            exit(1);
+        }
+    } else {
+        echo "[AVISO] Plugin GLPI detectado, mas o host GLPI 11 não foi localizado. Defina NINFA_GLPI_ROOT para habilitar a análise estática integrada ao core.\n";
+    }
 }
 
 $documentation = [];
@@ -55,6 +122,7 @@ foreach (glob($projectRoot . '/docs/*.md') ?: [] as $file) {
 
 $documentedFrameworks = [];
 $signals = [
+    'glpi' => 'GLPI Plugin 11',
     'yii 3' => 'Yii 3',
     'yii3' => 'Yii 3',
     'yii 2' => 'Yii 2',
@@ -69,7 +137,7 @@ foreach ($signals as $needle => $name) {
 }
 
 if ($framework !== 'PHP genérico' && $documentedFrameworks !== [] && !isset($documentedFrameworks[$framework])) {
-    echo "[AVISO] README/docs mencionam framework diferente do composer.json. O Composer terá precedência técnica.\n";
+    echo "[AVISO] README/docs mencionam framework diferente do contexto técnico detectado. A evidência técnica terá precedência.\n";
 }
 
 $contextDir = $projectRoot . '/.ninfa';
@@ -77,14 +145,26 @@ if (!is_dir($contextDir)) {
     mkdir($contextDir, 0775, true);
 }
 
+$context = [
+    'framework' => $framework,
+    'profile' => $isGlpiPlugin ? 'glpi-plugin' : null,
+    'paths' => $paths,
+    'documentation' => $documentation,
+    'documented_frameworks' => array_keys($documentedFrameworks),
+];
+if ($isGlpiPlugin) {
+    $context['glpi'] = [
+        'supported_major' => 11,
+        'detection_score' => $glpiPluginScore,
+        'host_detected' => $glpiHostDetected,
+        'root' => $glpiRoot,
+        'version' => $glpiVersion,
+    ];
+}
+
 file_put_contents(
     $contextDir . '/context.json',
-    json_encode([
-        'framework' => $framework,
-        'paths' => $paths,
-        'documentation' => $documentation,
-        'documented_frameworks' => array_keys($documentedFrameworks),
-    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+    json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL,
 );
 file_put_contents($contextDir . '/paths.txt', implode(PHP_EOL, $paths) . ($paths === [] ? '' : PHP_EOL));
 
@@ -125,9 +205,31 @@ if ($paths !== []) {
         "<?php\n\ndeclare(strict_types=1);\n\nuse Rector\\Config\\RectorConfig;\n\nreturn RectorConfig::configure()\n    ->withPaths([\n{$phpPathLines},\n    ])\n    ->withPreparedSets(\n        deadCode: true,\n        codeQuality: true,\n        typeDeclarations: true,\n    );\n",
     );
 
+    $phpStanExtra = '';
+    if ($isGlpiPlugin && $glpiRoot !== null) {
+        $glpiRootForNeon = str_replace('\\', '/', $glpiRoot);
+        $scanFiles = [];
+        foreach ([
+            $glpiRoot . '/src/autoload/dbutils-aliases.php',
+            $glpiRoot . '/src/autoload/functions.php',
+        ] as $scanFile) {
+            if (is_file($scanFile)) {
+                $scanFiles[] = '    - ' . str_replace('\\', '/', $scanFile);
+            }
+        }
+
+        $phpStanExtra .= "  scanDirectories:\n    - {$glpiRootForNeon}/src\n";
+        if ($scanFiles !== []) {
+            $phpStanExtra .= "  scanFiles:\n" . implode("\n", $scanFiles) . "\n";
+        }
+        if (is_file($glpiRoot . '/vendor/autoload.php')) {
+            $phpStanExtra .= "  bootstrapFiles:\n    - {$glpiRootForNeon}/vendor/autoload.php\n";
+        }
+    }
+
     $writeConfig(
         $projectRoot . '/phpstan.neon.dist',
-        "parameters:\n  level: max\n  paths:\n{$yamlPathLines}\n  tmpDir: runtime/phpstan\n",
+        "parameters:\n  level: max\n  paths:\n{$yamlPathLines}\n{$phpStanExtra}  tmpDir: runtime/phpstan\n",
     );
 
     $writeConfig(
@@ -146,5 +248,12 @@ if ($paths !== []) {
 }
 
 echo "[NINFA] Framework: {$framework}\n";
+if ($isGlpiPlugin) {
+    echo '[NINFA] Profile: glpi-plugin (GLPI 11)' . PHP_EOL;
+    echo '[NINFA] GLPI host: ' . ($glpiRoot ?? 'não detectado') . PHP_EOL;
+    if ($glpiVersion !== null) {
+        echo '[NINFA] GLPI versão: ' . $glpiVersion . PHP_EOL;
+    }
+}
 echo '[NINFA] Caminhos detectados: ' . ($paths === [] ? 'nenhum' : implode(', ', $paths)) . PHP_EOL;
 echo '[NINFA] Documentação consultada: ' . ($documentation === [] ? 'nenhuma' : implode(', ', $documentation)) . PHP_EOL;
