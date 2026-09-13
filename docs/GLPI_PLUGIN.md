@@ -35,7 +35,7 @@ ajax
 tests
 ```
 
-`src/` é o layout preferencial para código moderno. `inc/` continua sendo reconhecido para que o Ninfa não perca código existente durante a descoberta.
+`src/` é o layout preferencial. `inc/` continua sendo reconhecido durante a descoberta para não deixar código existente fora da análise.
 
 ## Descoberta do host GLPI
 
@@ -63,13 +63,17 @@ Quando nenhum host é encontrado, o profile ainda é detectado e os paths do plu
 
 ## PHPStan
 
-Com um host GLPI 11 válido, o `phpstan.neon.dist` gerado acrescenta o core GLPI ao processo de descoberta de símbolos:
+O GLPI 11 já possui integração própria com PHPStan. Por isso o Ninfa prioriza os recursos oficiais do host em vez de manter uma cópia paralela da API GLPI.
 
-- `scanDirectories` aponta para `<GLPI_ROOT>/src`;
-- aliases globais existentes em `src/autoload/` são adicionados por `scanFiles` quando presentes;
-- `<GLPI_ROOT>/vendor/autoload.php` é adicionado como `bootstrapFiles` quando disponível.
+Com um host GLPI 11 válido, o `phpstan.neon.dist` gerado pode acrescentar:
 
-O objetivo é permitir que PHPStan reconheça classes e funções reais do GLPI, como `Session`, `Entity`, `Group`, `User`, `Config`, `DBConnection`, `Glpi\\DBAL\\QueryExpression`, `getUserName()` e `countElementsInTable()` sem criar uma lista ampla de `ignoreErrors`.
+- `vendor/glpi-project/phpstan-glpi/extension.neon` em `includes`, quando instalado no host;
+- `<GLPI_ROOT>/src` em `scanDirectories`;
+- aliases globais de `src/autoload/`, como `dbutils-aliases.php`, em `scanFiles` quando presentes;
+- `<GLPI_ROOT>/vendor/autoload.php` em `bootstrapFiles` quando presente;
+- stubs oficiais do próprio GLPI, como `stubs/db_config_classes.php`, `stubs/glpi_constants.php` e `stubs/plugins_migrations_classes.php`, quando presentes.
+
+O objetivo é permitir que o PHPStan reconheça o runtime real do GLPI, incluindo classes, aliases, funções e tipos dinâmicos usados pelos plugins, sem criar uma lista ampla de `ignoreErrors` no Ninfa.
 
 O profile não reduz automaticamente o nível do PHPStan e não ignora erros de `mixed`, tipos de retorno ou contratos do plugin. Depois que o core GLPI é conhecido, esses problemas devem continuar aparecendo quando forem reais.
 
@@ -111,7 +115,7 @@ Esta primeira versão do profile trata:
 - detecção de plugin GLPI;
 - paths específicos;
 - descoberta do host;
-- validação de major 11;
-- integração do PHPStan com símbolos do core GLPI.
+- validação da major 11;
+- integração do PHPStan com a extensão, stubs e símbolos oficiais disponíveis no core GLPI.
 
 Regras Semgrep específicas de segurança GLPI e validações especializadas de hooks/permissões ficam fora deste primeiro incremento para evitar misturar descoberta de runtime com novas políticas de segurança.
