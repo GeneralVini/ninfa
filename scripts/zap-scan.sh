@@ -6,7 +6,7 @@ cd "$ROOT"
 
 TARGET="${NINFA_ZAP_TARGET:-}"
 ZAP_BIN="${NINFA_ZAP_BIN:-$ROOT/.tools/zap/zap.sh}"
-REPORT="${NINFA_ZAP_REPORT:-}"
+REPORT="${1:-${NINFA_ZAP_REPORT:-}}"
 
 if [[ -z "$TARGET" ]]; then
     printf '[ERRO] Defina NINFA_ZAP_TARGET para uma URL local de desenvolvimento.\n' >&2
@@ -14,7 +14,7 @@ if [[ -z "$TARGET" ]]; then
 fi
 
 if [[ -z "$REPORT" ]]; then
-    printf '[ERRO] NINFA_ZAP_REPORT deve apontar para o workspace externo.\n' >&2
+    printf '[ERRO] Informe um relatório ZAP no workspace externo.\n' >&2
     exit 1
 fi
 
