@@ -57,6 +57,15 @@ try {
     assert(array_column($security, 'id') === ['composer-audit', 'psalm-taint', 'semgrep', 'dast']);
     assert($security[3]['optional'] === true);
 
+    $genericRoot = $root . '/generic';
+    mkdir($genericRoot . '/src', 0775, true);
+    file_put_contents($genericRoot . '/src/Example.php', "<?php final class GenericExample {}\n");
+    $genericContext = ProjectContext::fromRoot($genericRoot);
+    assert($genericContext->profile() === 'php-generic');
+    assert(array_column($plan->check($genericContext), 'id') === ['ecs', 'rector', 'phpstan', 'psalm', 'test']);
+    assert(array_column($plan->fix($genericContext), 'id') === ['ecs', 'rector']);
+    assert(array_column($plan->security($genericContext), 'id') === ['composer-audit', 'psalm-taint', 'semgrep', 'dast']);
+
     $recheckingSource = (string) file_get_contents(dirname(__DIR__) . '/src/RecheckingPipelineRunner.php');
     assert(substr_count($recheckingSource, "run('check'") === 1);
     assert(!is_file(dirname(__DIR__) . '/src/FrontendAwarePipelineRunner.php'));
@@ -64,8 +73,9 @@ try {
     $runnerSource = (string) file_get_contents(dirname(__DIR__) . '/src/PipelineRunner.php');
     assert(str_contains($runnerSource, "'eslint' =>"));
     assert(str_contains($runnerSource, "'prettier' =>"));
+    assert(str_contains($runnerSource, "composer.lock"));
 
-    echo "[OK] Pipelines, frontend unificado, recheck único e security definidos.\n";
+    echo "[OK] Pipelines GLPI e PHP genérico, frontend unificado, recheck único e security definidos.\n";
 } finally {
     putenv('NINFA_GLPI_ROOT');
     if (is_dir($root)) {
