@@ -46,6 +46,24 @@ try {
     ], JSON_THROW_ON_ERROR));
     assert(ProjectContext::fromRoot($yii3Root)->profile() === 'yii3');
 
+    $genericComposerRoot = $root . '/generic-composer';
+    mkdir($genericComposerRoot . '/src', 0775, true);
+    file_put_contents($genericComposerRoot . '/src/Example.php', "<?php final class GenericExample {}\n");
+    file_put_contents($genericComposerRoot . '/composer.json', json_encode([
+        'name' => 'example/generic',
+        'require' => ['php' => '>=8.2'],
+    ], JSON_THROW_ON_ERROR));
+    $genericComposer = ProjectContext::fromRoot($genericComposerRoot);
+    assert($genericComposer->profile() === 'php-generic');
+    assert($genericComposer->paths() === ['src']);
+
+    $genericPlainRoot = $root . '/generic-plain';
+    mkdir($genericPlainRoot . '/public', 0775, true);
+    file_put_contents($genericPlainRoot . '/public/index.php', "<?php echo 'ok';\n");
+    $genericPlain = ProjectContext::fromRoot($genericPlainRoot);
+    assert($genericPlain->profile() === 'php-generic');
+    assert($genericPlain->paths() === ['public']);
+
     $libraryRoot = $root . '/yiisoft-library';
     mkdir($libraryRoot . '/src', 0775, true);
     file_put_contents($libraryRoot . '/composer.json', json_encode([
@@ -53,12 +71,21 @@ try {
     ], JSON_THROW_ON_ERROR));
     try {
         ProjectContext::fromRoot($libraryRoot);
-        assert(false, 'Uma biblioteca yiisoft isolada não deve ser classificada como Yii3.');
+        assert(false, 'Diretório sem código PHP não deve ser classificado como Yii3 nem PHP genérico.');
     } catch (RuntimeException $error) {
         assert(str_contains($error->getMessage(), 'Profile não reconhecido'));
     }
 
-    echo "[OK] ProjectContext cobre glpi-plugin, yii2, yii3 e rejeita yiisoft isolado.\n";
+    $emptyRoot = $root . '/empty';
+    mkdir($emptyRoot, 0775, true);
+    try {
+        ProjectContext::fromRoot($emptyRoot);
+        assert(false, 'Diretório vazio não deve ser reconhecido como projeto PHP.');
+    } catch (RuntimeException $error) {
+        assert(str_contains($error->getMessage(), 'Profile não reconhecido'));
+    }
+
+    echo "[OK] ProjectContext cobre glpi-plugin, yii2, yii3, php-generic e rejeita projetos sem evidência PHP.\n";
 } finally {
     $iterator = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
