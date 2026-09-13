@@ -2,6 +2,74 @@
 
 **Ninfa** é uma esteira externa de qualidade e segurança para projetos PHP. O estado atual é **MVP experimental / 0.1.0-alpha**, destinado a testes controlados em projetos reais.
 
+## Foco atual
+
+O MVP está focado exclusivamente em três profiles:
+
+- **Yii2** — detectado por `yiisoft/yii2`;
+- **Yii3** — detectado por combinação de pacotes de aplicação/runner e infraestrutura Yii;
+- **GLPI Plugin 11** — profile `glpi-plugin`, com contexto do host GLPI 11 e PHPStan/Psalm em nível 8.
+
+Laravel e Symfony ficam em **stand by**. Não há detecção, fallback nem pipeline ativo para esses frameworks nesta fase.
+
+## Execução rápida
+
+Com o Ninfa disponível fora do projeto consumidor:
+
+```bash
+# qualidade e testes
+/path/to/ninfa/bin/ninfa check /path/to/project
+
+# aplica correções automáticas e depois reexecuta check
+/path/to/ninfa/bin/ninfa fix /path/to/project
+
+# segurança
+/path/to/ninfa/bin/ninfa security /path/to/project
+```
+
+Se estiver dentro do repositório do Ninfa durante os testes do MVP:
+
+```bash
+bin/ninfa check /path/to/project
+bin/ninfa fix /path/to/project
+bin/ninfa security /path/to/project
+```
+
+### Yii2
+
+Um projeto com `yiisoft/yii2` é reconhecido como `yii2` automaticamente:
+
+```bash
+bin/ninfa check /path/to/yii2-app
+```
+
+O Ninfa detecta os caminhos existentes do projeto e gera as configurações transitórias no workspace externo.
+
+### Yii3
+
+Yii3 também é detectado automaticamente, mas não por qualquer pacote `yiisoft/*`. O detector exige sinais consistentes de aplicação/runner e infraestrutura Yii para evitar falsos positivos:
+
+```bash
+bin/ninfa check /path/to/yii3-app
+```
+
+### GLPI Plugin 11
+
+Quando o plugin está dentro de `<glpi>/plugins/<plugin>`, o host pode ser descoberto automaticamente:
+
+```bash
+bin/ninfa check /opt/glpi/plugins/myplugin
+```
+
+Quando o plugin está fora da árvore do GLPI, informe o host explicitamente:
+
+```bash
+NINFA_GLPI_ROOT=/opt/glpi \
+bin/ninfa check /path/to/myplugin
+```
+
+Somente GLPI 11 é aceito neste MVP.
+
 ## Comandos públicos
 
 ```bash
@@ -12,15 +80,7 @@ bin/ninfa security /caminho/do/projeto
 
 `check` executa qualidade e análise estática. `fix` aplica correções automáticas e em seguida executa `check` novamente. `security` executa verificações de segurança separadamente.
 
-## Profiles ativos
-
-O foco do MVP é exclusivamente:
-
-- `glpi-plugin` — GLPI 11;
-- `yii3`;
-- `yii2`.
-
-Laravel e Symfony ficam em **stand by**. Não há detecção, fallback nem pipeline ativo para esses frameworks nesta fase. Projetos não reconhecidos ou ambíguos falham explicitamente.
+Projetos não reconhecidos ou ambíguos falham explicitamente.
 
 ## Arquitetura externa
 
@@ -137,7 +197,7 @@ O repositório possui `.github/workflows/profile-test.yml`, que executa validaç
 
 ## Critério do MVP
 
-O próximo estágio é validar o Ninfa em projetos reais representativos: um plugin GLPI 11, um Yii2 e um Yii3. O objetivo é executar `check`, `fix` e `security` sem adicionar boilerplate ao consumidor e sem depender de supressões amplas para obter resultado verde.
+O próximo estágio é validar o Ninfa em projetos reais representativos: um **Yii2**, um **Yii3** e um **plugin GLPI 11**. O objetivo é executar `check`, `fix` e `security` sem adicionar boilerplate ao consumidor e sem depender de supressões amplas para obter resultado verde.
 
 Laravel e Symfony só voltam ao roadmap depois que esses três profiles estiverem estabilizados em projetos reais.
 
