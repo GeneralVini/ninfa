@@ -22,6 +22,7 @@ final class ExternalConfigGenerator
         $phpstanExtra = '';
         $bootstrap = null;
         $psalmExtra = '';
+        $hasGlpiPhpStanExtension = false;
 
         if ($context->profile() === 'glpi-plugin') {
             $glpiRoot = $context->glpiRoot();
@@ -36,6 +37,7 @@ final class ExternalConfigGenerator
             ] as $candidate) {
                 if (is_file($candidate)) {
                     $includes = "includes:\n  - " . str_replace('\\', '/', $candidate) . "\n\n";
+                    $hasGlpiPhpStanExtension = true;
                     break;
                 }
             }
@@ -75,9 +77,11 @@ final class ExternalConfigGenerator
                 $phpstanExtra .= "  scanFiles:\n" . implode("\n", array_map(static fn (string $file): string => '    - ' . $file, $scanFiles)) . "\n";
             }
             $phpstanExtra .= "  bootstrapFiles:\n" . implode("\n", array_map(static fn (string $file): string => '    - ' . $file, $bootstrapFiles)) . "\n";
-            $phpstanExtra .= "  glpi:\n    glpiPath: {$glpi}\n";
-            if ($context->glpiVersion() !== null) {
-                $phpstanExtra .= "    glpiVersion: '" . $context->glpiVersion() . "'\n";
+            if ($hasGlpiPhpStanExtension) {
+                $phpstanExtra .= "  glpi:\n    glpiPath: {$glpi}\n";
+                if ($context->glpiVersion() !== null) {
+                    $phpstanExtra .= "    glpiVersion: '" . $context->glpiVersion() . "'\n";
+                }
             }
 
             $glpiIncludes = htmlspecialchars($glpiRoot . '/inc/includes.php', ENT_XML1 | ENT_QUOTES, 'UTF-8');
