@@ -15,6 +15,8 @@ configure-force:
 	php scripts/ninfa-configure.php . --force
 
 profile-test:
+	php -d zend.assertions=1 -d assert.exception=1 tests/project-context.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/external-config.php
 	bash tests/glpi-plugin-profile.sh
 
 setup:
