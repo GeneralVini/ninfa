@@ -8,31 +8,30 @@ Enquanto o MVP permanecer na branch `feature/glpi-plugin-profile`, use essa bran
 export PATH="/opt/ninfa/bin:$PATH"
 ```
 
-Os exemplos deste documento assumem essa configuração.
-
 ## Fontes de contexto
 
 A decisão técnica usa principalmente:
 
-1. `composer.json`;
-2. filesystem e arquivos do projeto;
+1. filesystem e arquivos do projeto;
+2. `composer.json`, quando existir;
 3. sinais específicos do profile.
 
 Para semântica complementar, o Ninfa lê `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md` e `docs/*.md`. A documentação enriquece símbolos e contexto, mas não substitui evidência técnica.
 
 ## Profiles ativos
 
-Somente estes profiles são aceitos no MVP:
-
 ```text
 glpi-plugin
 yii3
 yii2
+php-generic
 ```
 
-Yii3 exige uma combinação de sinais do ecossistema de aplicação/runner e infraestrutura; uma dependência `yiisoft/*` isolada não é suficiente. Projetos não reconhecidos falham explicitamente.
+Profiles especializados têm precedência. `php-generic` só é escolhido quando não há profile especializado e existe evidência real de código PHP. Projetos vazios ou sem sinais suficientes falham explicitamente.
 
-Laravel e Symfony estão em **stand by**. Não devem ser tratados como fallback, nem receber detecção heurística parcial enquanto `glpi-plugin`, Yii3 e Yii2 não estiverem estabilizados em projetos reais.
+Yii3 exige combinação de sinais de aplicação/runner e infraestrutura; uma dependência `yiisoft/*` isolada não é suficiente.
+
+Laravel e Symfony permanecem em **stand by**.
 
 ## Workspace
 
@@ -42,23 +41,25 @@ O Ninfa cria um workspace externo determinístico, por padrão:
 /tmp/ninfa/<hash-do-projeto>/
 ```
 
-Ali são gerados PHPStan, Psalm, ECS, Rector, Lefthook, índice semântico e bootstrap GLPI quando necessário.
-
-Nada disso precisa ser versionado no consumidor.
+Ali são gerados PHPStan, Psalm, ECS, Rector, Lefthook, índice semântico e bootstrap GLPI quando necessário. `NINFA_WORKSPACE_ROOT` não pode apontar para dentro do consumidor.
 
 ## Frontend
 
-ESLint e Prettier são ativados somente quando há evidência JS/TS real, como `package.json` com tooling/frontend ou arquivos JavaScript/TypeScript detectáveis. A simples existência de diretórios genéricos não deve ativar o pipeline Node.
+ESLint e Prettier são ativados somente quando há evidência JS/TS. A execução ocorre no mesmo pipeline e na ordem definida pelo plano.
 
 ## Fluxos
 
 ```bash
-ninfa check ROOT
-ninfa fix ROOT
-ninfa security ROOT
+ninfa check [ROOT]
+ninfa fix [ROOT]
+ninfa security [ROOT]
 ```
 
-`check` é qualidade. `security` é separado. `fix` aplica os fixers e reexecuta `check` ao final.
+`check` é qualidade. `security` é separado. `fix` aplica os fixers e executa um único `check` ao final.
+
+## Segurança por capacidade
+
+Composer Audit só é executado quando há `composer.lock`. DAST continua opt-in e o relatório é gravado no workspace externo do projeto.
 
 ## Lefthook
 
@@ -66,6 +67,6 @@ O Lefthook é gerado externamente. A política é `pre-commit -> fix` e `pre-pus
 
 ## Critério de integração bem-sucedida
 
-Para o MVP, a integração está satisfatória quando os três comandos públicos executam num projeto suportado sem exigir cópia do Ninfa, alteração do `composer.json` ou supressões amplas apenas para obter resultado verde.
+A integração está satisfatória quando os comandos públicos executam em um projeto suportado sem exigir cópia do Ninfa, alteração do `composer.json` ou boilerplate no consumidor.
 
-A validação inicial deve priorizar um projeto real de cada profile ativo: `glpi-plugin`, Yii3 e Yii2.
+A validação do MVP deve incluir pelo menos um projeto real de cada profile: GLPI Plugin 11, Yii3, Yii2 e PHP genérico.
