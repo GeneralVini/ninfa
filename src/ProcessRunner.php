@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/CliStyle.php';
+
 final class ProcessResult
 {
     public function __construct(
@@ -80,16 +82,16 @@ final class FindingRenderer
             };
             $where = $finding['file'] . ($finding['line'] > 0 ? ':' . $finding['line'] : '');
 
-            echo '╭─ ' . $tool . ' ' . str_repeat('─', max(8, 61 - strlen($tool))) . PHP_EOL;
+            echo '╭─ ' . CliStyle::info($tool) . ' ' . str_repeat('─', max(8, 61 - strlen($tool))) . PHP_EOL;
             echo '│ Arquivo: ' . $where . PHP_EOL;
             echo '│ Regra: ' . $finding['rule'] . PHP_EOL;
             echo '│' . PHP_EOL;
-            echo '│ Corrigir:' . PHP_EOL;
+            echo '│ ' . CliStyle::warning('Corrigir:') . PHP_EOL;
             self::renderWrapped($finding['problem']);
 
             if ($withCorrection) {
                 echo '│' . PHP_EOL;
-                echo '│ Correção:' . PHP_EOL;
+                echo '│ ' . CliStyle::success('Correção:') . PHP_EOL;
                 self::renderWrapped($finding['correction']);
             }
 
