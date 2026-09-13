@@ -18,12 +18,8 @@ if (!is_file($projectRoot . '/composer.json')) {
 $composer = json_decode((string) file_get_contents($projectRoot . '/composer.json'), true, 512, JSON_THROW_ON_ERROR);
 $packages = array_merge(array_keys($composer['require'] ?? []), array_keys($composer['require-dev'] ?? []));
 
-$setupContents = is_file($projectRoot . '/setup.php')
-    ? (string) file_get_contents($projectRoot . '/setup.php')
-    : '';
-$hookContents = is_file($projectRoot . '/hook.php')
-    ? (string) file_get_contents($projectRoot . '/hook.php')
-    : '';
+$setupContents = is_file($projectRoot . '/setup.php') ? (string) file_get_contents($projectRoot . '/setup.php') : '';
+$hookContents = is_file($projectRoot . '/hook.php') ? (string) file_get_contents($projectRoot . '/hook.php') : '';
 
 $glpiPluginScore = 0;
 $glpiPluginScore += is_file($projectRoot . '/setup.php') ? 5 : 0;
@@ -33,15 +29,14 @@ $glpiPluginScore += preg_match('/function\s+plugin_[a-z0-9]+_install\s*\(/i', $h
 
 $glpiNamespaceDetected = false;
 foreach (glob($projectRoot . '/src/*.php') ?: [] as $sourceFile) {
-    $sourceContents = (string) file_get_contents($sourceFile);
-    if (preg_match('/namespace\s+GlpiPlugin\\\\[A-Za-z0-9_\\\\]+\s*;/', $sourceContents) === 1) {
+    if (preg_match('/namespace\s+GlpiPlugin\\\\[A-Za-z0-9_\\\\]+\s*;/', (string) file_get_contents($sourceFile)) === 1) {
         $glpiNamespaceDetected = true;
         break;
     }
 }
 $glpiPluginScore += $glpiNamespaceDetected ? 4 : 0;
 $glpiPluginScore += is_dir($projectRoot . '/src') || is_dir($projectRoot . '/inc') ? 1 : 0;
-$glpiPluginScore += is_file($projectRoot . '/composer.json') ? 1 : 0;
+$glpiPluginScore += 1; // composer.json já foi validado acima
 $isGlpiPlugin = $glpiPluginScore >= 8;
 
 $framework = 'PHP genérico';
@@ -184,12 +179,10 @@ if ($paths !== []) {
         static fn (string $path): string => "        __DIR__ . '/{$path}'",
         $paths,
     ));
-
     $yamlPathLines = implode("\n", array_map(
         static fn (string $path): string => "    - {$path}",
         $paths,
     ));
-
     $xmlPathLines = implode("\n", array_map(
         static fn (string $path): string => "        <directory name=\"{$path}\" />",
         $paths,
@@ -205,9 +198,17 @@ if ($paths !== []) {
         "<?php\n\ndeclare(strict_types=1);\n\nuse Rector\\Config\\RectorConfig;\n\nreturn RectorConfig::configure()\n    ->withPaths([\n{$phpPathLines},\n    ])\n    ->withPreparedSets(\n        deadCode: true,\n        codeQuality: true,\n        typeDeclarations: true,\n    );\n",
     );
 
+    $phpStanHeader = '';
     $phpStanExtra = '';
     if ($isGlpiPlugin && $glpiRoot !== null) {
         $glpiRootForNeon = str_replace('\\', '/', $glpiRoot);
+        $extension = $glpiRoot . '/vendor/glpi-project/phpstan-glpi/extension.neon';
+        if (is_file($extension)) {
+            $phpStanHeader = "includes:\n  - " . str_replace('\\', '/', $extension) . "\n\n";
+        } else {
+            echo "[AVISO] Extensão oficial glpi-project/phpstan-glpi não encontrada no host GLPI.\n";
+        }
+
         $scanFiles = [];
         foreach ([
             $glpiRoot . '/src/autoload/dbutils-aliases.php',
@@ -218,18 +219,30 @@ if ($paths !== []) {
             }
         }
 
+        $bootstrapFiles = [];
+        foreach ([
+            $glpiRoot . '/vendor/autoload.php',
+            $glpiRoot . '/stubs/db_config_classes.php',
+            $glpiRoot . '/stubs/glpi_constants.php',
+            $glpiRoot . '/stubs/plugins_migrations_classes.php',
+        ] as $bootstrapFile) {
+            if (is_file($bootstrapFile)) {
+                $bootstrapFiles[] = '    - ' . str_replace('\\', '/', $bootstrapFile);
+            }
+        }
+
         $phpStanExtra .= "  scanDirectories:\n    - {$glpiRootForNeon}/src\n";
         if ($scanFiles !== []) {
             $phpStanExtra .= "  scanFiles:\n" . implode("\n", $scanFiles) . "\n";
         }
-        if (is_file($glpiRoot . '/vendor/autoload.php')) {
-            $phpStanExtra .= "  bootstrapFiles:\n    - {$glpiRootForNeon}/vendor/autoload.php\n";
+        if ($bootstrapFiles !== []) {
+            $phpStanExtra .= "  bootstrapFiles:\n" . implode("\n", $bootstrapFiles) . "\n";
         }
     }
 
     $writeConfig(
         $projectRoot . '/phpstan.neon.dist',
-        "parameters:\n  level: max\n  paths:\n{$yamlPathLines}\n{$phpStanExtra}  tmpDir: runtime/phpstan\n",
+        $phpStanHeader . "parameters:\n  level: max\n  paths:\n{$yamlPathLines}\n{$phpStanExtra}  tmpDir: runtime/phpstan\n",
     );
 
     $writeConfig(
@@ -237,10 +250,7 @@ if ($paths !== []) {
         "<?xml version=\"1.0\"?>\n<psalm\n    errorLevel=\"1\"\n    resolveFromConfigFile=\"true\"\n    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n    xmlns=\"https://getpsalm.org/schema/config\"\n    xsi:schemaLocation=\"https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd\"\n>\n    <projectFiles>\n{$xmlPathLines}\n        <ignoreFiles>\n            <directory name=\"vendor\" />\n            <directory name=\".tools\" />\n            <directory name=\"runtime\" />\n        </ignoreFiles>\n    </projectFiles>\n</psalm>\n",
     );
 
-    $testsDirectory = in_array('tests', $paths, true)
-        ? "            <directory>tests</directory>\n"
-        : '';
-
+    $testsDirectory = in_array('tests', $paths, true) ? "            <directory>tests</directory>\n" : '';
     $writeConfig(
         $projectRoot . '/phpunit.xml.dist',
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<phpunit xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:noNamespaceSchemaLocation=\"https://schema.phpunit.de/11.5/phpunit.xsd\"\n         colors=\"true\"\n         cacheDirectory=\"runtime/phpunit\">\n    <testsuites>\n        <testsuite name=\"Project\">\n{$testsDirectory}        </testsuite>\n    </testsuites>\n</phpunit>\n",
