@@ -14,43 +14,42 @@ Laravel e Symfony ficam em **stand by**. Não há detecção, fallback nem pipel
 
 ## Execução rápida
 
-Com o Ninfa disponível fora do projeto consumidor:
+Enquanto o MVP estiver na branch `feature/glpi-plugin-profile`, clone o Ninfa fora do projeto consumidor:
+
+```bash
+git clone --branch feature/glpi-plugin-profile --single-branch \
+  https://github.com/GeneralVini/ninfa.git /opt/ninfa
+```
+
+Depois execute diretamente; não existe uma etapa obrigatória de instalação ou preparação do workspace:
 
 ```bash
 # qualidade e testes
-/path/to/ninfa/bin/ninfa check /path/to/project
+/opt/ninfa/bin/ninfa check /path/to/project
 
 # aplica correções automáticas e depois reexecuta check
-/path/to/ninfa/bin/ninfa fix /path/to/project
+/opt/ninfa/bin/ninfa fix /path/to/project
 
 # segurança
-/path/to/ninfa/bin/ninfa security /path/to/project
+/opt/ninfa/bin/ninfa security /path/to/project
 ```
 
-Se estiver dentro do repositório do Ninfa durante os testes do MVP:
-
-```bash
-bin/ninfa check /path/to/project
-bin/ninfa fix /path/to/project
-bin/ninfa security /path/to/project
-```
+Cada comando detecta o profile e gera/regenera automaticamente o workspace externo correspondente em `/tmp/ninfa/<hash-do-projeto>`.
 
 ### Yii2
 
 Um projeto com `yiisoft/yii2` é reconhecido como `yii2` automaticamente:
 
 ```bash
-bin/ninfa check /path/to/yii2-app
+/opt/ninfa/bin/ninfa check /path/to/yii2-app
 ```
-
-O Ninfa detecta os caminhos existentes do projeto e gera as configurações transitórias no workspace externo.
 
 ### Yii3
 
 Yii3 também é detectado automaticamente, mas não por qualquer pacote `yiisoft/*`. O detector exige sinais consistentes de aplicação/runner e infraestrutura Yii para evitar falsos positivos:
 
 ```bash
-bin/ninfa check /path/to/yii3-app
+/opt/ninfa/bin/ninfa check /path/to/yii3-app
 ```
 
 ### GLPI Plugin 11
@@ -58,14 +57,14 @@ bin/ninfa check /path/to/yii3-app
 Quando o plugin está dentro de `<glpi>/plugins/<plugin>`, o host pode ser descoberto automaticamente:
 
 ```bash
-bin/ninfa check /opt/glpi/plugins/myplugin
+/opt/ninfa/bin/ninfa check /opt/glpi/plugins/myplugin
 ```
 
 Quando o plugin está fora da árvore do GLPI, informe o host explicitamente:
 
 ```bash
 NINFA_GLPI_ROOT=/opt/glpi \
-bin/ninfa check /path/to/myplugin
+/opt/ninfa/bin/ninfa check /path/to/myplugin
 ```
 
 Somente GLPI 11 é aceito neste MVP.
@@ -73,9 +72,9 @@ Somente GLPI 11 é aceito neste MVP.
 ## Comandos públicos
 
 ```bash
-bin/ninfa check /caminho/do/projeto
-bin/ninfa fix /caminho/do/projeto
-bin/ninfa security /caminho/do/projeto
+/opt/ninfa/bin/ninfa check /caminho/do/projeto
+/opt/ninfa/bin/ninfa fix /caminho/do/projeto
+/opt/ninfa/bin/ninfa security /caminho/do/projeto
 ```
 
 `check` executa qualidade e análise estática. `fix` aplica correções automáticas e em seguida executa `check` novamente. `security` executa verificações de segurança separadamente.
@@ -84,17 +83,24 @@ Projetos não reconhecidos ou ambíguos falham explicitamente.
 
 ## Arquitetura externa
 
-O Ninfa não deve ser copiado para dentro do projeto consumidor. As configurações transitórias são geradas em um workspace externo, por padrão:
+O Ninfa não deve ser copiado para dentro do projeto consumidor. Os três locais principais são:
 
 ```text
-/tmp/ninfa/<hash-do-projeto>/
-  phpstan.neon
-  psalm.xml
-  rector.php
-  ecs.php
-  lefthook.yml
-  semantic-index.json
-  glpi-bootstrap.php   # quando aplicável
+/opt/ninfa/                   código do Ninfa
+/caminho/do/projeto/          projeto consumidor analisado
+/tmp/ninfa/<hash-do-projeto>/ workspace externo gerado
+```
+
+No workspace são gerados, conforme necessário:
+
+```text
+phpstan.neon
+psalm.xml
+rector.php
+ecs.php
+lefthook.yml
+semantic-index.json
+glpi-bootstrap.php   # quando aplicável
 ```
 
 O `composer.json` do consumidor não é alterado pelo Ninfa.
@@ -153,7 +159,7 @@ O DAST com OWASP ZAP é opt-in. Para habilitá-lo:
 ```bash
 NINFA_DAST=1 \
 NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
-bin/ninfa security /caminho/do/projeto
+/opt/ninfa/bin/ninfa security /caminho/do/projeto
 ```
 
 O wrapper padrão do ZAP aceita apenas `localhost` ou `127.0.0.1`.
@@ -177,18 +183,13 @@ pre-push   -> ninfa check
 
 Nenhum `lefthook.yml` precisa ser criado no projeto consumidor.
 
-## Preparação do workspace
+## Diagnóstico e preparação manual
 
-O instalador legado foi reduzido a uma fachada externa e não copia infraestrutura para o consumidor:
-
-```bash
-php /caminho/do/ninfa/bin/ninfa-install.php /caminho/do/projeto
-```
-
-Também é possível executar diretamente o configurador do Ninfa para inspecionar o profile, workspace e arquivos gerados:
+Normalmente não é necessário chamar o instalador ou configurador diretamente. Eles permanecem disponíveis para diagnóstico, inspeção do profile e geração manual do workspace:
 
 ```bash
-php /caminho/do/ninfa/scripts/ninfa-configure.php /caminho/do/projeto
+php /opt/ninfa/bin/ninfa-install.php /caminho/do/projeto
+php /opt/ninfa/scripts/ninfa-configure.php /caminho/do/projeto
 ```
 
 ## CI do próprio Ninfa
