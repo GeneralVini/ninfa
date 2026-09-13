@@ -1,11 +1,11 @@
 # Comandos do Ninfa
 
-A API pública do MVP possui três comandos.
+A API pública do MVP possui três comandos. Nos exemplos abaixo, o Ninfa está clonado em `/opt/ninfa`, fora do projeto consumidor.
 
 ## Check
 
 ```bash
-bin/ninfa check /caminho/do/projeto
+/opt/ninfa/bin/ninfa check /caminho/do/projeto
 ```
 
 Executa ECS, Rector em dry-run, PHPStan, Psalm e PHPUnit quando disponível. Em projetos com contexto JS/TS, também executa ESLint e `prettier --check`.
@@ -13,7 +13,7 @@ Executa ECS, Rector em dry-run, PHPStan, Psalm e PHPUnit quando disponível. Em 
 ## Fix
 
 ```bash
-bin/ninfa fix /caminho/do/projeto
+/opt/ninfa/bin/ninfa fix /caminho/do/projeto
 ```
 
 Executa os fixers disponíveis:
@@ -30,7 +30,7 @@ Ao terminar, executa `check` novamente.
 ## Security
 
 ```bash
-bin/ninfa security /caminho/do/projeto
+/opt/ninfa/bin/ninfa security /caminho/do/projeto
 ```
 
 Executa Composer Audit, Psalm Taint Analysis e Semgrep.
@@ -40,15 +40,15 @@ Para incluir DAST local autorizado:
 ```bash
 NINFA_DAST=1 \
 NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
-bin/ninfa security /caminho/do/projeto
+/opt/ninfa/bin/ninfa security /caminho/do/projeto
 ```
 
 ## Configuração e diagnóstico
 
-Para gerar/inspecionar o workspace externo:
+Para gerar ou inspecionar o workspace externo:
 
 ```bash
-php scripts/ninfa-configure.php /caminho/do/projeto
+php /opt/ninfa/scripts/ninfa-configure.php /caminho/do/projeto
 ```
 
 O comando informa profile, paths, workspace, configs externas, índice semântico e Lefthook gerado.
@@ -57,7 +57,7 @@ O comando informa profile, paths, workspace, configs externas, índice semântic
 
 ## Testes do próprio Ninfa
 
-Dentro do repositório Ninfa:
+Somente dentro do repositório Ninfa:
 
 ```bash
 make profile-test
