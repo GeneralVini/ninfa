@@ -4,7 +4,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
-require_once dirname(__DIR__) . '/src/FrontendAwarePipelineRunner.php';
+require_once dirname(__DIR__) . '/src/RecheckingPipelineRunner.php';
 
 $args = $argv;
 array_shift($args);
@@ -18,7 +18,7 @@ if (!in_array($operation, ['check', 'fix', 'security'], true)) {
 
 try {
     $context = ProjectContext::fromRoot((string) $root);
-    $status = (new FrontendAwarePipelineRunner())->run($operation, $context);
+    $status = (new RecheckingPipelineRunner())->run($operation, $context);
 } catch (Throwable $error) {
     fwrite(STDERR, '[ERRO] ' . $error->getMessage() . PHP_EOL);
     exit(1);
