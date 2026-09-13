@@ -58,6 +58,8 @@ final class PipelineRunner
             'phpstan' => [$this->tool('phpstan', $context), 'analyse', '--configuration', $configs['phpstan'], '--no-progress'],
             'psalm' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--no-progress'],
             'psalm-taint' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--taint-analysis', '--no-progress'],
+            'eslint' => [$this->tool('eslint', $context), '.', ...($mode === 'fix' ? ['--fix'] : [])],
+            'prettier' => [$this->tool('prettier', $context), $mode === 'fix' ? '--write' : '--check', '.'],
             'test' => is_file($context->root() . '/vendor/bin/phpunit')
                 ? [$this->tool('phpunit', $context)]
                 : null,
