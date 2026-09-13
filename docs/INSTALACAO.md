@@ -49,6 +49,8 @@ php /opt/ninfa/scripts/ninfa-configure.php /caminho/do/projeto
 
 O Ninfa resolve ferramentas preferencialmente no projeto consumidor, depois no ambiente do próprio Ninfa e por fim no `PATH`. Nenhuma dependência deve ser instalada silenciosamente no consumidor.
 
+Projetos `php-generic` podem ter `composer.json` ou ser aplicações PHP simples sem Composer. Ferramentas dependentes de Composer só são executadas quando o contexto necessário existe.
+
 ## GLPI
 
 Quando o plugin não estiver em `<glpi>/plugins/<plugin>`, informe:
@@ -74,4 +76,4 @@ Projetos consumidores não precisam dele.
 
 ## Estado atual
 
-Os profiles ativos são `glpi-plugin`, `yii3` e `yii2`. O profile PHP genérico será incorporado em etapa própria após estabilização desta base.
+Os profiles ativos são `glpi-plugin`, `yii3`, `yii2` e `php-generic`.
