@@ -28,7 +28,7 @@ final class PipelineRunner
         };
 
         foreach ($hooks as $hook) {
-            if (($hook['optional'] ?? false) === true) {
+            if (($hook['optional'] ?? false) === true && !$this->optionalHookEnabled($hook['id'])) {
                 continue;
             }
 
@@ -63,8 +63,18 @@ final class PipelineRunner
                 : null,
             'composer-audit' => [$this->tool('composer', $context), 'audit', '--locked', '--no-interaction'],
             'semgrep' => $this->semgrepCommand($context),
+            'dast' => ['bash', dirname(__DIR__) . '/scripts/zap-scan.sh'],
             default => null,
         };
+    }
+
+    private function optionalHookEnabled(string $id): bool
+    {
+        if ($id !== 'dast') {
+            return false;
+        }
+
+        return in_array(strtolower((string) getenv('NINFA_DAST')), ['1', 'true', 'yes', 'on'], true);
     }
 
     private function tool(string $name, ProjectContext $context): string
