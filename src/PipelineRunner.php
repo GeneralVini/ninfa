@@ -67,7 +67,11 @@ final class PipelineRunner
                 ? [$this->tool('composer', $context), 'audit', '--locked', '--no-interaction']
                 : null,
             'semgrep' => $this->semgrepCommand($context),
-            'dast' => ['bash', dirname(__DIR__) . '/scripts/zap-scan.sh'],
+            'dast' => [
+                'bash',
+                dirname(__DIR__) . '/scripts/zap-scan.sh',
+                $context->workspace()->file('security/zap-report.html'),
+            ],
             default => null,
         };
     }
