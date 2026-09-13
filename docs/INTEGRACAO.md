@@ -1,122 +1,59 @@
 # Integração do Ninfa
 
-O Ninfa deve ser incorporado de forma incremental ao projeto existente.
+A integração do MVP é externa: o Ninfa recebe a raiz do projeto, detecta o profile e gera configurações transitórias fora do consumidor.
 
-## 1. Fontes de contexto
+## Fontes de contexto
 
-Antes de configurar a esteira, o Ninfa usa esta precedência:
+A decisão técnica usa principalmente:
 
-1. `composer.json` para framework e dependências;
-2. estrutura real do filesystem para caminhos analisados;
-3. `README.md` para contexto funcional e arquitetural;
-4. `docs/*.md` para decisões, particularidades e convenções do projeto.
+1. `composer.json`;
+2. filesystem e arquivos do projeto;
+3. sinais específicos do profile.
 
-`composer.json` e filesystem têm precedência técnica. README e docs complementam o entendimento e ajudam a detectar divergências.
+Para semântica complementar, o Ninfa lê `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md` e `docs/*.md`. A documentação enriquece símbolos e contexto, mas não substitui evidência técnica.
 
-O contexto detectado é salvo em:
+## Profiles
 
-```text
-.ninfa/context.json
-.ninfa/paths.txt
-```
-
-## 2. Frameworks e caminhos reconhecidos
-
-O baseline reconhece inicialmente Yii 3, Yii 2, Laravel, Symfony e PHP genérico.
-
-Os caminhos convencionais pesquisados incluem:
+Somente estes profiles são aceitos no MVP:
 
 ```text
-src/
-app/
-config/
-modules/
-console/
-commands/
-public/
-web/
-tests/
+glpi-plugin
+yii3
+yii2
 ```
 
-Se nenhum desses diretórios existir, o Ninfa não cria uma estrutura fictícia. Ele informa que o projeto possui estrutura não convencional e exige definição manual dos paths.
+Yii3 exige uma combinação de sinais do ecossistema de aplicação/runner e infraestrutura; uma dependência `yiisoft/*` isolada não é suficiente. Projetos não reconhecidos falham explicitamente.
 
-## 3. Geração automática
+## Workspace
 
-Com os caminhos detectados, o Ninfa gera automaticamente, quando ausentes:
+O Ninfa cria um workspace externo determinístico, por padrão:
 
 ```text
-ecs.php
-rector.php
-phpstan.neon.dist
-psalm.xml
-phpunit.xml.dist
+/tmp/ninfa/<hash-do-projeto>/
 ```
 
-Os arquivos gerados já recebem os diretórios reais encontrados no projeto.
+Ali são gerados PHPStan, Psalm, ECS, Rector, Lefthook, índice semântico e bootstrap GLPI quando necessário.
 
-Para o Semgrep, os caminhos são gravados em `.ninfa/paths.txt` e utilizados automaticamente por `scripts/semgrep-scan.sh`.
+Nada disso precisa ser versionado no consumidor.
 
-Se qualquer uma dessas configurações já existir, ela é preservada e marcada como `MANTIDO`. O Ninfa nunca substitui silenciosamente uma configuração madura.
+## Frontend
 
-## 4. Pré-requisitos
+ESLint e Prettier são ativados somente quando há evidência JS/TS real, como `package.json` com tooling/frontend ou arquivos JavaScript/TypeScript detectáveis. A simples existência de diretórios genéricos não deve ativar o pipeline Node.
 
-- PHP compatível com as dependências do projeto;
-- Composer 2;
-- Git;
-- Python 3.10+ com suporte a `venv`;
-- Java 17+;
-- `curl`;
-- `sha256sum`;
-- Lefthook opcional para hooks locais.
-
-## 5. Implantação inicial
-
-Depois de executar o instalador do Ninfa e instalar as dependências PHP, execute:
+## Fluxos
 
 ```bash
-make install
-make setup
-composer check
+bin/ninfa check ROOT
+bin/ninfa fix ROOT
+bin/ninfa security ROOT
 ```
 
-`make install` executa novamente a descoberta contextual, gera apenas configurações ainda ausentes e então executa `composer install`.
+`check` é qualidade. `security` é separado. `fix` aplica os fixers e reexecuta `check` ao final.
 
-Para refazer somente a descoberta e a geração de arquivos ausentes:
+## Lefthook
 
-```bash
-make configure
-```
+O Lefthook é gerado externamente. A política é `pre-commit -> fix` e `pre-push -> check`. O consumidor não precisa receber um `lefthook.yml` do Ninfa.
 
-## 6. Preservação de configurações existentes
+## Critério de integração bem-sucedida
 
-A revisão manual deixa de ser uma etapa comum. Ela deve ficar restrita a casos como:
-
-- divergência entre documentação e `composer.json`;
-- estrutura não convencional;
-- configuração existente que precise ser comparada com os paths atuais;
-- diretórios gerados ou que devam ser excluídos;
-- framework ou arquitetura não identificados com segurança.
-
-Uma configuração existente de ECS, Rector, PHPStan, Psalm ou PHPUnit nunca é reescrita pelo configurador.
-
-## 7. README e docs existentes
-
-Não substitua o `README.md` do projeto. Use `templates/README-NINFA.md` como referência para incorporar uma seção operacional.
-
-Como os projetos normalmente já possuem `docs/`, copie ou incorpore `templates/docs/NINFA.md` ao documento equivalente já existente.
-
-## 8. Validação
-
-A integração está concluída quando:
-
-```bash
-composer check
-```
-
-executa com sucesso localmente e no GitHub Actions, sem supressões genéricas criadas apenas para contornar achados.
-
-O DAST permanece separado:
-
-```bash
-NINFA_ZAP_TARGET=http://127.0.0.1:8080 composer security:dast
-```
+Para o MVP, a integração está satisfatória quando os três comandos públicos executam num projeto suportado sem exigir cópia do Ninfa, alteração do `composer.json` ou supressões amplas apenas para obter resultado verde.
