@@ -2,6 +2,8 @@
 
 A integração do MVP é externa: o Ninfa recebe a raiz do projeto, detecta o profile e gera configurações transitórias fora do consumidor.
 
+Nos exemplos operacionais, o Ninfa está clonado em `/opt/ninfa`. Enquanto o MVP permanecer na branch `feature/glpi-plugin-profile`, use essa branch explicitamente conforme `docs/INSTALACAO.md`.
+
 ## Fontes de contexto
 
 A decisão técnica usa principalmente:
@@ -45,9 +47,9 @@ ESLint e Prettier são ativados somente quando há evidência JS/TS real, como `
 ## Fluxos
 
 ```bash
-bin/ninfa check ROOT
-bin/ninfa fix ROOT
-bin/ninfa security ROOT
+/opt/ninfa/bin/ninfa check ROOT
+/opt/ninfa/bin/ninfa fix ROOT
+/opt/ninfa/bin/ninfa security ROOT
 ```
 
 `check` é qualidade. `security` é separado. `fix` aplica os fixers e reexecuta `check` ao final.
