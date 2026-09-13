@@ -9,32 +9,6 @@ require_once dirname(__DIR__) . '/src/LefthookConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';
 require_once dirname(__DIR__) . '/src/ToolResolver.php';
 
-function assistSuggestion(string $rule, string $message): string
-{
-    $rule = strtolower($rule);
-    $message = strtolower($message);
-    if (str_contains($message, 'mixed') && str_contains($message, 'string')) {
-        return 'Valide/refine o valor como string na origem antes do uso; evite cast cego de mixed.';
-    }
-    if (str_contains($message, 'mixed') && str_contains($message, 'int')) {
-        return 'Valide/refine o valor como inteiro antes do uso e trate entradas inválidas.';
-    }
-    if ($rule === 'argument.type' || str_contains($message, 'expects')) {
-        return 'Faça o valor atender ao contrato exigido antes da chamada, por validação/narrowing ou corrigindo o tipo na origem.';
-    }
-    if (str_contains($rule, 'always') || str_contains($message, 'always true') || str_contains($message, 'always false')) {
-        return 'Remova a condição/assertiva redundante ou substitua por uma verificação que realmente possa falhar.';
-    }
-    return 'Corrija o contrato/tipo na origem do dado; não suprima o achado apenas para obter resultado verde.';
-}
-
-function relativePath(string $file, string $root): string
-{
-    $file = str_replace('\\', '/', $file);
-    $root = rtrim(str_replace('\\', '/', $root), '/');
-    return str_starts_with($file, $root . '/') ? substr($file, strlen($root) + 1) : $file;
-}
-
 function runAssist(ProjectContext $context, array $configs): int
 {
     $dir = $context->workspace()->file('assist');
@@ -58,40 +32,48 @@ function runAssist(ProjectContext $context, array $configs): int
     file_put_contents($dir . '/psalm.json', $psalm->stdout);
     file_put_contents($dir . '/psalm.stderr.log', $psalm->stderr);
 
-    $findings = [];
-    $stan = json_decode($phpstan->stdout, true, 512, JSON_THROW_ON_ERROR);
-    foreach (($stan['files'] ?? []) as $file => $details) {
-        foreach (($details['messages'] ?? []) as $message) {
-            $raw = (string) ($message['message'] ?? 'Achado PHPStan');
-            $rule = (string) ($message['identifier'] ?? 'phpstan');
-            $findings[] = ['tool' => 'phpstan', 'file' => relativePath((string) $file, $context->root()), 'line' => (int) ($message['line'] ?? 0), 'rule' => $rule, 'problem' => rtrim($raw, '.'), 'correction' => assistSuggestion($rule, $raw)];
-        }
-    }
-
-    $psalmData = json_decode($psalm->stdout, true, 512, JSON_THROW_ON_ERROR);
-    $issues = array_is_list($psalmData) ? $psalmData : ($psalmData['issues'] ?? []);
-    foreach ($issues as $issue) {
-        if (!is_array($issue)) {
-            continue;
-        }
-        $raw = (string) ($issue['message'] ?? 'Achado Psalm');
-        $rule = (string) ($issue['type'] ?? ($issue['shortcode'] ?? 'psalm'));
-        $findings[] = ['tool' => 'psalm', 'file' => relativePath((string) ($issue['file_name'] ?? '.'), $context->root()), 'line' => (int) ($issue['line_from'] ?? 0), 'rule' => $rule, 'problem' => rtrim($raw, '.'), 'correction' => assistSuggestion($rule, $raw)];
-    }
+    $findings = [
+        ...FindingRenderer::phpStan($phpstan->stdout, $context->root()),
+        ...FindingRenderer::psalm($psalm->stdout, $context->root()),
+    ];
 
     $audit = $dir . '/findings.json';
-    file_put_contents($audit, json_encode(['schema' => 1, 'generated_at' => gmdate(DATE_ATOM), 'project' => $context->root(), 'profile' => $context->profile(), 'findings' => $findings], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL);
+    file_put_contents(
+        $audit,
+        json_encode([
+            'schema' => 1,
+            'generated_at' => gmdate(DATE_ATOM),
+            'project' => $context->root(),
+            'profile' => $context->profile(),
+            'findings' => $findings,
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL,
+    );
 
-    foreach ($findings as $finding) {
-        $where = $finding['file'] . ($finding['line'] > 0 ? ':' . $finding['line'] : '');
-        echo '[NINFA][assist] ' . $where . PHP_EOL;
-        echo '  Regra: ' . $finding['rule'] . PHP_EOL;
-        echo '  Corrigir: ' . $finding['problem'] . PHP_EOL;
-        echo '  Correção: ' . $finding['correction'] . PHP_EOL;
-    }
+    FindingRenderer::render($findings, true);
     echo '[NINFA][assist] Achados: ' . count($findings) . PHP_EOL;
     echo '[NINFA][assist] Auditoria: ' . $audit . PHP_EOL;
-    return $findings === [] ? 0 : 1;
+
+    if ($findings !== []) {
+        return 1;
+    }
+
+    foreach ([['PHPStan', $phpstan], ['Psalm', $psalm]] as [$name, $result]) {
+        if ($result->exitCode === 0) {
+            continue;
+        }
+
+        fwrite(STDERR, '[ERRO] ' . $name . ' terminou com código ' . $result->exitCode . ' sem finding estruturado.' . PHP_EOL);
+        if (trim($result->stderr) !== '') {
+            fwrite(STDERR, $result->stderr . PHP_EOL);
+        }
+        if (trim($result->stdout) !== '') {
+            fwrite(STDERR, $result->stdout . PHP_EOL);
+        }
+
+        return $result->exitCode;
+    }
+
+    return 0;
 }
 
 $args = $argv;
@@ -116,7 +98,15 @@ try {
     $lefthookConfig = (new LefthookConfigGenerator())->generate($context);
     $semanticHints = SemanticHints::fromProject($context->root());
     $semanticIndex = $context->workspace()->file('semantic-index.json');
-    file_put_contents($semanticIndex, json_encode(['profile' => $context->profile(), 'files' => $semanticHints->files(), 'symbols' => $semanticHints->symbols(), 'profile_signals' => $semanticHints->profileSignals()], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL);
+    file_put_contents(
+        $semanticIndex,
+        json_encode([
+            'profile' => $context->profile(),
+            'files' => $semanticHints->files(),
+            'symbols' => $semanticHints->symbols(),
+            'profile_signals' => $semanticHints->profileSignals(),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL,
+    );
 } catch (Throwable $error) {
     fwrite(STDERR, '[ERRO] ' . $error->getMessage() . PHP_EOL);
     exit(1);
