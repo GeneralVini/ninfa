@@ -1,11 +1,11 @@
 # Segurança
 
-O Ninfa mantém segurança separada do pipeline comum de qualidade.
+O Ninfa mantém segurança separada do pipeline comum de qualidade. Nos exemplos abaixo, o Ninfa está clonado em `/opt/ninfa`, fora do projeto consumidor.
 
 ## Comando
 
 ```bash
-bin/ninfa security /caminho/do/projeto
+/opt/ninfa/bin/ninfa security /caminho/do/projeto
 ```
 
 O baseline executa:
@@ -26,7 +26,7 @@ Reutiliza a configuração Psalm gerada no workspace externo e executa análise 
 
 ## Semgrep
 
-Usa as regras do próprio Ninfa em `security/semgrep.yml` e analisa somente os paths detectados do projeto alvo. Diretórios como `vendor` e `runtime` são excluídos.
+Usa as regras do próprio Ninfa em `/opt/ninfa/security/semgrep.yml` e analisa somente os paths detectados do projeto alvo. Diretórios como `vendor` e `runtime` são excluídos.
 
 ## DAST / OWASP ZAP
 
@@ -35,7 +35,7 @@ DAST é opcional e não roda apenas por executar `security`. Para habilitar:
 ```bash
 NINFA_DAST=1 \
 NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
-bin/ninfa security /caminho/do/projeto
+/opt/ninfa/bin/ninfa security /caminho/do/projeto
 ```
 
 O wrapper padrão recusa destinos que não sejam `localhost` ou `127.0.0.1`.
