@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/ExternalConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/SemanticHints.php';
+require_once dirname(__DIR__) . '/src/LefthookConfigGenerator.php';
 
 $args = $argv;
 array_shift($args);
@@ -20,6 +21,7 @@ if (!is_string($projectRoot) || $projectRoot === '') {
 try {
     $context = ProjectContext::fromRoot($projectRoot);
     $configs = (new ExternalConfigGenerator())->generate($context);
+    $lefthookConfig = (new LefthookConfigGenerator())->generate($context);
     $semanticHints = SemanticHints::fromProject($context->root());
     $semanticIndex = $context->workspace()->file('semantic-index.json');
     file_put_contents(
@@ -45,6 +47,7 @@ echo '[NINFA] Projeto: ' . $context->root() . PHP_EOL;
 echo '[NINFA] PHP: ' . $context->phpVersion() . PHP_EOL;
 echo '[NINFA] Workspace: ' . $context->workspace()->path() . PHP_EOL;
 echo '[NINFA] Caminhos: ' . implode(', ', $context->paths()) . PHP_EOL;
+echo '[NINFA] Lefthook: ' . $lefthookConfig . PHP_EOL;
 echo '[NINFA] Semantica: ' . $semanticIndex . PHP_EOL;
 echo '[NINFA] Docs semanticos: ' . ($semanticHints->files() === [] ? 'nenhum' : implode(', ', $semanticHints->files())) . PHP_EOL;
 echo '[NINFA] Simbolos documentados: ' . count($semanticHints->symbols()) . PHP_EOL;
