@@ -24,7 +24,7 @@ printf '[NINFA] Semgrep: '
 "$TOOLS/semgrep/bin/semgrep" --version
 
 if [[ "$INSTALL_ZAP" != "1" ]]; then
-    printf '[NINFA] OWASP ZAP não instalado por padrão. Use: make security-tools-with-zap\n'
+    printf '[NINFA] OWASP ZAP não instalado por padrão. Use: NINFA_INSTALL_ZAP=1 make security-tools\n'
     exit 0
 fi
 
