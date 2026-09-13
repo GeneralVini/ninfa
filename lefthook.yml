@@ -1,9 +1,0 @@
-pre-commit:
-  commands:
-    lint:
-      run: composer lint
-
-pre-push:
-  commands:
-    check:
-      run: composer check
