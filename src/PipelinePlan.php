@@ -73,7 +73,7 @@ final class PipelinePlan
 
     private function assertSupported(ProjectContext $context): void
     {
-        if (!in_array($context->profile(), ['glpi-plugin', 'yii2', 'yii3'], true)) {
+        if (!in_array($context->profile(), ['glpi-plugin', 'yii2', 'yii3', 'php-generic'], true)) {
             throw new LogicException('Profile sem pipeline Ninfa: ' . $context->profile());
         }
     }
