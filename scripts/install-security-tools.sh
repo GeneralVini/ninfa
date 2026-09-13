@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOLS="$ROOT/.tools"
 SEMGREP_VERSION="${NINFA_SEMGREP_VERSION:-1.177.0}"
+INSTALL_ZAP="${NINFA_INSTALL_ZAP:-0}"
 ZAP_VERSION="${NINFA_ZAP_VERSION:-2.17.0}"
 ZAP_SHA256="${NINFA_ZAP_SHA256:-efe799aaa3627db683b43f00c9c210aea0b75c00cc8f0a0f0434d12bb3ddde5a}"
 ZAP_ARCHIVE="ZAP_${ZAP_VERSION}_Linux.tar.gz"
@@ -16,10 +17,16 @@ PYTHON_OK="$(python3 -c 'import sys; print(1 if sys.version_info >= (3, 10) else
 [[ "$PYTHON_OK" == "1" ]] || { echo '[ERRO] Python 3.10+ é necessário para Semgrep.' >&2; exit 1; }
 
 if [[ ! -x "$TOOLS/semgrep/bin/semgrep" ]]; then
-    python3 -m venv "$TOOLS/semgrep" || { echo '[ERRO] Instale python3-venv e repita make setup.' >&2; exit 1; }
+    python3 -m venv "$TOOLS/semgrep" || { echo '[ERRO] Instale python3-venv e repita make security-tools.' >&2; exit 1; }
     "$TOOLS/semgrep/bin/python" -m pip install --disable-pip-version-check "semgrep==${SEMGREP_VERSION}"
 fi
+printf '[NINFA] Semgrep: '
 "$TOOLS/semgrep/bin/semgrep" --version
+
+if [[ "$INSTALL_ZAP" != "1" ]]; then
+    printf '[NINFA] OWASP ZAP não instalado por padrão. Use: make security-tools-with-zap\n'
+    exit 0
+fi
 
 command -v java >/dev/null || { echo '[ERRO] Java 17+ é necessário para OWASP ZAP.' >&2; exit 1; }
 JAVA_VERSION="$(java -version 2>&1 | head -n 1 | sed -E 's/.*version "([0-9]+).*/\1/')"
@@ -36,4 +43,5 @@ if [[ ! -x "$TOOLS/zap/zap.sh" ]]; then
     rm -rf "$TOOLS/zap"
     mv "$tmp/ZAP_${ZAP_VERSION}" "$TOOLS/zap"
 fi
+printf '[NINFA] OWASP ZAP: '
 "$TOOLS/zap/zap.sh" -version
