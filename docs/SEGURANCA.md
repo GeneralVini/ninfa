@@ -1,57 +1,45 @@
 # Segurança
 
-O Ninfa separa segurança estática, dependências e testes dinâmicos.
+O Ninfa mantém segurança separada do pipeline comum de qualidade.
 
-## Dependências
+## Comando
 
-`composer security:dependencies` executa `composer audit --locked --no-interaction` e verifica vulnerabilidades conhecidas nas dependências registradas no lock file.
-
-## Taint analysis
-
-`composer psalm:taint` executa Psalm Taint Analysis para rastrear dados não confiáveis até operações sensíveis.
-
-## Semgrep CE
-
-`composer security:semgrep` aplica as regras locais de `security/semgrep.yml`.
-
-O conjunto padrão cobre apenas alguns padrões genéricos de risco. Projetos consumidores podem acrescentar regras próprias, desde que revisadas e documentadas.
-
-## OWASP ZAP
-
-`composer security:dast` executa o wrapper local do OWASP ZAP. O wrapper exige `NINFA_ZAP_TARGET` e restringe o destino padrão a `localhost` ou `127.0.0.1`.
-
-O relatório HTML padrão é salvo em:
-
-```text
-runtime/security/zap-report.html
+```bash
+bin/ninfa security /caminho/do/projeto
 ```
 
-## Ferramentas locais
-
-Semgrep CE e OWASP ZAP são instalados em `.tools/` por `scripts/install-security-tools.sh`. O diretório não deve ser versionado.
-
-O instalador valida o pacote do ZAP por SHA-256 antes da extração.
-
-## Pipeline
-
-A pipeline comum é:
+O baseline executa:
 
 ```text
-composer check
-├── composer qa
-│   ├── ECS
-│   ├── Rector
-│   ├── PHPStan
-│   ├── Psalm
-│   └── PHPUnit
-└── composer security
-    ├── Composer Audit
-    ├── Psalm Taint Analysis
-    └── Semgrep CE
+Composer Audit
+Psalm Taint Analysis
+Semgrep
 ```
 
-O OWASP ZAP permanece fora de `composer check` porque depende de uma aplicação em execução.
+## Composer Audit
 
-## Tratamento de achados
+Executa `composer audit --locked --no-interaction` no projeto alvo.
 
-Achados devem ser corrigidos, justificados ou tratados por regra específica e revisável. Não crie exclusões globais apenas para obter uma execução verde.
+## Psalm Taint
+
+Reutiliza a configuração Psalm gerada no workspace externo e executa análise de taint.
+
+## Semgrep
+
+Usa as regras do próprio Ninfa em `security/semgrep.yml` e analisa somente os paths detectados do projeto alvo. Diretórios como `vendor` e `runtime` são excluídos.
+
+## DAST / OWASP ZAP
+
+DAST é opcional e não roda apenas por executar `security`. Para habilitar:
+
+```bash
+NINFA_DAST=1 \
+NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
+bin/ninfa security /caminho/do/projeto
+```
+
+O wrapper padrão recusa destinos que não sejam `localhost` ou `127.0.0.1`.
+
+## Princípio
+
+Achados devem ser corrigidos ou tratados por regra específica e revisável. O MVP não deve criar exclusões globais apenas para silenciar a pipeline.
