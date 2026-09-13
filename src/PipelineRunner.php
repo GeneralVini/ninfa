@@ -38,7 +38,10 @@ final class PipelineRunner
             }
 
             echo '[NINFA] ' . $hook['id'] . ' (' . $hook['mode'] . ')' . PHP_EOL;
-            $status = $this->processRunner->run($command, $context->root());
+            $status = $operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true)
+                ? $this->runStaticAnalysis($hook['id'], $command, $context)
+                : $this->processRunner->run($command, $context->root());
+
             if ($status !== 0) {
                 return $status;
             }
@@ -55,8 +58,8 @@ final class PipelineRunner
         return match ($id) {
             'ecs' => [$this->tool('ecs', $context), 'check', '--config', $configs['ecs'], ...($mode === 'fix' ? ['--fix'] : [])],
             'rector' => [$this->tool('rector', $context), 'process', '--config', $configs['rector'], '--no-progress-bar', ...($mode === 'dry-run' ? ['--dry-run'] : [])],
-            'phpstan' => [$this->tool('phpstan', $context), 'analyse', '--configuration', $configs['phpstan'], '--no-progress'],
-            'psalm' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--no-progress'],
+            'phpstan' => [$this->tool('phpstan', $context), 'analyse', '--configuration', $configs['phpstan'], '--error-format=json', '--no-progress'],
+            'psalm' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--output-format=json', '--no-progress'],
             'psalm-taint' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--taint-analysis', '--no-progress'],
             'eslint' => [$this->tool('eslint', $context), '.', ...($mode === 'fix' ? ['--fix'] : [])],
             'prettier' => [$this->tool('prettier', $context), $mode === 'fix' ? '--write' : '--check', '.'],
@@ -74,6 +77,48 @@ final class PipelineRunner
             ],
             default => null,
         };
+    }
+
+    /** @param list<string> $command */
+    private function runStaticAnalysis(string $tool, array $command, ProjectContext $context): int
+    {
+        $result = $this->processRunner->runCaptured($command, $context->root());
+
+        try {
+            $findings = $tool === 'phpstan'
+                ? FindingRenderer::phpStan($result->stdout, $context->root())
+                : FindingRenderer::psalm($result->stdout, $context->root());
+        } catch (JsonException $error) {
+            fwrite(STDERR, '[ERRO] Saída estruturada inválida de ' . $tool . ': ' . $error->getMessage() . PHP_EOL);
+            if (trim($result->stdout) !== '') {
+                fwrite(STDERR, $result->stdout . PHP_EOL);
+            }
+            if (trim($result->stderr) !== '') {
+                fwrite(STDERR, $result->stderr . PHP_EOL);
+            }
+
+            return $result->exitCode === 0 ? 1 : $result->exitCode;
+        }
+
+        if ($findings === []) {
+            if ($result->exitCode !== 0) {
+                if (trim($result->stderr) !== '') {
+                    fwrite(STDERR, $result->stderr . PHP_EOL);
+                }
+                if (trim($result->stdout) !== '') {
+                    fwrite(STDERR, $result->stdout . PHP_EOL);
+                }
+            } else {
+                echo '[NINFA] ' . $tool . ': nenhum achado.' . PHP_EOL;
+            }
+
+            return $result->exitCode;
+        }
+
+        FindingRenderer::render($findings, false);
+        echo '[NINFA] ' . $tool . ': ' . count($findings) . ' achado(s).' . PHP_EOL;
+
+        return $result->exitCode === 0 ? 1 : $result->exitCode;
     }
 
     private function optionalHookEnabled(string $id): bool
