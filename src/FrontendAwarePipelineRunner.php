@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/PipelineRunner.php';
 require_once __DIR__ . '/FrontendCommandBuilder.php';
+require_once __DIR__ . '/FrontendDetector.php';
 require_once __DIR__ . '/ToolResolver.php';
 require_once __DIR__ . '/ProcessRunner.php';
 
@@ -12,6 +13,7 @@ final class FrontendAwarePipelineRunner
     public function __construct(
         private readonly PipelineRunner $pipelineRunner = new PipelineRunner(),
         private readonly FrontendCommandBuilder $frontendCommandBuilder = new FrontendCommandBuilder(),
+        private readonly FrontendDetector $frontendDetector = new FrontendDetector(),
         private readonly ToolResolver $toolResolver = new ToolResolver(),
         private readonly ProcessRunner $processRunner = new ProcessRunner(),
     ) {
@@ -20,7 +22,7 @@ final class FrontendAwarePipelineRunner
     public function run(string $operation, ProjectContext $context): int
     {
         $status = $this->pipelineRunner->run($operation, $context);
-        if ($status !== 0 || !$context->hasJavaScript() || !in_array($operation, ['check', 'fix'], true)) {
+        if ($status !== 0 || !$this->frontendDetector->hasJavaScript($context->root()) || !in_array($operation, ['check', 'fix'], true)) {
             return $status;
         }
 
@@ -39,6 +41,10 @@ final class FrontendAwarePipelineRunner
             if ($status !== 0) {
                 return $status;
             }
+        }
+
+        if ($operation === 'fix') {
+            return $this->run('check', $context);
         }
 
         return 0;
