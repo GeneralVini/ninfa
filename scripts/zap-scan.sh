@@ -6,11 +6,15 @@ cd "$ROOT"
 
 TARGET="${NINFA_ZAP_TARGET:-}"
 ZAP_BIN="${NINFA_ZAP_BIN:-$ROOT/.tools/zap/zap.sh}"
-REPORT="${NINFA_ZAP_REPORT:-$ROOT/runtime/security/zap-report.html}"
+REPORT="${NINFA_ZAP_REPORT:-}"
 
 if [[ -z "$TARGET" ]]; then
     printf '[ERRO] Defina NINFA_ZAP_TARGET para uma URL local de desenvolvimento.\n' >&2
-    printf 'Exemplo: NINFA_ZAP_TARGET=http://127.0.0.1:8080 composer security:dast\n' >&2
+    exit 1
+fi
+
+if [[ -z "$REPORT" ]]; then
+    printf '[ERRO] NINFA_ZAP_REPORT deve apontar para o workspace externo.\n' >&2
     exit 1
 fi
 
@@ -23,7 +27,7 @@ if [[ ! -x "$ZAP_BIN" ]]; then
     if command -v zaproxy >/dev/null 2>&1; then
         ZAP_BIN="$(command -v zaproxy)"
     else
-        printf '[ERRO] OWASP ZAP não encontrado. Execute: make setup\n' >&2
+        printf '[ERRO] OWASP ZAP não encontrado no ambiente do Ninfa.\n' >&2
         exit 1
     fi
 fi
