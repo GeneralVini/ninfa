@@ -1,6 +1,9 @@
-.PHONY: setup syntax profile-test
+.PHONY: setup syntax profile-test security-tools
 
-setup: syntax profile-test
+setup: security-tools syntax profile-test
+
+security-tools:
+	bash scripts/install-security-tools.sh
 
 syntax:
 	find src scripts tests bin -type f \( -name '*.php' -o -path 'bin/ninfa' \) -print0 | xargs -0 -n1 php -l
