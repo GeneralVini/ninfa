@@ -4,19 +4,55 @@ declare(strict_types=1);
 
 final class ToolResolver
 {
+    private readonly string $ninfaRoot;
+
+    public function __construct(?string $ninfaRoot = null)
+    {
+        $this->ninfaRoot = $ninfaRoot ?? dirname(__DIR__);
+    }
+
     public function resolve(string $name, string $projectRoot): string
     {
-        foreach ([
-            $projectRoot . '/node_modules/.bin/' . $name,
-            $projectRoot . '/vendor/bin/' . $name,
-            dirname(__DIR__) . '/node_modules/.bin/' . $name,
-            dirname(__DIR__) . '/vendor/bin/' . $name,
-        ] as $candidate) {
-            if (is_file($candidate)) {
+        foreach ($this->candidates($name, $projectRoot) as $candidate) {
+            if (is_file($candidate) && is_executable($candidate)) {
                 return $candidate;
             }
         }
 
-        return $name;
+        $path = getenv('PATH');
+        if (is_string($path) && $path !== '') {
+            foreach (explode(PATH_SEPARATOR, $path) as $directory) {
+                if ($directory === '') {
+                    continue;
+                }
+
+                $candidate = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $name;
+                if (is_file($candidate) && is_executable($candidate)) {
+                    return $candidate;
+                }
+            }
+        }
+
+        $message = sprintf(
+            'Ferramenta "%s" não encontrada no projeto, no ambiente do Ninfa ou no PATH.',
+            $name,
+        );
+        if ($name === 'semgrep') {
+            $message .= ' Execute "make security-tools" em ' . $this->ninfaRoot . '.';
+        }
+
+        throw new RuntimeException($message);
+    }
+
+    /** @return list<string> */
+    private function candidates(string $name, string $projectRoot): array
+    {
+        return [
+            $projectRoot . '/node_modules/.bin/' . $name,
+            $projectRoot . '/vendor/bin/' . $name,
+            $this->ninfaRoot . '/.tools/' . $name . '/bin/' . $name,
+            $this->ninfaRoot . '/node_modules/.bin/' . $name,
+            $this->ninfaRoot . '/vendor/bin/' . $name,
+        ];
     }
 }
