@@ -36,6 +36,14 @@ Equivale a:
 php scripts/ninfa-configure.php . --force
 ```
 
+## Teste do profile GLPI
+
+```bash
+make profile-test
+```
+
+Cria um plugin e um host GLPI mínimos em diretório temporário e valida contexto, PHPStan e Psalm gerados.
+
 ## Instalador inicial com force
 
 Durante a primeira implantação, o instalador também aceita `--force`:

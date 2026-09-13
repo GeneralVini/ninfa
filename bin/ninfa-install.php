@@ -20,6 +20,7 @@ $files = [
     'scripts/bootstrap.sh' => 'scripts/bootstrap.sh',
     'scripts/install-security-tools.sh' => 'scripts/install-security-tools.sh',
     'scripts/ninfa-configure.php' => 'scripts/ninfa-configure.php',
+    'scripts/setup-glpi-host.sh' => 'scripts/setup-glpi-host.sh',
     'scripts/semgrep-scan.sh' => 'scripts/semgrep-scan.sh',
     'scripts/zap-scan.sh' => 'scripts/zap-scan.sh',
     'scripts/merge-composer.php' => 'scripts/merge-composer.php',

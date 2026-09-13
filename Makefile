@@ -1,18 +1,21 @@
-.PHONY: setup install install-force configure configure-force hooks fix qa check security security-dast lint rector stan psalm psalm-taint test audit semgrep
+.PHONY: setup install install-force configure configure-force profile-test hooks fix qa check security security-dast lint rector stan psalm psalm-taint test audit semgrep
 
 install:
-	php scripts/ninfa-configure.php .
 	composer install
+	php scripts/ninfa-configure.php .
 
 install-force:
-	php scripts/ninfa-configure.php . --force
 	composer install
+	php scripts/ninfa-configure.php . --force
 
 configure:
 	php scripts/ninfa-configure.php .
 
 configure-force:
 	php scripts/ninfa-configure.php . --force
+
+profile-test:
+	bash tests/glpi-plugin-profile.sh
 
 setup:
 	bash scripts/bootstrap.sh

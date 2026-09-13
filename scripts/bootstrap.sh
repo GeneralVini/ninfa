@@ -8,9 +8,8 @@ command -v php >/dev/null || { echo '[ERRO] PHP não encontrado.' >&2; exit 1; }
 command -v composer >/dev/null || { echo '[ERRO] Composer não encontrado.' >&2; exit 1; }
 command -v git >/dev/null || { echo '[ERRO] Git não encontrado.' >&2; exit 1; }
 
-php scripts/ninfa-configure.php "$ROOT"
-
 composer install --no-interaction --prefer-dist
+php scripts/ninfa-configure.php "$ROOT"
 composer validate --no-interaction
 
 for binary in ecs rector phpstan psalm phpunit; do

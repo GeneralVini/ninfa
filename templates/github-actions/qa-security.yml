@@ -23,11 +23,19 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - name: Detect project context
-        run: php scripts/ninfa-configure.php .
-
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare GLPI 11 host
+        env:
+          NINFA_GLPI_ROOT: ${{ runner.temp }}/ninfa-glpi
+          NINFA_GLPI_VERSION: '11.0.8'
+        run: |
+          bash scripts/setup-glpi-host.sh
+          echo "NINFA_GLPI_ROOT=${NINFA_GLPI_ROOT}" >> "$GITHUB_ENV"
+
+      - name: Detect project context
+        run: php scripts/ninfa-configure.php . --force
 
       - name: Install Semgrep CE
         run: python3 -m pip install --disable-pip-version-check semgrep==1.177.0

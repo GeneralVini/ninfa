@@ -101,6 +101,22 @@ Se não estiver instalada, o Ninfa mantém a descoberta básica de símbolos do 
 
 O profile não reduz automaticamente o nível do PHPStan e não cria `ignoreErrors` amplos. Depois que classes, funções e globais do GLPI estiverem resolvidos, erros de tipos do plugin continuam sendo reportados normalmente.
 
+## Psalm
+
+O GLPI expõe classes globais, callbacks descobertos em runtime e uma camada de banco dinâmica. Sem contexto específico, o Psalm interpreta esses contratos como `mixed` e produz uma cascata de falsos positivos.
+
+Quando o host GLPI 11 é localizado, o profile gerado:
+
+- reutiliza `.ninfa/phpstan-glpi-bootstrap.php` como autoloader leve;
+- declara `global $DB` como `DBmysql`;
+- usa a versão mínima de PHP encontrada em `composer.json`;
+- não exige `#[Override]` em projetos que ainda suportam PHP 8.2;
+- desativa detecção de código não utilizado, pois hooks e callbacks públicos são chamados dinamicamente pelo GLPI;
+- não reporta `InvalidGlobal` originado no `inc/includes.php` externo ao plugin;
+- inicia no nível 8 como análise complementar ao PHPStan.
+
+O nível 8 é deliberado enquanto o Psalm não possui uma extensão equivalente a `phpstan-glpi` para modelar os iteradores dinâmicos de `DBmysql`. A análise de taint continua ativa pelo comando `composer psalm:taint`.
+
 ## Contexto gerado
 
 `.ninfa/context.json` registra informações específicas do profile:
@@ -131,7 +147,11 @@ export NINFA_GLPI_ROOT=/opt/glpi
 composer check
 ```
 
-O host GLPI pode ser uma instalação de runtime sem dependências de desenvolvimento. O PHPStan e `glpi-project/phpstan-glpi` pertencem ao ambiente de desenvolvimento do plugin.
+O workflow fornecido prepara por padrão um host GLPI 11.0.8 com `scripts/setup-glpi-host.sh`, define `NINFA_GLPI_ROOT` e regenera as configurações no runner efêmero. A versão pode ser alterada com `NINFA_GLPI_VERSION`.
+
+O host GLPI pode ser uma instalação de runtime sem dependências de desenvolvimento. PHPStan, Psalm e `glpi-project/phpstan-glpi` pertencem ao ambiente de desenvolvimento do plugin.
+
+As dependências Composer do plugin são instaladas antes da configuração final. Isso permite que o configurador encontre `vendor/glpi-project/phpstan-glpi/extension.neon` já na primeira execução.
 
 ## Escopo atual
 

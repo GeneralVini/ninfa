@@ -17,6 +17,10 @@ if (!is_file($projectRoot . '/composer.json')) {
 
 $composer = json_decode((string) file_get_contents($projectRoot . '/composer.json'), true, 512, JSON_THROW_ON_ERROR);
 $packages = array_merge(array_keys($composer['require'] ?? []), array_keys($composer['require-dev'] ?? []));
+$phpConstraint = (string) ($composer['require']['php'] ?? '>=8.2');
+$phpVersion = preg_match('/(\d+\.\d+)/', $phpConstraint, $phpVersionMatch) === 1
+    ? $phpVersionMatch[1]
+    : '8.2';
 
 $setupContents = is_file($projectRoot . '/setup.php') ? (string) file_get_contents($projectRoot . '/setup.php') : '';
 $hookContents = is_file($projectRoot . '/hook.php') ? (string) file_get_contents($projectRoot . '/hook.php') : '';
@@ -146,6 +150,7 @@ $context = [
     'paths' => $paths,
     'documentation' => $documentation,
     'documented_frameworks' => array_keys($documentedFrameworks),
+    'php_version' => $phpVersion,
 ];
 if ($isGlpiPlugin) {
     $context['glpi'] = [
@@ -266,9 +271,31 @@ if ($paths !== []) {
         $phpStanHeader . "parameters:\n  level: max\n  paths:\n{$yamlPathLines}\n{$phpStanExtra}  tmpDir: runtime/phpstan\n",
     );
 
+    $psalmAttributes = "    errorLevel=\"1\"\n";
+    $psalmExtra = '';
+    if ($isGlpiPlugin && $glpiRoot !== null) {
+        $ensureOverride = version_compare($phpVersion, '8.3', '>=') ? 'true' : 'false';
+        $glpiIncludes = htmlspecialchars($glpiRoot . '/inc/includes.php', ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        $psalmAttributes = "    errorLevel=\"8\"\n"
+            . "    phpVersion=\"{$phpVersion}\"\n"
+            . "    findUnusedCode=\"false\"\n"
+            . "    ensureOverrideAttribute=\"{$ensureOverride}\"\n"
+            . "    autoloader=\".ninfa/phpstan-glpi-bootstrap.php\"\n";
+        $psalmExtra = "    <globals>\n"
+            . "        <var name=\"DB\" type=\"DBmysql\" />\n"
+            . "    </globals>\n"
+            . "    <issueHandlers>\n"
+            . "        <InvalidGlobal>\n"
+            . "            <errorLevel type=\"suppress\">\n"
+            . "                <file name=\"{$glpiIncludes}\" />\n"
+            . "            </errorLevel>\n"
+            . "        </InvalidGlobal>\n"
+            . "    </issueHandlers>\n";
+    }
+
     $writeConfig(
         $projectRoot . '/psalm.xml',
-        "<?xml version=\"1.0\"?>\n<psalm\n    errorLevel=\"1\"\n    resolveFromConfigFile=\"true\"\n    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n    xmlns=\"https://getpsalm.org/schema/config\"\n    xsi:schemaLocation=\"https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd\"\n>\n    <projectFiles>\n{$xmlPathLines}\n        <ignoreFiles>\n            <directory name=\"vendor\" />\n            <directory name=\".tools\" />\n            <directory name=\"runtime\" />\n        </ignoreFiles>\n    </projectFiles>\n</psalm>\n",
+        "<?xml version=\"1.0\"?>\n<psalm\n{$psalmAttributes}    resolveFromConfigFile=\"true\"\n    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n    xmlns=\"https://getpsalm.org/schema/config\"\n    xsi:schemaLocation=\"https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd\"\n>\n    <projectFiles>\n{$xmlPathLines}\n        <ignoreFiles>\n            <directory name=\"vendor\" />\n            <directory name=\".tools\" />\n            <directory name=\"runtime\" />\n        </ignoreFiles>\n    </projectFiles>\n{$psalmExtra}</psalm>\n",
     );
 
     $testsDirectory = in_array('tests', $paths, true) ? "            <directory>tests</directory>\n" : '';

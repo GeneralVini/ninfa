@@ -28,7 +28,7 @@ make setup
 composer check
 ```
 
-`make install` refaz a descoberta contextual e gera apenas configurações ainda ausentes antes de executar `composer install`.
+`make install` instala primeiro as dependências Composer e então refaz a descoberta contextual. Essa ordem permite detectar extensões de análise estática instaladas no próprio projeto.
 
 ## Máquina nova
 

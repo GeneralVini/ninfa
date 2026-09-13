@@ -24,6 +24,8 @@ Yii, Symfony e Laravel podem demandar extensões do PHPStan/Psalm ou bootstrap d
 
 O workflow fornecido usa PHP 8.3 como valor neutro. Ajuste `php-version` para a versão oficialmente suportada pelo projeto.
 
+No profile GLPI, `scripts/setup-glpi-host.sh` aceita `NINFA_GLPI_VERSION` e `NINFA_GLPI_ROOT`. O alvo deve ser uma versão 11.x e um diretório inexistente ou uma instalação GLPI já reconhecível.
+
 ## DAST
 
 O DAST fornecido pelo template é destinado ao ambiente local de desenvolvimento. Outros ambientes devem seguir procedimento próprio de autorização e governança do projeto.
