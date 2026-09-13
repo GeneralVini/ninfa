@@ -3,9 +3,14 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ProjectContext.php';
+require_once __DIR__ . '/FrontendDetector.php';
 
 final class PipelinePlan
 {
+    public function __construct(private readonly FrontendDetector $frontendDetector = new FrontendDetector())
+    {
+    }
+
     /** @return list<array{id:string,mode:string,fixable:bool}> */
     public function check(ProjectContext $context): array
     {
@@ -18,7 +23,7 @@ final class PipelinePlan
             ['id' => 'psalm', 'mode' => 'check', 'fixable' => false],
         ];
 
-        if ($context->hasJavaScript()) {
+        if ($this->frontendDetector->hasJavaScript($context->root())) {
             $hooks[] = ['id' => 'eslint', 'mode' => 'check', 'fixable' => true];
             $hooks[] = ['id' => 'prettier', 'mode' => 'check', 'fixable' => true];
         }
