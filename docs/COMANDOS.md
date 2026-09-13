@@ -14,6 +14,20 @@ ninfa check /caminho/do/projeto
 
 Executa ECS, Rector em dry-run, PHPStan, Psalm e PHPUnit quando disponível. Em projetos com contexto JS/TS, também executa ESLint e `prettier --check`.
 
+Os achados de PHPStan e Psalm são capturados em formato estruturado e apresentados pelo renderer do Ninfa, sem depender da tabela nativa de cada ferramenta. O `check` mostra arquivo, linha, regra e o que precisa ser corrigido, mas não sugere alteração semântica.
+
+Exemplo:
+
+```text
+╭─ PHPStan ─────────────────────────────────────────────────────
+│ Arquivo: src/Web/Shared/Layout/Main/layout.php:27
+│ Regra: argument.type
+│
+│ Corrigir:
+│   Parameter #1 $path of function dirname expects string, mixed given
+╰────────────────────────────────────────────────────────────────────────
+```
+
 ## Fix
 
 ```bash
@@ -37,12 +51,20 @@ Ao terminar, executa `check` novamente. Achados sem correção mecânica permane
 ninfa assist /caminho/do/projeto
 ```
 
-É a camada separada para achados semânticos de PHPStan/Psalm. Não altera o projeto consumidor. A saída evita a tabela bruta como interface principal e apresenta cada achado em três campos:
+É a camada separada para achados semânticos de PHPStan/Psalm. Não altera o projeto consumidor. Usa o mesmo renderer visual do `check` e acrescenta a orientação de correção:
 
 ```text
-Regra: argument.type
-Corrigir: Parameter #1 ... expects string, mixed given
-Correção: Faça o valor atender ao contrato exigido antes da chamada...
+╭─ PHPStan ─────────────────────────────────────────────────────
+│ Arquivo: src/Web/Shared/Layout/Main/layout.php:27
+│ Regra: argument.type
+│
+│ Corrigir:
+│   Parameter #1 $path of function dirname expects string, mixed given
+│
+│ Correção:
+│   Valide/refine o valor como string na origem antes do uso; evite cast
+│   cego de mixed.
+╰────────────────────────────────────────────────────────────────────────
 ```
 
 A auditoria completa fica no workspace externo:
