@@ -1,6 +1,8 @@
 # Ninfa CLI
 
-O Ninfa recebe a raiz do projeto e detecta somente os profiles `glpi-plugin`, `yii3` e `yii2`.
+O Ninfa recebe a raiz do projeto e detecta somente os profiles ativos `glpi-plugin`, `yii3` e `yii2`.
+
+Laravel e Symfony estão em **stand by** nesta fase do projeto: não participam da detecção, não possuem fallback e não recebem pipeline ativo no MVP.
 
 ## API pública
 
