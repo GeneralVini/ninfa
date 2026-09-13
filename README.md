@@ -12,15 +12,15 @@ bin/ninfa security /caminho/do/projeto
 
 `check` executa qualidade e análise estática. `fix` aplica correções automáticas e em seguida executa `check` novamente. `security` executa verificações de segurança separadamente.
 
-## Profiles suportados
+## Profiles ativos
 
-O MVP reconhece somente:
+O foco do MVP é exclusivamente:
 
 - `glpi-plugin` — GLPI 11;
 - `yii3`;
 - `yii2`.
 
-Projetos não reconhecidos ou ambíguos falham explicitamente. Não há fallback Laravel, Symfony ou PHP genérico.
+Laravel e Symfony ficam em **stand by**. Não há detecção, fallback nem pipeline ativo para esses frameworks nesta fase. Projetos não reconhecidos ou ambíguos falham explicitamente.
 
 ## Arquitetura externa
 
@@ -60,7 +60,7 @@ ECS
 Rector --dry-run
 PHPStan
 Psalm
-ESLint          # quando houver contexto JS/TS
+ESLint           # quando houver contexto JS/TS
 Prettier --check # quando houver contexto JS/TS
 PHPUnit          # quando disponível
 ```
@@ -138,6 +138,8 @@ O repositório possui `.github/workflows/profile-test.yml`, que executa validaç
 ## Critério do MVP
 
 O próximo estágio é validar o Ninfa em projetos reais representativos: um plugin GLPI 11, um Yii2 e um Yii3. O objetivo é executar `check`, `fix` e `security` sem adicionar boilerplate ao consumidor e sem depender de supressões amplas para obter resultado verde.
+
+Laravel e Symfony só voltam ao roadmap depois que esses três profiles estiverem estabilizados em projetos reais.
 
 ## Documentação
 
