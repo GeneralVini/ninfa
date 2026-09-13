@@ -1,116 +1,66 @@
 # Comandos do Ninfa
 
-## Instalação contextual
+A API pública do MVP possui três comandos.
+
+## Check
 
 ```bash
-make install
+bin/ninfa check /caminho/do/projeto
 ```
 
-Detecta framework e caminhos do projeto, consulta `README.md` e `docs/*.md`, gera apenas configurações ausentes e executa `composer install`.
+Executa ECS, Rector em dry-run, PHPStan, Psalm e PHPUnit quando disponível. Em projetos com contexto JS/TS, também executa ESLint e `prettier --check`.
 
-Para sobrescrever as configurações gerenciadas pelo Ninfa:
+## Fix
 
 ```bash
-make install-force
+bin/ninfa fix /caminho/do/projeto
 ```
 
-Esse comando refaz a descoberta contextual, regenera `ecs.php`, `rector.php`, `phpstan.neon.dist`, `psalm.xml` e `phpunit.xml.dist` e depois executa `composer install`.
+Executa os fixers disponíveis:
 
-## Reconfiguração contextual
+```text
+ECS --fix
+Rector
+ESLint --fix      # frontend
+Prettier --write  # frontend
+```
+
+Ao terminar, executa `check` novamente.
+
+## Security
 
 ```bash
-make configure
+bin/ninfa security /caminho/do/projeto
 ```
 
-Refaz a descoberta do projeto e atualiza `.ninfa/context.json` e `.ninfa/paths.txt`. Também gera `ecs.php`, `rector.php`, `phpstan.neon.dist`, `psalm.xml` e `phpunit.xml.dist` apenas quando esses arquivos ainda não existirem.
+Executa Composer Audit, Psalm Taint Analysis e Semgrep.
 
-Para regenerar e sobrescrever esses arquivos:
+Para incluir DAST local autorizado:
 
 ```bash
-make configure-force
+NINFA_DAST=1 \
+NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
+bin/ninfa security /caminho/do/projeto
 ```
 
-Equivale a:
+## Configuração e diagnóstico
+
+Para gerar/inspecionar o workspace externo:
 
 ```bash
-php scripts/ninfa-configure.php . --force
+php scripts/ninfa-configure.php /caminho/do/projeto
 ```
 
-## Teste do profile GLPI
+O comando informa profile, paths, workspace, configs externas, índice semântico e Lefthook gerado.
+
+`--force` permanece aceito apenas por compatibilidade do configurador; o workspace externo é regenerado a cada execução.
+
+## Testes do próprio Ninfa
+
+Dentro do repositório Ninfa:
 
 ```bash
 make profile-test
 ```
 
-Cria um plugin e um host GLPI mínimos em diretório temporário e valida contexto, PHPStan e Psalm gerados.
-
-## Instalador inicial com force
-
-Durante a primeira implantação, o instalador também aceita `--force`:
-
-```bash
-php /tmp/ninfa/bin/ninfa-install.php . --force
-```
-
-Nesse modo, os arquivos de infraestrutura gerenciados pelo Ninfa são substituídos e o configurador contextual também é executado com `--force`.
-
-## Setup
-
-```bash
-make setup
-```
-
-Instala dependências Composer, valida metadados, prepara Semgrep CE e OWASP ZAP em `.tools/`, instala hooks quando Lefthook estiver disponível e executa `composer check`.
-
-## Qualidade
-
-```bash
-composer qa
-```
-
-Executa ECS, Rector em dry-run, PHPStan, Psalm e PHPUnit.
-
-## Segurança
-
-```bash
-composer security
-```
-
-Executa Composer Audit, Psalm Taint Analysis e Semgrep CE. O Semgrep usa por padrão os caminhos detectados em `.ninfa/paths.txt`.
-
-## Validação completa
-
-```bash
-composer check
-```
-
-Executa `composer qa` seguido de `composer security`.
-
-## Correções automáticas
-
-```bash
-composer fix
-```
-
-Executa Rector e ECS em modo de correção.
-
-## DAST
-
-```bash
-NINFA_ZAP_TARGET=http://127.0.0.1:8080 composer security:dast
-```
-
-O alvo padrão deve ser local e explicitamente autorizado.
-
-## Comandos individuais
-
-```bash
-composer lint
-composer rector
-composer stan
-composer psalm
-composer psalm:taint
-composer test
-composer security:dependencies
-composer security:semgrep
-```
+Esse target executa os testes de profiles, configs externas, instalação sem boilerplate, pipelines, semântica, tooling e fixture GLPI.
