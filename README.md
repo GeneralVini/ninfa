@@ -21,17 +21,25 @@ git clone --branch feature/glpi-plugin-profile --single-branch \
   https://github.com/GeneralVini/ninfa.git /opt/ninfa
 ```
 
+Adicione o CLI ao `PATH` da sessão:
+
+```bash
+export PATH="/opt/ninfa/bin:$PATH"
+```
+
+Para tornar isso permanente, adicione a mesma linha ao arquivo de inicialização do seu shell, por exemplo `~/.bashrc` ou `~/.zshrc`.
+
 Depois execute diretamente; não existe uma etapa obrigatória de instalação ou preparação do workspace:
 
 ```bash
 # qualidade e testes
-/opt/ninfa/bin/ninfa check /path/to/project
+ninfa check /path/to/project
 
 # aplica correções automáticas e depois reexecuta check
-/opt/ninfa/bin/ninfa fix /path/to/project
+ninfa fix /path/to/project
 
 # segurança
-/opt/ninfa/bin/ninfa security /path/to/project
+ninfa security /path/to/project
 ```
 
 Cada comando detecta o profile e gera/regenera automaticamente o workspace externo correspondente em `/tmp/ninfa/<hash-do-projeto>`.
@@ -41,7 +49,7 @@ Cada comando detecta o profile e gera/regenera automaticamente o workspace exter
 Um projeto com `yiisoft/yii2` é reconhecido como `yii2` automaticamente:
 
 ```bash
-/opt/ninfa/bin/ninfa check /path/to/yii2-app
+ninfa check /path/to/yii2-app
 ```
 
 ### Yii3
@@ -49,7 +57,7 @@ Um projeto com `yiisoft/yii2` é reconhecido como `yii2` automaticamente:
 Yii3 também é detectado automaticamente, mas não por qualquer pacote `yiisoft/*`. O detector exige sinais consistentes de aplicação/runner e infraestrutura Yii para evitar falsos positivos:
 
 ```bash
-/opt/ninfa/bin/ninfa check /path/to/yii3-app
+ninfa check /path/to/yii3-app
 ```
 
 ### GLPI Plugin 11
@@ -57,14 +65,14 @@ Yii3 também é detectado automaticamente, mas não por qualquer pacote `yiisoft
 Quando o plugin está dentro de `<glpi>/plugins/<plugin>`, o host pode ser descoberto automaticamente:
 
 ```bash
-/opt/ninfa/bin/ninfa check /opt/glpi/plugins/myplugin
+ninfa check /opt/glpi/plugins/myplugin
 ```
 
 Quando o plugin está fora da árvore do GLPI, informe o host explicitamente:
 
 ```bash
 NINFA_GLPI_ROOT=/opt/glpi \
-/opt/ninfa/bin/ninfa check /path/to/myplugin
+ninfa check /path/to/myplugin
 ```
 
 Somente GLPI 11 é aceito neste MVP.
@@ -72,9 +80,9 @@ Somente GLPI 11 é aceito neste MVP.
 ## Comandos públicos
 
 ```bash
-/opt/ninfa/bin/ninfa check /caminho/do/projeto
-/opt/ninfa/bin/ninfa fix /caminho/do/projeto
-/opt/ninfa/bin/ninfa security /caminho/do/projeto
+ninfa check /caminho/do/projeto
+ninfa fix /caminho/do/projeto
+ninfa security /caminho/do/projeto
 ```
 
 `check` executa qualidade e análise estática. `fix` aplica correções automáticas e em seguida executa `check` novamente. `security` executa verificações de segurança separadamente.
@@ -159,7 +167,7 @@ O DAST com OWASP ZAP é opt-in. Para habilitá-lo:
 ```bash
 NINFA_DAST=1 \
 NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
-/opt/ninfa/bin/ninfa security /caminho/do/projeto
+ninfa security /caminho/do/projeto
 ```
 
 O wrapper padrão do ZAP aceita apenas `localhost` ou `127.0.0.1`.
