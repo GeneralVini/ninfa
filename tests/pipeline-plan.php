@@ -33,11 +33,22 @@ try {
     assert(array_unique(array_column($fix, 'mode')) === ['fix']);
     assert($plan->lefthookFixHooks($context) === ['ecs', 'rector']);
 
+    file_put_contents($projectRoot . '/package.json', '{"private":true}');
+    $frontendContext = ProjectContext::fromRoot($projectRoot);
+    assert($frontendContext->hasJavaScript() === true);
+
+    $frontendCheck = $plan->check($frontendContext);
+    assert(array_column($frontendCheck, 'id') === ['ecs', 'rector', 'phpstan', 'psalm', 'eslint', 'prettier', 'test']);
+
+    $frontendFix = $plan->fix($frontendContext);
+    assert(array_column($frontendFix, 'id') === ['ecs', 'rector', 'eslint', 'prettier']);
+    assert($plan->lefthookFixHooks($frontendContext) === ['ecs', 'rector', 'eslint', 'prettier']);
+
     $security = $plan->security($context);
     assert(array_column($security, 'id') === ['composer-audit', 'psalm-taint', 'semgrep', 'dast']);
     assert($security[3]['optional'] === true);
 
-    echo "[OK] Pipelines check, fix, lefthook e security definidos.\n";
+    echo "[OK] Pipelines check, fix, frontend, lefthook e security definidos.\n";
 } finally {
     putenv('NINFA_GLPI_ROOT');
     if (is_dir($root)) {
