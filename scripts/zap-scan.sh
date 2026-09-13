@@ -27,7 +27,7 @@ if [[ ! -x "$ZAP_BIN" ]]; then
     if command -v zaproxy >/dev/null 2>&1; then
         ZAP_BIN="$(command -v zaproxy)"
     else
-        printf '[ERRO] OWASP ZAP não encontrado no ambiente do Ninfa.\n' >&2
+        printf '[ERRO] OWASP ZAP não encontrado. Execute NINFA_INSTALL_ZAP=1 make security-tools no repositório do Ninfa.\n' >&2
         exit 1
     fi
 fi
