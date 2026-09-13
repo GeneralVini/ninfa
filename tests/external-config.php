@@ -19,24 +19,47 @@ try {
     file_put_contents($pluginRoot . '/composer.json', '{"require":{"php":">=8.2"}}');
 
     $context = ProjectContext::fromRoot($pluginRoot);
-    $files = (new ExternalConfigGenerator())->generate($context);
+    $generator = new ExternalConfigGenerator();
+    $files = $generator->generate($context);
 
     $stan = (string) file_get_contents($files['phpstan']);
     $psalm = (string) file_get_contents($files['psalm']);
 
-    assert(str_contains($stan, "level: 8"));
+    assert(str_contains($stan, 'level: 8'));
     assert(str_contains($stan, str_replace('\\', '/', $glpiRoot . '/src')));
+    assert(!str_contains($stan, "  glpi:\n"));
     assert(str_contains($psalm, 'errorLevel="8"'));
     assert(str_contains($psalm, '<var name="DB" type="DBmysql" />'));
 
-    foreach ($files as $file) {
+    $extension = $glpiRoot . '/vendor/glpi-project/phpstan-glpi/extension.neon';
+    mkdir(dirname($extension), 0775, true);
+    file_put_contents($extension, "services: []\n");
+    $filesWithExtension = $generator->generate(ProjectContext::fromRoot($pluginRoot));
+    $stanWithExtension = (string) file_get_contents($filesWithExtension['phpstan']);
+    assert(str_contains($stanWithExtension, str_replace('\\', '/', $extension)));
+    assert(str_contains($stanWithExtension, "  glpi:\n"));
+    assert(str_contains($stanWithExtension, 'glpiVersion: \'11.0.8\''));
+
+    foreach ($filesWithExtension as $file) {
         assert(str_starts_with($file, $root . '/workspace/'));
         assert(!str_starts_with($file, $pluginRoot . '/'));
     }
 
-    echo "[OK] Configurações externas do GLPI geradas com PHPStan/Psalm nível 8.\n";
+    $genericRoot = $root . '/generic';
+    mkdir($genericRoot . '/src', 0775, true);
+    file_put_contents($genericRoot . '/src/Example.php', "<?php final class GenericExample {}\n");
+    $genericFiles = $generator->generate(ProjectContext::fromRoot($genericRoot));
+    $genericStan = (string) file_get_contents($genericFiles['phpstan']);
+    assert(str_contains($genericStan, 'level: max'));
+    assert(str_contains($genericStan, str_replace('\\', '/', $genericRoot . '/src')));
+
+    echo "[OK] Configurações externas cobrem GLPI condicional e PHP genérico.\n";
 } finally {
-    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
+    putenv('NINFA_WORKSPACE_ROOT');
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST,
+    );
     foreach ($iterator as $item) {
         $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
     }
