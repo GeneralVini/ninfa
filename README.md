@@ -4,13 +4,13 @@
 
 ## Foco atual
 
-O MVP está focado exclusivamente em três profiles:
+O MVP possui três profiles ativos:
 
 - **Yii2** — detectado por `yiisoft/yii2`;
 - **Yii3** — detectado por combinação de pacotes de aplicação/runner e infraestrutura Yii;
 - **GLPI Plugin 11** — profile `glpi-plugin`, com contexto do host GLPI 11 e PHPStan/Psalm em nível 8.
 
-Laravel e Symfony ficam em **stand by**. Não há detecção, fallback nem pipeline ativo para esses frameworks nesta fase.
+Laravel e Symfony permanecem em **stand by**. O próximo profile planejado é **PHP genérico**, mas ele ainda não faz parte desta branch.
 
 ## Execução rápida
 
@@ -21,44 +21,39 @@ git clone --branch feature/glpi-plugin-profile --single-branch \
   https://github.com/GeneralVini/ninfa.git /opt/ninfa
 ```
 
-Adicione o CLI ao `PATH` da sessão:
+Adicione o CLI ao `PATH`:
 
 ```bash
 export PATH="/opt/ninfa/bin:$PATH"
 ```
 
-Para tornar isso permanente, adicione a mesma linha ao arquivo de inicialização do seu shell, por exemplo `~/.bashrc` ou `~/.zshrc`.
-
-Depois execute diretamente; não existe uma etapa obrigatória de instalação ou preparação do workspace:
+Depois execute diretamente. Não existe etapa obrigatória de instalação ou preparação do projeto consumidor:
 
 ```bash
-# qualidade e testes
 ninfa check /path/to/project
-
-# aplica correções automáticas e depois reexecuta check
 ninfa fix /path/to/project
-
-# segurança
 ninfa security /path/to/project
 ```
 
-Cada comando detecta o profile e gera/regenera automaticamente o workspace externo correspondente em `/tmp/ninfa/<hash-do-projeto>`.
+Quando o caminho é omitido, o Ninfa usa o diretório atual.
+
+## Profiles
 
 ### Yii2
-
-Um projeto com `yiisoft/yii2` é reconhecido como `yii2` automaticamente:
 
 ```bash
 ninfa check /path/to/yii2-app
 ```
 
-### Yii3
+Além de layouts simples, o contexto considera estruturas Yii2 com diretórios como `common`, `frontend`, `backend` e `console` quando existentes.
 
-Yii3 também é detectado automaticamente, mas não por qualquer pacote `yiisoft/*`. O detector exige sinais consistentes de aplicação/runner e infraestrutura Yii para evitar falsos positivos:
+### Yii3
 
 ```bash
 ninfa check /path/to/yii3-app
 ```
+
+Uma dependência `yiisoft/*` isolada não é suficiente para classificar um projeto como Yii3.
 
 ### GLPI Plugin 11
 
@@ -68,30 +63,28 @@ Quando o plugin está dentro de `<glpi>/plugins/<plugin>`, o host pode ser desco
 ninfa check /opt/glpi/plugins/myplugin
 ```
 
-Quando o plugin está fora da árvore do GLPI, informe o host explicitamente:
+Quando estiver fora da árvore do GLPI:
 
 ```bash
 NINFA_GLPI_ROOT=/opt/glpi \
 ninfa check /path/to/myplugin
 ```
 
-Somente GLPI 11 é aceito neste MVP.
+Somente GLPI 11 é aceito e a versão do host precisa ser identificável.
 
 ## Comandos públicos
 
 ```bash
-ninfa check /caminho/do/projeto
-ninfa fix /caminho/do/projeto
-ninfa security /caminho/do/projeto
+ninfa check [root]
+ninfa fix [root]
+ninfa security [root]
 ```
 
-`check` executa qualidade e análise estática. `fix` aplica correções automáticas e em seguida executa `check` novamente. `security` executa verificações de segurança separadamente.
-
-Projetos não reconhecidos ou ambíguos falham explicitamente.
+`check` executa qualidade, análise estática e testes disponíveis. `fix` aplica correções automáticas e executa **um único `check`** ao final. `security` permanece separado.
 
 ## Arquitetura externa
 
-O Ninfa não deve ser copiado para dentro do projeto consumidor. Os três locais principais são:
+O Ninfa não é copiado para dentro do projeto consumidor:
 
 ```text
 /opt/ninfa/                   código do Ninfa
@@ -99,7 +92,9 @@ O Ninfa não deve ser copiado para dentro do projeto consumidor. Os três locais
 /tmp/ninfa/<hash-do-projeto>/ workspace externo gerado
 ```
 
-No workspace são gerados, conforme necessário:
+O workspace é descartável e pode ser redefinido por `NINFA_WORKSPACE_ROOT`, mas não pode ficar dentro do projeto consumidor.
+
+As configurações geradas ficam no workspace externo, por exemplo:
 
 ```text
 phpstan.neon
@@ -111,23 +106,11 @@ semantic-index.json
 glpi-bootstrap.php   # quando aplicável
 ```
 
-O `composer.json` do consumidor não é alterado pelo Ninfa.
-
-## Contexto e semântica
-
-A evidência técnica principal vem de `composer.json` e do filesystem. Para enriquecer a semântica de símbolos e convenções, o Ninfa também lê, quando presentes:
-
-- `README.md`;
-- `AGENTS.md`;
-- `CONTRIBUTING.md`;
-- `ARCHITECTURE.md`;
-- `docs/*.md`.
-
-Esses documentos alimentam `semantic-index.json`, mas não substituem sinais técnicos do código e das dependências.
+O `composer.json` do consumidor não é alterado pelo fluxo público do Ninfa.
 
 ## Pipeline de qualidade
 
-`check` inclui:
+`check` inclui, conforme o contexto do projeto:
 
 ```text
 ECS
@@ -139,30 +122,11 @@ Prettier --check # quando houver contexto JS/TS
 PHPUnit          # quando disponível
 ```
 
-`fix` executa os hooks corrigíveis:
-
-```text
-ECS --fix
-Rector
-ESLint --fix      # quando aplicável
-Prettier --write  # quando aplicável
-```
-
-Depois dos fixers, o Ninfa executa `check` novamente.
-
-Ferramentas são resolvidas preferencialmente no projeto, depois no ambiente do próprio Ninfa e por fim no `PATH`. Para ferramentas Node, `node_modules/.bin` tem prioridade.
+`fix` executa os hooks corrigíveis e depois revalida o projeto uma única vez.
 
 ## Segurança
 
-`security` executa:
-
-```text
-Composer Audit
-Psalm Taint Analysis
-Semgrep
-```
-
-O DAST com OWASP ZAP é opt-in. Para habilitá-lo:
+`security` usa o baseline atual de segurança do Ninfa. O DAST com OWASP ZAP é opt-in:
 
 ```bash
 NINFA_DAST=1 \
@@ -170,45 +134,33 @@ NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
 ninfa security /caminho/do/projeto
 ```
 
-O wrapper padrão do ZAP aceita apenas `localhost` ou `127.0.0.1`.
+O wrapper padrão aceita somente `localhost` ou `127.0.0.1`.
 
-## GLPI 11
+## Diagnóstico manual
 
-No profile `glpi-plugin`, o host GLPI é localizado por `NINFA_GLPI_ROOT` ou pela estrutura `<glpi>/plugins/<plugin>`. Apenas GLPI 11 é aceito.
-
-PHPStan e Psalm usam nível **8** nesse profile. Quando disponível, `glpi-project/phpstan-glpi` é carregado do plugin ou do host. O core GLPI fornece contexto de símbolos, mas não é tratado como código alvo do plugin.
-
-Consulte [docs/GLPI_PLUGIN.md](docs/GLPI_PLUGIN.md).
-
-## Lefthook
-
-O configurador gera `lefthook.yml` no workspace externo. A política atual é:
-
-```text
-pre-commit -> ninfa fix
-pre-push   -> ninfa check
-```
-
-Nenhum `lefthook.yml` precisa ser criado no projeto consumidor.
-
-## Diagnóstico e preparação manual
-
-Normalmente não é necessário chamar o instalador ou configurador diretamente. Eles permanecem disponíveis para diagnóstico, inspeção do profile e geração manual do workspace:
+Normalmente não é necessário preparar o workspace manualmente. Para diagnóstico e inspeção do contexto:
 
 ```bash
-php /opt/ninfa/bin/ninfa-install.php /caminho/do/projeto
 php /opt/ninfa/scripts/ninfa-configure.php /caminho/do/projeto
 ```
 
-## CI do próprio Ninfa
+Esse script também trabalha de forma externa e não deve criar boilerplate no consumidor.
 
-O repositório possui `.github/workflows/profile-test.yml`, que executa validação de sintaxe PHP e `make profile-test`. O workflow está verde no MVP atual.
+## Desenvolvimento do próprio Ninfa
 
-## Critério do MVP
+O `Makefile` existe somente para o desenvolvimento e validação do repositório Ninfa:
 
-O próximo estágio é validar o Ninfa em projetos reais representativos: um **Yii2**, um **Yii3** e um **plugin GLPI 11**. O objetivo é executar `check`, `fix` e `security` sem adicionar boilerplate ao consumidor e sem depender de supressões amplas para obter resultado verde.
+```bash
+make syntax
+make profile-test
+make setup
+```
 
-Laravel e Symfony só voltam ao roadmap depois que esses três profiles estiverem estabilizados em projetos reais.
+Esses targets não são requisitos para projetos consumidores.
+
+## Evolução prevista
+
+Depois de estabilizar Yii2, Yii3 e GLPI Plugin 11, o próximo passo é adicionar o profile **PHP genérico**. Em etapa posterior, o core poderá alimentar uma interface web/dashboard para histórico, findings e acompanhamento das execuções. Essa interface não faz parte do MVP atual.
 
 ## Documentação
 
