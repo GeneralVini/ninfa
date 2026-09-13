@@ -63,7 +63,9 @@ final class PipelineRunner
             'test' => is_file($context->root() . '/vendor/bin/phpunit')
                 ? [$this->tool('phpunit', $context)]
                 : null,
-            'composer-audit' => [$this->tool('composer', $context), 'audit', '--locked', '--no-interaction'],
+            'composer-audit' => is_file($context->root() . '/composer.lock')
+                ? [$this->tool('composer', $context), 'audit', '--locked', '--no-interaction']
+                : null,
             'semgrep' => $this->semgrepCommand($context),
             'dast' => ['bash', dirname(__DIR__) . '/scripts/zap-scan.sh'],
             default => null,
