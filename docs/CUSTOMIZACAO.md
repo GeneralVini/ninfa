@@ -1,31 +1,33 @@
 # Customização
 
-O Ninfa define um baseline. Projetos consumidores devem adaptar somente o necessário.
+O MVP privilegia convenção e detecção automática. Customizações devem ser explícitas e não devem transformar o Ninfa em boilerplate dentro do consumidor.
 
-## Caminhos de código
+## Paths
 
-O template assume `src/` e `tests/`. Ajuste ECS, Rector, PHPStan, Psalm e PHPUnit conforme a estrutura real do projeto.
-
-## Semgrep
-
-Mantenha `security/semgrep.yml` pequeno e revisável. Regras específicas de arquitetura ou negócio pertencem ao projeto consumidor.
-
-Evite duplicar verificações já cobertas de forma melhor por PHPStan, Psalm ou Composer Audit.
+Os paths são detectados por profile e usados nas configurações externas de ECS, Rector, PHPStan e Psalm. Estruturas não reconhecidas devem falhar de forma visível em vez de receber paths inventados.
 
 ## Níveis de análise
 
-O PHPStan inicia em `level: max`. Caso um legado não suporte adoção imediata, reduza temporariamente de forma explícita e documente a evolução planejada. Não use baseline permanente sem justificativa.
+No profile `glpi-plugin`, PHPStan e Psalm usam nível 8. Para Yii2/Yii3, os níveis seguem a política atual do `ProjectContext`.
 
-## Frameworks
+Não use `ignoreErrors` ou baselines amplos apenas para obter uma execução verde.
 
-Yii, Symfony e Laravel podem demandar extensões do PHPStan/Psalm ou bootstrap de testes. Essas integrações devem ficar no projeto consumidor e não no núcleo do Ninfa.
+## Frontend
 
-## CI
+ESLint e Prettier são ativados somente com evidência JS/TS. Os binários Node são procurados primeiro em `node_modules/.bin`, depois no ambiente do Ninfa e no `PATH`.
 
-O workflow fornecido usa PHP 8.3 como valor neutro. Ajuste `php-version` para a versão oficialmente suportada pelo projeto.
+## Ferramentas
 
-No profile GLPI, `scripts/setup-glpi-host.sh` aceita `NINFA_GLPI_VERSION` e `NINFA_GLPI_ROOT`. O alvo deve ser uma versão 11.x e um diretório inexistente ou uma instalação GLPI já reconhecível.
+O resolver prioriza ferramentas locais do projeto, depois ferramentas instaladas junto ao Ninfa e por fim o `PATH`. Isso permite testar o MVP sem obrigar um único modelo de instalação.
+
+## Semântica documental
+
+`README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md` e `docs/*.md` podem melhorar a descoberta semântica de símbolos e convenções. Essa informação é complementar e não substitui `composer.json`, código ou estrutura real.
+
+## GLPI
+
+Use `NINFA_GLPI_ROOT` quando o plugin não estiver sob `<glpi>/plugins`. Apenas GLPI 11 é aceito pelo profile atual.
 
 ## DAST
 
-O DAST fornecido pelo template é destinado ao ambiente local de desenvolvimento. Outros ambientes devem seguir procedimento próprio de autorização e governança do projeto.
+DAST é opt-in via `NINFA_DAST=1` e exige `NINFA_ZAP_TARGET` local autorizado. Ambientes não locais precisam de política própria e não são habilitados pelo wrapper padrão do MVP.
