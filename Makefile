@@ -14,5 +14,6 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/pipeline-plan.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/semantic-hints.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/tooling-integration.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/pipeline-runner.php
 	php tests/legacy-config-policy.php
 	bash tests/glpi-plugin-profile.sh

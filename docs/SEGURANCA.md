@@ -35,6 +35,10 @@ Semgrep
 OWASP ZAP             # somente opt-in
 ```
 
+As etapas independentes continuam mesmo quando uma delas encontra um bloqueio
+ou falha. O resumo final distingue sucesso, falha, erro de execucao e etapa
+ignorada; o exit code do comando preserva a primeira falha observada.
+
 ## Composer Audit
 
 Executa `composer audit --locked --no-interaction` somente quando o projeto possui `composer.lock`. Projetos PHP genéricos sem Composer não falham apenas pela ausência desse recurso.

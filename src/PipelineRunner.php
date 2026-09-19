@@ -30,21 +30,61 @@ final class PipelineRunner
             default => throw new InvalidArgumentException('Operacao invalida: ' . $operation),
         };
 
+        $results = [];
+        $firstFailure = 0;
+
         foreach ($hooks as $hook) {
             if (($hook['optional'] ?? false) === true && !$this->optionalHookEnabled($hook['id'])) {
+                $results[] = [
+                    'id' => $hook['id'],
+                    'state' => 'skipped',
+                    'exit_code' => null,
+                    'detail' => 'opcional desabilitada',
+                ];
                 continue;
             }
 
-            $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
+            try {
+                $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
+            } catch (Throwable $error) {
+                fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
+                $results[] = [
+                    'id' => $hook['id'],
+                    'state' => 'error',
+                    'exit_code' => 1,
+                    'detail' => $error->getMessage(),
+                ];
+                $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
+                continue;
+            }
+
             if ($command === null) {
+                $results[] = [
+                    'id' => $hook['id'],
+                    'state' => 'skipped',
+                    'exit_code' => null,
+                    'detail' => 'nao aplicavel',
+                ];
                 continue;
             }
 
             echo CliStyle::info('[NINFA] ' . $hook['id']) . ' (' . $hook['mode'] . ')' . PHP_EOL;
             $structured = $operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true);
-            $status = $structured
-                ? $this->runStaticAnalysis($hook['id'], $command, $context)
-                : $this->processRunner->run($command, $context->root());
+            try {
+                $status = $structured
+                    ? $this->runStaticAnalysis($hook['id'], $command, $context)
+                    : $this->processRunner->run($command, $context->root());
+            } catch (Throwable $error) {
+                fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
+                $results[] = [
+                    'id' => $hook['id'],
+                    'state' => 'error',
+                    'exit_code' => 1,
+                    'detail' => $error->getMessage(),
+                ];
+                $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
+                continue;
+            }
 
             if (!$structured) {
                 echo $status === 0
@@ -52,12 +92,43 @@ final class PipelineRunner
                     : CliStyle::error('✗ ' . $hook['id'] . ': falhou (codigo ' . $status . ').') . PHP_EOL;
             }
 
-            if ($status !== 0) {
-                return $status;
-            }
+            $results[] = [
+                'id' => $hook['id'],
+                'state' => $status === 0 ? 'ok' : 'failed',
+                'exit_code' => $status,
+                'detail' => null,
+            ];
+            $firstFailure = $status !== 0 && $firstFailure === 0 ? $status : $firstFailure;
         }
 
-        return 0;
+        $this->renderSummary($operation, $results);
+
+        return $firstFailure;
+    }
+
+    /**
+     * @param list<array{id:string,state:string,exit_code:int|null,detail:string|null}> $results
+     */
+    private function renderSummary(string $operation, array $results): void
+    {
+        echo PHP_EOL . CliStyle::info('[NINFA] Resumo (' . $operation . ')') . PHP_EOL;
+
+        foreach ($results as $result) {
+            $line = match ($result['state']) {
+                'ok' => CliStyle::success('✓ ' . $result['id'] . ': ok (codigo 0)'),
+                'failed' => CliStyle::error(
+                    '✗ ' . $result['id'] . ': failed (codigo ' . $result['exit_code'] . ')',
+                ),
+                'error' => CliStyle::error(
+                    '✗ ' . $result['id'] . ': error (codigo ' . $result['exit_code'] . ')',
+                ),
+                'skipped' => CliStyle::warning(
+                    '! ' . $result['id'] . ': skipped (' . $result['detail'] . ')',
+                ),
+                default => throw new LogicException('Estado de etapa invalido: ' . $result['state']),
+            };
+            echo $line . PHP_EOL;
+        }
     }
 
     /** @param array<string,string> $configs

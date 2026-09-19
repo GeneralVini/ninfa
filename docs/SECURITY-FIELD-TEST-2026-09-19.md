@@ -190,3 +190,23 @@ fontes consultadas**.
 Nao classificar como `secure`, `sem vulnerabilidades` ou `aprovado pelo escopo
 alvo`. O comando atual atende ao baseline MVP documentado, mas ainda nao atende
 ao modelo consolidado de deteccao, contexto e prioridade proposto para o Ninfa.
+
+## Reteste do runner consolidado
+
+Apos a implementacao da continuidade por etapa, o `ninfa check /var/www/hecate`
+foi repetido. PHPStan falhou com 41 findings; Psalm ainda executou e apresentou
+90 findings; PHPUnit executou depois e passou com 2 testes e 5 assertions.
+
+O resumo final registrou:
+
+```text
+✓ ecs: ok (codigo 0)
+✓ rector: ok (codigo 0)
+✗ phpstan: failed (codigo 1)
+✗ psalm: failed (codigo 2)
+✓ test: ok (codigo 0)
+```
+
+O processo retornou codigo 1, preservando a primeira falha. Um teste isolado
+tambem comprovou continuidade quando uma ferramenta nao pode ser resolvida e a
+representacao de etapas opcionais desabilitadas ou nao aplicaveis como `skipped`.
