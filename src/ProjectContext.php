@@ -50,6 +50,12 @@ final class ProjectContext
     public function psalmLevel(): int { return $this->profile === 'glpi-plugin' ? 8 : 1; }
     public function glpiRoot(): ?string { return $this->glpiRoot; }
     public function glpiVersion(): ?string { return $this->glpiVersion; }
+    public function hasComposerScript(string $name): bool
+    {
+        $script = $this->composer['scripts'][$name] ?? null;
+
+        return (is_string($script) && trim($script) !== '') || (is_array($script) && $script !== []);
+    }
 
     /** @return array<string, mixed> */
     private function loadComposer(): array

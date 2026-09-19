@@ -210,3 +210,14 @@ O resumo final registrou:
 O processo retornou codigo 1, preservando a primeira falha. Um teste isolado
 tambem comprovou continuidade quando uma ferramenta nao pode ser resolvida e a
 representacao de etapas opcionais desabilitadas ou nao aplicaveis como `skipped`.
+
+## Correcao da execucao de testes
+
+O hook `test` passou a priorizar `scripts.test` do Composer e a bloquear suites
+vazias. Isso permite ao SigaPS executar `php tests/workflow_test.php` em vez de
+invocar um PHPUnit sem testes. O fallback direto para PHPUnit usa
+`--fail-on-empty-test-suite`; a saida tambem e verificada para impedir sucesso
+quando a ferramenta informar que nenhum teste foi executado.
+
+No reteste real, o SigaPS executou `php tests/workflow_test.php`, apresentou
+`Workflow tests passed` e terminou a etapa como `test: ok (codigo 0)`.

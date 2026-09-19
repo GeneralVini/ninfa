@@ -22,3 +22,7 @@ Ao final, o pipeline apresenta um resumo consolidado de todas as etapas planejad
 Uma falha nao impede etapas independentes de executar. O comando retorna o
 primeiro codigo diferente de zero para preservar compatibilidade. Etapas
 opcionais desabilitadas ou nao aplicaveis aparecem como `skipped`.
+
+O hook `test` prioriza o script `test` declarado no `composer.json`. Quando ele
+nao existe, usa PHPUnit com `--fail-on-empty-test-suite`. Uma ferramenta que
+retorne sucesso informando que nenhum teste foi executado e convertida em falha.

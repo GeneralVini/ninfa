@@ -11,11 +11,12 @@ $workspaceRoot = $root . '/workspace';
 $log = $root . '/steps.log';
 
 /** @param list<string> $lines */
-function createFakeTool(string $path, string $log, array $lines, int $exitCode): void
+function createFakeTool(string $path, string $log, array $lines, int $exitCode, string $stdout = ''): void
 {
     $script = "#!/usr/bin/env php\n<?php\n"
         . 'file_put_contents(' . var_export($log, true) . ', ' . var_export(implode("\n", $lines) . "\n", true)
-        . ", FILE_APPEND);\nexit({$exitCode});\n";
+        . ", FILE_APPEND);\n"
+        . 'fwrite(STDOUT, ' . var_export($stdout, true) . ");\nexit({$exitCode});\n";
     file_put_contents($path, $script);
     chmod($path, 0755);
 }
@@ -75,7 +76,54 @@ try {
     assert(str_contains($partial->stdout, 'semgrep: failed (codigo 4)'));
     assert(str_contains($partial->stderr, 'Ferramenta "psalm" não encontrada'));
 
-    echo "[OK] Runner continua apos falhas e consolida o estado de todas as etapas.\n";
+    file_put_contents($projectRoot . '/composer.json', json_encode([
+        'require' => ['php' => '>=8.2'],
+        'scripts' => ['test' => 'php tests/custom.php'],
+    ], JSON_THROW_ON_ERROR));
+    createFakeTool($projectRoot . '/vendor/bin/composer', $log, ['composer-test'], 0, "Custom tests passed.\n");
+    createFakeTool($projectRoot . '/vendor/bin/ecs', $log, ['ecs'], 0);
+    createFakeTool($projectRoot . '/vendor/bin/rector', $log, ['rector'], 0);
+    createFakeTool($projectRoot . '/vendor/bin/phpstan', $log, ['phpstan'], 0, '{"files":[]}');
+    createFakeTool($projectRoot . '/vendor/bin/psalm', $log, ['psalm'], 0, '[]');
+    file_put_contents($log, '');
+
+    $customTests = (new ProcessRunner())->runCaptured([
+        PHP_BINARY,
+        dirname(__DIR__) . '/bin/ninfa',
+        'check',
+        $projectRoot,
+    ], $projectRoot);
+
+    assert($customTests->exitCode === 0);
+    assert(str_contains((string) file_get_contents($log), "composer-test\n"));
+    assert(str_contains($customTests->stdout, "Custom tests passed.\n"));
+    assert(str_contains($customTests->stdout, 'test: ok (codigo 0)'));
+
+    file_put_contents($projectRoot . '/composer.json', json_encode([
+        'require' => ['php' => '>=8.2'],
+    ], JSON_THROW_ON_ERROR));
+    createFakeTool(
+        $projectRoot . '/vendor/bin/phpunit',
+        $log,
+        ['phpunit-empty'],
+        0,
+        "No tests executed!\n",
+    );
+    file_put_contents($log, '');
+
+    $emptyTests = (new ProcessRunner())->runCaptured([
+        PHP_BINARY,
+        dirname(__DIR__) . '/bin/ninfa',
+        'check',
+        $projectRoot,
+    ], $projectRoot);
+
+    assert($emptyTests->exitCode === 1);
+    assert(str_contains((string) file_get_contents($log), "phpunit-empty\n"));
+    assert(str_contains($emptyTests->stderr, 'nenhuma verificacao foi executada'));
+    assert(str_contains($emptyTests->stdout, 'test: failed (codigo 1)'));
+
+    echo "[OK] Runner consolida etapas, respeita composer test e bloqueia suite vazia.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
     putenv('NO_COLOR');

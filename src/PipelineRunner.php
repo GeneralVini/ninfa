@@ -71,9 +71,11 @@ final class PipelineRunner
             echo CliStyle::info('[NINFA] ' . $hook['id']) . ' (' . $hook['mode'] . ')' . PHP_EOL;
             $structured = $operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true);
             try {
-                $status = $structured
-                    ? $this->runStaticAnalysis($hook['id'], $command, $context)
-                    : $this->processRunner->run($command, $context->root());
+                $status = match (true) {
+                    $structured => $this->runStaticAnalysis($hook['id'], $command, $context),
+                    $hook['id'] === 'test' => $this->runTests($command, $context),
+                    default => $this->processRunner->run($command, $context->root()),
+                };
             } catch (Throwable $error) {
                 fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
                 $results[] = [
@@ -144,9 +146,7 @@ final class PipelineRunner
             'psalm-taint' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--taint-analysis', '--no-progress'],
             'eslint' => [$this->tool('eslint', $context), '.', ...($mode === 'fix' ? ['--fix'] : [])],
             'prettier' => [$this->tool('prettier', $context), $mode === 'fix' ? '--write' : '--check', '.'],
-            'test' => is_file($context->root() . '/vendor/bin/phpunit')
-                ? [$this->tool('phpunit', $context)]
-                : null,
+            'test' => $this->testCommand($context),
             'composer-audit' => is_file($context->root() . '/composer.lock')
                 ? [$this->tool('composer', $context), 'audit', '--locked', '--no-interaction']
                 : null,
@@ -201,6 +201,47 @@ final class PipelineRunner
         echo CliStyle::error('✗ ' . $tool . ': ' . count($findings) . ' achado(s) bloqueante(s).') . PHP_EOL;
 
         return $result->exitCode === 0 ? 1 : $result->exitCode;
+    }
+
+    /** @param list<string> $command */
+    private function runTests(array $command, ProjectContext $context): int
+    {
+        $result = $this->processRunner->runCaptured($command, $context->root());
+        if ($result->stdout !== '') {
+            echo $result->stdout;
+        }
+        if ($result->stderr !== '') {
+            fwrite(STDERR, $result->stderr);
+        }
+
+        if (
+            $result->exitCode === 0
+            && preg_match('/\b(?:no tests executed|no tests found)\b/i', $result->stdout . "\n" . $result->stderr) === 1
+        ) {
+            fwrite(STDERR, CliStyle::warning('! test: nenhuma verificacao foi executada.') . PHP_EOL);
+
+            return 1;
+        }
+
+        return $result->exitCode;
+    }
+
+    /** @return list<string>|null */
+    private function testCommand(ProjectContext $context): ?array
+    {
+        if ($context->hasComposerScript('test')) {
+            return [
+                $this->tool('composer', $context),
+                '--no-plugins',
+                '--no-interaction',
+                'run-script',
+                'test',
+            ];
+        }
+
+        return is_file($context->root() . '/vendor/bin/phpunit')
+            ? [$this->tool('phpunit', $context), '--fail-on-empty-test-suite']
+            : null;
     }
 
     private function showLegend(): void
