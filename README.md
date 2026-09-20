@@ -147,7 +147,68 @@ O comando não modifica o projeto. PHPStan e Psalm são executados em formato es
 
 ## Segurança
 
-`security` inclui o baseline SCA/SAST aplicável ao projeto. Composer Audit só é executado quando existe `composer.lock`. DAST com OWASP ZAP é opt-in:
+`security` permanece separado do pipeline comum de qualidade e hoje reúne três frentes distintas:
+
+```text
+SCA   Composer Audit
+SAST  Psalm Taint + Semgrep
+DAST  OWASP ZAP, somente opt-in
+```
+
+A maturidade dessas frentes não é equivalente. O estado atual deve ser interpretado assim:
+
+| Frente | Estado atual no Ninfa | Diretriz |
+|---|---|---|
+| SCA | baseline funcional | manter e integrar melhor aos resultados estruturados |
+| SAST | MVP funcional / beta interna | **prioridade de evolução** |
+| DAST | PoC controlada | **evolução congelada no Ninfa** |
+
+### Diretriz atual: foco em SAST
+
+A evolução de DAST fica congelada no Ninfa. Essa frente já é atendida por outro setor no contexto institucional atual, portanto não é prioridade duplicar capacidade, cobertura ou operação especializada de DAST dentro deste projeto.
+
+O Ninfa mantém apenas a integração já existente com OWASP ZAP para uso local autorizado e testes controlados, sem expandir agora recursos como autenticação, crawling avançado, cobertura por sessão, políticas próprias de severidade ou automação adicional do scanner.
+
+A prioridade de segurança do Ninfa passa a ser **SAST**, por ser a lacuna que o projeto pretende cobrir no contexto da MB. O objetivo é amadurecer a análise estática de segurança por profile, consolidar achados estruturados e aplicar políticas claras sem transformar o Ninfa em um scanner genérico que apenas empilha ferramentas.
+
+### SAST atual
+
+O baseline SAST usa:
+
+```text
+Psalm Taint Analysis
+Semgrep
+```
+
+O Semgrep atualmente possui regras próprias do Ninfa para casos básicos como:
+
+- execução direta de shell;
+- `unserialize()`;
+- SQL construído por concatenação em padrões conhecidos.
+
+Essas regras já foram validadas com controles positivos e negativos em teste de campo. Isso comprova o encadeamento básico `Ninfa -> ferramenta -> finding -> falha`, mas **não representa cobertura SAST abrangente**.
+
+O próximo estágio de maturidade SAST deve priorizar:
+
+1. normalizar resultados de Semgrep e Psalm Taint em um modelo único de `Finding`;
+2. distinguir finding, erro de ferramenta, indisponibilidade e etapa não aplicável;
+3. criar fixtures reais de segurança com casos positivos e negativos em CI;
+4. medir cobertura efetiva dos paths e arquivos analisados;
+5. evoluir regras específicas por profile, principalmente `glpi-plugin`, Yii e PHP genérico;
+6. preservar proveniência de regra, severidade, arquivo, linha e mensagem;
+7. só depois aplicar políticas/quality gates de segurança mais sofisticados.
+
+Não é objetivo imediato adicionar vários scanners diferentes. Primeiro, o Ninfa deve extrair resultados confiáveis, estruturados e auditáveis das ferramentas que já utiliza.
+
+### SCA / Composer Audit
+
+Composer Audit só é executado quando existe `composer.lock`. A consulta depende de conectividade e indisponibilidade de rede não deve ser interpretada como ausência de vulnerabilidades.
+
+O baseline atual é útil, mas ainda precisa evoluir para diferenciar explicitamente estados como `passed`, `failed`, `unavailable`, `not_applicable` e cobertura parcial.
+
+### DAST / OWASP ZAP
+
+DAST continua disponível apenas como integração opt-in para alvo local autorizado:
 
 ```bash
 NINFA_DAST=1 \
@@ -156,6 +217,21 @@ ninfa security /caminho/do/projeto
 ```
 
 O wrapper padrão aceita somente `localhost` ou `127.0.0.1`, e o relatório é direcionado ao workspace externo da execução.
+
+Essa integração deve ser considerada **PoC controlada**, não security gate. O Ninfa não irá, nesta fase, investir em otimizações ou ampliação funcional de DAST.
+
+### Interpretação dos resultados de segurança
+
+Um `ninfa security` com exit code 0 significa apenas que as fontes consultadas não produziram bloqueios no escopo executado. Não significa:
+
+```text
+"sistema seguro"
+"sem vulnerabilidades"
+"cobertura completa"
+"aprovado por todos os controles de segurança"
+```
+
+Testes de campo mostraram que cobertura, conectividade, cache, inventário e escopo influenciam diretamente a interpretação do resultado. O objetivo da evolução SAST é tornar essas condições explícitas e auditáveis.
 
 ## Diagnóstico manual
 
@@ -177,7 +253,13 @@ O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos 
 
 ## Evolução prevista
 
-A prioridade atual é estabilizar os quatro profiles em projetos reais. Em etapa posterior, o core poderá alimentar uma interface web/dashboard para histórico, findings, tendências e acompanhamento de execuções. API, banco e frontend não fazem parte do MVP atual.
+A prioridade atual é estabilizar os quatro profiles em projetos reais e amadurecer o **SAST orientado a profile**.
+
+Antes de avançar para scheduler, DAG, baseline/new-code ou novas camadas de automação, o core deve consolidar resultados estruturados (`ToolResult`, `RunResult`, `Finding`) e reduzir a dependência de exit codes brutos como representação principal de segurança.
+
+A evolução de DAST permanece congelada no escopo do Ninfa enquanto essa capacidade for tratada por outra frente institucional. O foco do projeto é evitar duplicação de esforço e investir onde há lacuna real: análise estática de segurança, contexto de profile, normalização de findings e políticas auditáveis.
+
+Em etapa posterior, o core poderá alimentar uma interface web/dashboard para histórico, findings, tendências e acompanhamento de execuções. API, banco e frontend não fazem parte do MVP atual.
 
 ## Documentação
 
