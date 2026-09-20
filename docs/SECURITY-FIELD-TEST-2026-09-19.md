@@ -221,3 +221,10 @@ quando a ferramenta informar que nenhum teste foi executado.
 
 No reteste real, o SigaPS executou `php tests/workflow_test.php`, apresentou
 `Workflow tests passed` e terminou a etapa como `test: ok (codigo 0)`.
+
+## Correcao de cobertura dos entrypoints
+
+O profile GLPI passou a incluir explicitamente `setup.php` e `hook.php`. O
+profile Yii3 passou a incluir `public`, cobrindo `public/index.php`. A geracao
+Psalm distingue entrypoints com `<file>` dos paths de diretorio, evitando tratar
+arquivos individuais como diretorios no XML.

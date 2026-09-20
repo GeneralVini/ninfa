@@ -12,6 +12,10 @@ export PATH="/opt/ninfa/bin:$PATH"
 
 A detecção usa sinais técnicos combinados, incluindo `setup.php`, `hook.php`, hooks de instalação/inicialização e namespaces `GlpiPlugin\\...`. O projeto também precisa possuir `composer.json` e paths analisáveis.
 
+`setup.php` e `hook.php` tambem integram explicitamente os paths de PHPStan,
+Psalm, Rector, ECS e Semgrep. Eles sao entrypoints do ciclo de vida do plugin e
+nao podem ficar cobertos apenas por deteccao de profile.
+
 ## Host GLPI
 
 O host é resolvido nesta ordem:

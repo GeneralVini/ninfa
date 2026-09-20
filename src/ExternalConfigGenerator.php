@@ -99,7 +99,8 @@ final class ExternalConfigGenerator
         );
 
         $xmlPaths = implode("\n", array_map(
-            static fn (string $p): string => '        <directory name="' . htmlspecialchars($p, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '" />',
+            static fn (string $p): string => '        <' . (is_dir($p) ? 'directory' : 'file') . ' name="'
+                . htmlspecialchars($p, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '" />',
             $paths,
         ));
         $psalmAttrs = '    errorLevel="' . $context->psalmLevel() . '"' . "\n"

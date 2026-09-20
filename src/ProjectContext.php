@@ -85,16 +85,16 @@ final class ProjectContext
     private function detectPaths(): array
     {
         $candidates = match ($this->profile) {
-            'glpi-plugin' => ['src', 'inc', 'front', 'ajax', 'tests'],
+            'glpi-plugin' => ['setup.php', 'hook.php', 'src', 'inc', 'front', 'ajax', 'tests'],
             'yii2' => ['common', 'frontend', 'backend', 'console', 'src', 'app', 'modules', 'commands', 'tests'],
-            'yii3' => ['src', 'app', 'config', 'modules', 'console', 'commands', 'tests'],
+            'yii3' => ['src', 'app', 'config', 'public', 'modules', 'console', 'commands', 'tests'],
             'php-generic' => ['src', 'app', 'lib', 'include', 'includes', 'public', 'bin', 'modules', 'tests'],
             default => [],
         };
 
         $paths = [];
         foreach ($candidates as $candidate) {
-            if (is_dir($this->root . '/' . $candidate)) {
+            if (is_dir($this->root . '/' . $candidate) || is_file($this->root . '/' . $candidate)) {
                 $paths[] = $candidate;
             }
         }

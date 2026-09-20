@@ -26,6 +26,7 @@ try {
     assert($context->phpStanLevel() === 8);
     assert($context->psalmLevel() === 8);
     assert($context->glpiVersion() === '11.0.8');
+    assert($context->paths() === ['setup.php', 'hook.php', 'src']);
     assert(!str_starts_with($context->workspace()->path(), $pluginRoot));
 
     $yii2Root = $root . '/yii2';
@@ -37,6 +38,8 @@ try {
 
     $yii3Root = $root . '/yii3';
     mkdir($yii3Root . '/src', 0775, true);
+    mkdir($yii3Root . '/public', 0775, true);
+    file_put_contents($yii3Root . '/public/index.php', "<?php echo 'yii3';\n");
     file_put_contents($yii3Root . '/composer.json', json_encode([
         'require' => [
             'php' => '>=8.2',
@@ -44,7 +47,9 @@ try {
             'yiisoft/di' => '^1.0',
         ],
     ], JSON_THROW_ON_ERROR));
-    assert(ProjectContext::fromRoot($yii3Root)->profile() === 'yii3');
+    $yii3 = ProjectContext::fromRoot($yii3Root);
+    assert($yii3->profile() === 'yii3');
+    assert($yii3->paths() === ['src', 'public']);
 
     $genericComposerRoot = $root . '/generic-composer';
     mkdir($genericComposerRoot . '/src', 0775, true);
