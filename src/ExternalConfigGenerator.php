@@ -46,6 +46,7 @@ final class ExternalConfigGenerator
         $phpstanExtra = '';
         $bootstrap = null;
         $psalmExtra = '';
+        $rectorExtra = '';
         $hasGlpiPhpStanExtension = false;
 
         // GLPI adiciona contexto do host que não existe no repositório isolado do plugin.
@@ -108,6 +109,7 @@ final class ExternalConfigGenerator
                 $phpstanExtra .= "  scanFiles:\n" . implode("\n", array_map(static fn (string $file): string => '    - ' . $file, $scanFiles)) . "\n";
             }
             $phpstanExtra .= "  bootstrapFiles:\n" . implode("\n", array_map(static fn (string $file): string => '    - ' . $file, $bootstrapFiles)) . "\n";
+            $phpstanExtra .= "  dynamicConstantNames:\n    - GLPI_VERSION\n    - PHP_VERSION\n";
             if ($hasGlpiPhpStanExtension) {
                 $phpstanExtra .= "  glpi:\n    glpiPath: {$glpi}\n";
                 if ($context->glpiVersion() !== null) {
@@ -119,6 +121,18 @@ final class ExternalConfigGenerator
             $glpiIncludes = htmlspecialchars($glpiRoot . '/inc/includes.php', ENT_XML1 | ENT_QUOTES, 'UTF-8');
             $psalmExtra = "    <globals>\n        <var name=\"DB\" type=\"DBmysql\" />\n    </globals>\n"
                 . "    <issueHandlers>\n        <InvalidGlobal>\n            <errorLevel type=\"suppress\">\n                <file name=\"{$glpiIncludes}\" />\n            </errorLevel>\n        </InvalidGlobal>\n    </issueHandlers>\n";
+
+            $rectorSkips = array_values(array_filter([
+                $context->root() . '/setup.php',
+                $context->root() . '/hook.php',
+            ], 'is_file'));
+            if ($rectorSkips !== []) {
+                $skipLines = implode("\n", array_map(
+                    static fn (string $file): string => '        ' . var_export(str_replace('\\', '/', $file), true) . ',',
+                    $rectorSkips,
+                ));
+                $rectorExtra = "\n    ->withSkip([\n{$skipLines}\n    ])";
+            }
         }
 
         // PHPStan é regenerado com nível/profile e tmpDir isolado no workspace.
@@ -157,7 +171,7 @@ final class ExternalConfigGenerator
         );
         file_put_contents(
             $rector,
-            "<?php\n\ndeclare(strict_types=1);\n\nuse Rector\\Config\\RectorConfig;\n\nreturn RectorConfig::configure()\n    ->withPaths([\n{$phpPaths},\n    ])\n    ->withPreparedSets(deadCode: true, codeQuality: true, typeDeclarations: true);\n",
+            "<?php\n\ndeclare(strict_types=1);\n\nuse Rector\\Config\\RectorConfig;\n\nreturn RectorConfig::configure()\n    ->withPaths([\n{$phpPaths},\n    ]){$rectorExtra}\n    ->withPreparedSets(deadCode: true, codeQuality: true, typeDeclarations: true);\n",
         );
 
         return [

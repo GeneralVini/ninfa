@@ -228,3 +228,15 @@ O profile GLPI passou a incluir explicitamente `setup.php` e `hook.php`. O
 profile Yii3 passou a incluir `public`, cobrindo `public/index.php`. A geracao
 Psalm distingue entrypoints com `<file>` dos paths de diretorio, evitando tratar
 arquivos individuais como diretorios no XML.
+
+No primeiro reteste, o Rector tentou remover guards de versao de `setup.php` e
+adicionar `strict_types` a `hook.php`. O profile passou a excluir ambos de
+transformacoes Rector, mantendo-os em ECS, PHPStan, Psalm e Semgrep. PHPStan
+trata `GLPI_VERSION` e `PHP_VERSION` como constantes dinamicas para nao concluir
+os guards com base apenas no host usado durante a analise.
+
+No reteste final, o SigaPS passou ECS, Rector, PHPStan, Psalm, frontend e o teste
+customizado. O Semgrep analisou 78 arquivos, dois a mais que no baseline. No
+Hecate, o Semgrep passou de 69 para 70 arquivos e PHPStan passou de 41 para 42
+findings; o novo finding em `public/index.php:19` confirma que o entrypoint agora
+integra a cobertura. Psalm permaneceu com 90 findings e PHPUnit continuou verde.

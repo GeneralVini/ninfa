@@ -24,11 +24,13 @@ try {
 
     $stan = (string) file_get_contents($files['phpstan']);
     $psalm = (string) file_get_contents($files['psalm']);
+    $rector = (string) file_get_contents($files['rector']);
 
     assert(str_contains($stan, 'level: 8'));
     assert(str_contains($stan, str_replace('\\', '/', $glpiRoot . '/src')));
     assert(str_contains($stan, str_replace('\\', '/', $pluginRoot . '/setup.php')));
     assert(str_contains($stan, str_replace('\\', '/', $pluginRoot . '/hook.php')));
+    assert(str_contains($stan, "dynamicConstantNames:\n    - GLPI_VERSION\n    - PHP_VERSION"));
     assert(!str_contains($stan, "  glpi:\n"));
     assert(str_contains($psalm, 'errorLevel="8"'));
     assert(str_contains($psalm, '<var name="DB" type="DBmysql" />'));
@@ -44,6 +46,9 @@ try {
         $psalm,
         '<directory name="' . str_replace('\\', '/', $pluginRoot . '/src') . '" />',
     ));
+    assert(str_contains($rector, '->withSkip(['));
+    assert(str_contains($rector, str_replace('\\', '/', $pluginRoot . '/setup.php')));
+    assert(str_contains($rector, str_replace('\\', '/', $pluginRoot . '/hook.php')));
 
     $extension = $glpiRoot . '/vendor/glpi-project/phpstan-glpi/extension.neon';
     mkdir(dirname($extension), 0775, true);
