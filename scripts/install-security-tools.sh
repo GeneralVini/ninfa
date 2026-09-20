@@ -4,11 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOLS="$ROOT/.tools"
 SEMGREP_VERSION="${NINFA_SEMGREP_VERSION:-1.177.0}"
-INSTALL_ZAP="${NINFA_INSTALL_ZAP:-0}"
-ZAP_VERSION="${NINFA_ZAP_VERSION:-2.17.0}"
-ZAP_SHA256="${NINFA_ZAP_SHA256:-efe799aaa3627db683b43f00c9c210aea0b75c00cc8f0a0f0434d12bb3ddde5a}"
-ZAP_ARCHIVE="ZAP_${ZAP_VERSION}_Linux.tar.gz"
-ZAP_URL="https://github.com/zaproxy/zaproxy/releases/download/v${ZAP_VERSION}/${ZAP_ARCHIVE}"
 
 mkdir -p "$TOOLS"
 
@@ -23,25 +18,8 @@ fi
 printf '[NINFA] Semgrep: '
 "$TOOLS/semgrep/bin/semgrep" --version
 
-if [[ "$INSTALL_ZAP" != "1" ]]; then
-    printf '[NINFA] OWASP ZAP não instalado por padrão. Use: NINFA_INSTALL_ZAP=1 make security-tools\n'
-    exit 0
-fi
-
-command -v java >/dev/null || { echo '[ERRO] Java 17+ é necessário para OWASP ZAP.' >&2; exit 1; }
-JAVA_VERSION="$(java -version 2>&1 | head -n 1 | sed -E 's/.*version "([0-9]+).*/\1/')"
-[[ "$JAVA_VERSION" =~ ^[0-9]+$ ]] && (( JAVA_VERSION >= 17 )) || { echo '[ERRO] Java 17+ é necessário para OWASP ZAP.' >&2; exit 1; }
-
-if [[ ! -x "$TOOLS/zap/zap.sh" ]]; then
-    command -v curl >/dev/null || { echo '[ERRO] curl é necessário para instalar OWASP ZAP.' >&2; exit 1; }
-    command -v sha256sum >/dev/null || { echo '[ERRO] sha256sum é necessário para validar OWASP ZAP.' >&2; exit 1; }
-    tmp="$(mktemp -d)"
-    trap 'rm -rf "$tmp"' EXIT
-    curl -fL "$ZAP_URL" -o "$tmp/$ZAP_ARCHIVE"
-    printf '%s  %s\n' "$ZAP_SHA256" "$tmp/$ZAP_ARCHIVE" | sha256sum -c -
-    tar -xzf "$tmp/$ZAP_ARCHIVE" -C "$tmp"
-    rm -rf "$TOOLS/zap"
-    mv "$tmp/ZAP_${ZAP_VERSION}" "$TOOLS/zap"
-fi
-printf '[NINFA] OWASP ZAP: '
-"$TOOLS/zap/zap.sh" -version
+case "${NINFA_INSTALL_ZAP:-0}" in
+    1|true|TRUE|yes|YES|on|ON)
+        printf '[NINFA] DAST/OWASP ZAP está desabilitado no fluxo oficial do Ninfa; NINFA_INSTALL_ZAP é ignorado.\n' >&2
+        ;;
+esac

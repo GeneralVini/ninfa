@@ -22,6 +22,15 @@ final class PipelineRunner
     public function run(string $operation, ProjectContext $context): int
     {
         $this->showLegend();
+        if ($operation === 'security' && $this->dastRequested()) {
+            fwrite(
+                STDERR,
+                CliStyle::warning(
+                    '! DAST está desabilitado no Ninfa; a análise dinâmica é delegada à frente especializada externa.',
+                ) . PHP_EOL,
+            );
+        }
+
         $configs = $this->configGenerator->generate($context);
         $hooks = match ($operation) {
             'check' => $this->plan->check($context),
@@ -34,16 +43,6 @@ final class PipelineRunner
         $firstFailure = 0;
 
         foreach ($hooks as $hook) {
-            if (($hook['optional'] ?? false) === true && !$this->optionalHookEnabled($hook['id'])) {
-                $results[] = [
-                    'id' => $hook['id'],
-                    'state' => 'skipped',
-                    'exit_code' => null,
-                    'detail' => 'opcional desabilitada',
-                ];
-                continue;
-            }
-
             try {
                 $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
             } catch (Throwable $error) {
@@ -151,11 +150,6 @@ final class PipelineRunner
                 ? [$this->tool('composer', $context), 'audit', '--locked', '--no-interaction']
                 : null,
             'semgrep' => $this->semgrepCommand($context),
-            'dast' => [
-                'bash',
-                dirname(__DIR__) . '/scripts/zap-scan.sh',
-                $context->workspace()->file('security/zap-report.html'),
-            ],
             default => null,
         };
     }
@@ -254,12 +248,8 @@ final class PipelineRunner
         echo '[NINFA] Legenda: ' . CliStyle::legend() . PHP_EOL;
     }
 
-    private function optionalHookEnabled(string $id): bool
+    private function dastRequested(): bool
     {
-        if ($id !== 'dast') {
-            return false;
-        }
-
         return in_array(strtolower((string) getenv('NINFA_DAST')), ['1', 'true', 'yes', 'on'], true);
     }
 

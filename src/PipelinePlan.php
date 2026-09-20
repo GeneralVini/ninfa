@@ -51,16 +51,15 @@ final class PipelinePlan
         );
     }
 
-    /** @return list<array{id:string,mode:string,optional:bool}> */
+    /** @return list<array{id:string,mode:string}> */
     public function security(ProjectContext $context): array
     {
         $this->assertSupported($context);
 
         return [
-            ['id' => 'composer-audit', 'mode' => 'check', 'optional' => false],
-            ['id' => 'psalm-taint', 'mode' => 'check', 'optional' => false],
-            ['id' => 'semgrep', 'mode' => 'check', 'optional' => false],
-            ['id' => 'dast', 'mode' => 'check', 'optional' => true],
+            ['id' => 'composer-audit', 'mode' => 'check'],
+            ['id' => 'psalm-taint', 'mode' => 'check'],
+            ['id' => 'semgrep', 'mode' => 'check'],
         ];
     }
 

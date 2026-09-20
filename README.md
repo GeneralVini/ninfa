@@ -147,29 +147,30 @@ O comando não modifica o projeto. PHPStan e Psalm são executados em formato es
 
 ## Segurança
 
-`security` permanece separado do pipeline comum de qualidade e hoje reúne três frentes distintas:
+`security` permanece separado do pipeline comum de qualidade e, no escopo atual do Ninfa, executa duas frentes:
 
 ```text
 SCA   Composer Audit
 SAST  Psalm Taint + Semgrep
-DAST  OWASP ZAP, somente opt-in
 ```
 
-A maturidade dessas frentes não é equivalente. O estado atual deve ser interpretado assim:
+DAST não faz mais parte do pipeline público do Ninfa. Essa capacidade é atendida por outra frente institucional, portanto o projeto evita duplicar operação e especialização em análise dinâmica.
+
+A maturidade atual deve ser interpretada assim:
 
 | Frente | Estado atual no Ninfa | Diretriz |
 |---|---|---|
 | SCA | baseline funcional | manter e integrar melhor aos resultados estruturados |
 | SAST | MVP funcional / beta interna | **prioridade de evolução** |
-| DAST | PoC controlada | **evolução congelada no Ninfa** |
+| DAST | fora do pipeline público | **delegado; evolução congelada no Ninfa** |
 
 ### Diretriz atual: foco em SAST
 
-A evolução de DAST fica congelada no Ninfa. Essa frente já é atendida por outro setor no contexto institucional atual, portanto não é prioridade duplicar capacidade, cobertura ou operação especializada de DAST dentro deste projeto.
+A prioridade de segurança do Ninfa é **SAST orientado a profile**. O objetivo é amadurecer análise estática de segurança para `glpi-plugin`, Yii e PHP genérico, consolidar achados estruturados e aplicar políticas auditáveis sem transformar o Ninfa em um scanner genérico que apenas empilha ferramentas.
 
-O Ninfa mantém apenas a integração já existente com OWASP ZAP para uso local autorizado e testes controlados, sem expandir agora recursos como autenticação, crawling avançado, cobertura por sessão, políticas próprias de severidade ou automação adicional do scanner.
+DAST permanece deliberadamente fora do `ninfa security`. Se `NINFA_DAST=1` for informado, o Ninfa apenas avisa que a capacidade está desabilitada/delegada e **não executa OWASP ZAP**.
 
-A prioridade de segurança do Ninfa passa a ser **SAST**, por ser a lacuna que o projeto pretende cobrir no contexto da MB. O objetivo é amadurecer a análise estática de segurança por profile, consolidar achados estruturados e aplicar políticas claras sem transformar o Ninfa em um scanner genérico que apenas empilha ferramentas.
+O utilitário `scripts/zap-scan.sh` permanece no repositório como artefato congelado para referência ou uso manual controlado, mas não integra a interface pública nem o roadmap ativo.
 
 ### SAST atual
 
@@ -208,21 +209,15 @@ O baseline atual é útil, mas ainda precisa evoluir para diferenciar explicitam
 
 ### DAST / OWASP ZAP
 
-DAST continua disponível apenas como integração opt-in para alvo local autorizado:
+DAST está **desabilitado no pipeline do Ninfa**. `ninfa security` não executa ZAP, mesmo quando `NINFA_DAST` está definido.
 
-```bash
-NINFA_DAST=1 \
-NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
-ninfa security /caminho/do/projeto
-```
+A decisão é de escopo: análise dinâmica é tratada por uma frente especializada externa. O Ninfa mantém o código legado do wrapper apenas como artefato congelado, sem otimização, expansão funcional ou suporte como security gate.
 
-O wrapper padrão aceita somente `localhost` ou `127.0.0.1`, e o relatório é direcionado ao workspace externo da execução.
-
-Essa integração deve ser considerada **PoC controlada**, não security gate. O Ninfa não irá, nesta fase, investir em otimizações ou ampliação funcional de DAST.
+`make security-tools` passa a preparar apenas a ferramenta SAST gerenciada pelo Ninfa (Semgrep). `NINFA_INSTALL_ZAP=1` é ignorado com aviso explícito.
 
 ### Interpretação dos resultados de segurança
 
-Um `ninfa security` com exit code 0 significa apenas que as fontes consultadas não produziram bloqueios no escopo executado. Não significa:
+Um `ninfa security` com exit code 0 significa apenas que as fontes SCA/SAST consultadas não produziram bloqueios no escopo executado. Não significa:
 
 ```text
 "sistema seguro"
@@ -257,7 +252,7 @@ A prioridade atual é estabilizar os quatro profiles em projetos reais e amadure
 
 Antes de avançar para scheduler, DAG, baseline/new-code ou novas camadas de automação, o core deve consolidar resultados estruturados (`ToolResult`, `RunResult`, `Finding`) e reduzir a dependência de exit codes brutos como representação principal de segurança.
 
-A evolução de DAST permanece congelada no escopo do Ninfa enquanto essa capacidade for tratada por outra frente institucional. O foco do projeto é evitar duplicação de esforço e investir onde há lacuna real: análise estática de segurança, contexto de profile, normalização de findings e políticas auditáveis.
+A evolução de DAST permanece congelada e fora do pipeline do Ninfa enquanto essa capacidade for tratada por outra frente institucional. O foco do projeto é evitar duplicação de esforço e investir onde há lacuna real: análise estática de segurança, contexto de profile, normalização de findings e políticas auditáveis.
 
 Em etapa posterior, o core poderá alimentar uma interface web/dashboard para histórico, findings, tendências e acompanhamento de execuções. API, banco e frontend não fazem parte do MVP atual.
 

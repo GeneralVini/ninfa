@@ -37,7 +37,7 @@ try {
     $environment = [
         'NINFA_WORKSPACE_ROOT' => $workspaceRoot,
         'NO_COLOR' => '1',
-        'NINFA_DAST' => '0',
+        'NINFA_DAST' => '1',
     ];
     foreach ($environment as $name => $value) {
         putenv($name . '=' . $value);
@@ -56,7 +56,8 @@ try {
     assert(str_contains($result->stdout, 'composer-audit: failed (codigo 3)'));
     assert(str_contains($result->stdout, 'psalm-taint: ok (codigo 0)'));
     assert(str_contains($result->stdout, 'semgrep: failed (codigo 4)'));
-    assert(str_contains($result->stdout, 'dast: skipped (opcional desabilitada)'));
+    assert(!str_contains($result->stdout, 'dast:'));
+    assert(str_contains($result->stderr, 'DAST está desabilitado no Ninfa'));
 
     unlink($projectRoot . '/composer.lock');
     unlink($projectRoot . '/vendor/bin/psalm');
@@ -74,6 +75,7 @@ try {
     assert(str_contains($partial->stdout, 'composer-audit: skipped (nao aplicavel)'));
     assert(str_contains($partial->stdout, 'psalm-taint: error (codigo 1)'));
     assert(str_contains($partial->stdout, 'semgrep: failed (codigo 4)'));
+    assert(!str_contains($partial->stdout, 'dast:'));
     assert(str_contains($partial->stderr, 'Ferramenta "psalm" não encontrada'));
 
     file_put_contents($projectRoot . '/composer.json', json_encode([
@@ -123,7 +125,7 @@ try {
     assert(str_contains($emptyTests->stderr, 'nenhuma verificacao foi executada'));
     assert(str_contains($emptyTests->stdout, 'test: failed (codigo 1)'));
 
-    echo "[OK] Runner consolida etapas, respeita composer test e bloqueia suite vazia.\n";
+    echo "[OK] Runner consolida etapas, desabilita DAST, respeita composer test e bloqueia suite vazia.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
     putenv('NO_COLOR');

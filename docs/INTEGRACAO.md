@@ -59,7 +59,11 @@ ninfa security [ROOT]
 
 ## Segurança por capacidade
 
-Composer Audit só é executado quando há `composer.lock`. DAST continua opt-in e o relatório é gravado no workspace externo do projeto.
+Composer Audit só é executado quando há `composer.lock`. Psalm Taint e Semgrep formam o baseline SAST ativo.
+
+DAST não integra mais o `ninfa security`. A análise dinâmica é delegada à frente especializada externa; `NINFA_DAST=1` apenas gera aviso e não executa OWASP ZAP.
+
+A prioridade de evolução é consolidar SAST por profile, findings estruturados e políticas auditáveis antes de ampliar scanners ou introduzir novas camadas de execução.
 
 ## Lefthook
 

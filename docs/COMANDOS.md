@@ -85,15 +85,17 @@ O comando retorna `1` quando ainda existem achados e `0` quando PHPStan/Psalm n�
 ninfa security /caminho/do/projeto
 ```
 
-Executa Composer Audit, Psalm Taint Analysis e Semgrep.
+Executa o escopo ativo de segurança do Ninfa:
 
-Para incluir DAST local autorizado:
-
-```bash
-NINFA_DAST=1 \
-NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
-ninfa security /caminho/do/projeto
+```text
+Composer Audit        # SCA, quando houver composer.lock
+Psalm Taint Analysis  # SAST
+Semgrep               # SAST
 ```
+
+DAST não integra mais o comando. A análise dinâmica foi delegada a uma frente especializada externa. Se `NINFA_DAST=1` for informado, o Ninfa emite aviso e continua sem executar OWASP ZAP.
+
+A prioridade do comando `security` é amadurecer SAST orientado a profile e normalizar findings de Psalm Taint e Semgrep antes de ampliar o conjunto de scanners.
 
 ## Configuração e diagnóstico
 
