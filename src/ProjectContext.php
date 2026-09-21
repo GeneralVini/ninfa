@@ -13,6 +13,8 @@ final class ProjectContext
     private array $paths;
     private string $profile;
     private string $phpVersion;
+    private string $runtimePhpVersion;
+    private ?string $phpConstraint;
     private ?string $glpiRoot = null;
     private ?string $glpiVersion = null;
     private Workspace $workspace;
@@ -31,7 +33,9 @@ final class ProjectContext
     {
         $this->composer = $this->loadComposer();
         $this->profile = (new ProfileDetector())->detect($root, $this->composer);
-        $this->phpVersion = $this->detectPhpVersion();
+        $this->phpConstraint = $this->detectPhpConstraint();
+        $this->runtimePhpVersion = PHP_VERSION;
+        $this->phpVersion = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
         $this->paths = $this->detectPaths();
         $this->workspace = Workspace::forProject($root);
 
@@ -43,6 +47,10 @@ final class ProjectContext
     public function root(): string { return $this->root; }
     public function profile(): string { return $this->profile; }
     public function phpVersion(): string { return $this->phpVersion; }
+    public function runtimePhpVersion(): string { return $this->runtimePhpVersion; }
+    public function phpConstraint(): ?string { return $this->phpConstraint; }
+    /** @return array<string,mixed> */
+    public function composer(): array { return $this->composer; }
     /** @return list<string> */
     public function paths(): array { return $this->paths; }
     public function workspace(): Workspace { return $this->workspace; }
@@ -72,13 +80,10 @@ final class ProjectContext
         return $decoded;
     }
 
-    private function detectPhpVersion(): string
+    private function detectPhpConstraint(): ?string
     {
         $constraint = $this->composer['require']['php'] ?? null;
-        if (is_string($constraint) && preg_match('/(\d+\.\d+)/', $constraint, $matches) === 1) {
-            return $matches[1];
-        }
-        return PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+        return is_string($constraint) && trim($constraint) !== '' ? trim($constraint) : null;
     }
 
     /** @return list<string> */

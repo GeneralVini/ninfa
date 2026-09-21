@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/CliStyle.php';
+require_once __DIR__ . '/Finding.php';
 
 final class ProcessResult
 {
@@ -16,7 +17,7 @@ final class ProcessResult
 
 final class FindingRenderer
 {
-    /** @return list<array{tool:string,file:string,line:int,rule:string,problem:string,correction:string}> */
+    /** @return list<Finding> */
     public static function phpStan(string $json, string $root): array
     {
         $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
@@ -30,21 +31,23 @@ final class FindingRenderer
 
                 $raw = self::clean((string) ($message['message'] ?? 'Achado PHPStan'));
                 $rule = (string) ($message['identifier'] ?? 'phpstan');
-                $findings[] = [
-                    'tool' => 'phpstan',
-                    'file' => self::relativePath((string) $file, $root),
-                    'line' => (int) ($message['line'] ?? 0),
-                    'rule' => $rule,
-                    'problem' => rtrim($raw, '.'),
-                    'correction' => self::suggestion($rule, $raw),
-                ];
+                $findings[] = new Finding(
+                    tool: 'phpstan',
+                    file: self::relativePath((string) $file, $root),
+                    line: (int) ($message['line'] ?? 0),
+                    rule: $rule,
+                    problem: rtrim($raw, '.'),
+                    correction: self::suggestion($rule, $raw),
+                    evidenceType: 'static-analysis',
+                    provenance: ['phpstan'],
+                );
             }
         }
 
         return $findings;
     }
 
-    /** @return list<array{tool:string,file:string,line:int,rule:string,problem:string,correction:string}> */
+    /** @return list<Finding> */
     public static function psalm(string $json, string $root): array
     {
         $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
@@ -58,41 +61,43 @@ final class FindingRenderer
 
             $raw = self::clean((string) ($issue['message'] ?? 'Achado Psalm'));
             $rule = (string) ($issue['type'] ?? ($issue['shortcode'] ?? 'psalm'));
-            $findings[] = [
-                'tool' => 'psalm',
-                'file' => self::relativePath((string) ($issue['file_name'] ?? '.'), $root),
-                'line' => (int) ($issue['line_from'] ?? 0),
-                'rule' => $rule,
-                'problem' => rtrim($raw, '.'),
-                'correction' => self::suggestion($rule, $raw),
-            ];
+            $findings[] = new Finding(
+                tool: 'psalm',
+                file: self::relativePath((string) ($issue['file_name'] ?? '.'), $root),
+                line: (int) ($issue['line_from'] ?? 0),
+                rule: $rule,
+                problem: rtrim($raw, '.'),
+                correction: self::suggestion($rule, $raw),
+                evidenceType: 'static-analysis',
+                provenance: ['psalm'],
+            );
         }
 
         return $findings;
     }
 
-    /** @param list<array{tool:string,file:string,line:int,rule:string,problem:string,correction:string}> $findings */
+    /** @param list<Finding> $findings */
     public static function render(array $findings, bool $withCorrection): void
     {
         foreach ($findings as $finding) {
-            $tool = match ($finding['tool']) {
+            $tool = match ($finding->tool) {
                 'phpstan' => 'PHPStan',
                 'psalm' => 'Psalm',
-                default => $finding['tool'],
+                default => $finding->tool,
             };
-            $where = $finding['file'] . ($finding['line'] > 0 ? ':' . $finding['line'] : '');
+            $where = $finding->file . ($finding->line > 0 ? ':' . $finding->line : '');
 
             echo '╭─ ' . CliStyle::info($tool) . ' ' . str_repeat('─', max(8, 61 - strlen($tool))) . PHP_EOL;
             echo '│ Arquivo: ' . $where . PHP_EOL;
-            echo '│ Regra: ' . $finding['rule'] . PHP_EOL;
+            echo '│ Regra: ' . $finding->rule . PHP_EOL;
             echo '│' . PHP_EOL;
             echo '│ ' . CliStyle::warning('Corrigir:') . PHP_EOL;
-            self::renderWrapped($finding['problem']);
+            self::renderWrapped($finding->problem);
 
             if ($withCorrection) {
                 echo '│' . PHP_EOL;
                 echo '│ ' . CliStyle::success('Correção:') . PHP_EOL;
-                self::renderWrapped($finding['correction']);
+                self::renderWrapped($finding->correction);
             }
 
             echo '╰' . str_repeat('─', 72) . PHP_EOL . PHP_EOL;

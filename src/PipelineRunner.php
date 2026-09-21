@@ -6,6 +6,8 @@ require_once __DIR__ . '/ProcessRunner.php';
 require_once __DIR__ . '/PipelinePlan.php';
 require_once __DIR__ . '/ExternalConfigGenerator.php';
 require_once __DIR__ . '/ToolResolver.php';
+require_once __DIR__ . '/RunResult.php';
+require_once __DIR__ . '/SecurityInventory.php';
 
 final class PipelineRunner
 {
@@ -21,6 +23,11 @@ final class PipelineRunner
 
     public function run(string $operation, ProjectContext $context): int
     {
+        return $this->runResult($operation, $context)->finalExitCode;
+    }
+
+    public function runResult(string $operation, ProjectContext $context): RunResult
+    {
         $this->showLegend();
         if ($operation === 'security' && $this->dastRequested()) {
             fwrite(
@@ -29,6 +36,11 @@ final class PipelineRunner
                     '! DAST está desabilitado no Ninfa; a análise dinâmica é delegada à frente especializada externa.',
                 ) . PHP_EOL,
             );
+        }
+
+        if ($operation === 'security') {
+            $inventory = $this->writeSecurityInventory($context);
+            echo CliStyle::info('[NINFA] Inventário de segurança: ' . $inventory) . PHP_EOL;
         }
 
         $configs = $this->configGenerator->generate($context);
@@ -43,46 +55,35 @@ final class PipelineRunner
         $firstFailure = 0;
 
         foreach ($hooks as $hook) {
+            $started = hrtime(true);
             try {
                 $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
             } catch (Throwable $error) {
                 fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
-                $results[] = [
-                    'id' => $hook['id'],
-                    'state' => 'error',
-                    'exit_code' => 1,
-                    'detail' => $error->getMessage(),
-                ];
+                $results[] = ToolResult::error($hook['id'], $error->getMessage(), $this->elapsedMs($started));
                 $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
                 continue;
             }
 
             if ($command === null) {
-                $results[] = [
-                    'id' => $hook['id'],
-                    'state' => 'skipped',
-                    'exit_code' => null,
-                    'detail' => 'nao aplicavel',
-                ];
+                $results[] = ToolResult::skipped($hook['id'], 'nao aplicavel');
                 continue;
             }
 
             echo CliStyle::info('[NINFA] ' . $hook['id']) . ' (' . $hook['mode'] . ')' . PHP_EOL;
             $structured = $operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true);
+            $findings = [];
             try {
-                $status = match (true) {
-                    $structured => $this->runStaticAnalysis($hook['id'], $command, $context),
-                    $hook['id'] === 'test' => $this->runTests($command, $context),
-                    default => $this->processRunner->run($command, $context->root()),
-                };
+                if ($structured) {
+                    [$status, $findings] = $this->runStaticAnalysis($hook['id'], $command, $context);
+                } else {
+                    $status = $hook['id'] === 'test'
+                        ? $this->runTests($command, $context)
+                        : $this->processRunner->run($command, $context->root());
+                }
             } catch (Throwable $error) {
                 fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
-                $results[] = [
-                    'id' => $hook['id'],
-                    'state' => 'error',
-                    'exit_code' => 1,
-                    'detail' => $error->getMessage(),
-                ];
+                $results[] = ToolResult::error($hook['id'], $error->getMessage(), $this->elapsedMs($started));
                 $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
                 continue;
             }
@@ -93,40 +94,38 @@ final class PipelineRunner
                     : CliStyle::error('✗ ' . $hook['id'] . ': falhou (codigo ' . $status . ').') . PHP_EOL;
             }
 
-            $results[] = [
-                'id' => $hook['id'],
-                'state' => $status === 0 ? 'ok' : 'failed',
-                'exit_code' => $status,
-                'detail' => null,
-            ];
+            $results[] = ToolResult::completed(
+                $hook['id'],
+                $status,
+                $findings,
+                $this->elapsedMs($started),
+            );
             $firstFailure = $status !== 0 && $firstFailure === 0 ? $status : $firstFailure;
         }
 
         $this->renderSummary($operation, $results);
 
-        return $firstFailure;
+        return new RunResult($operation, $results, $firstFailure);
     }
 
-    /**
-     * @param list<array{id:string,state:string,exit_code:int|null,detail:string|null}> $results
-     */
+    /** @param list<ToolResult> $results */
     private function renderSummary(string $operation, array $results): void
     {
         echo PHP_EOL . CliStyle::info('[NINFA] Resumo (' . $operation . ')') . PHP_EOL;
 
         foreach ($results as $result) {
-            $line = match ($result['state']) {
-                'ok' => CliStyle::success('✓ ' . $result['id'] . ': ok (codigo 0)'),
-                'failed' => CliStyle::error(
-                    '✗ ' . $result['id'] . ': failed (codigo ' . $result['exit_code'] . ')',
+            $line = match ($result->state) {
+                ToolResult::OK => CliStyle::success('✓ ' . $result->id . ': ok (codigo 0)'),
+                ToolResult::FAILED => CliStyle::error(
+                    '✗ ' . $result->id . ': failed (codigo ' . $result->exitCode . ')',
                 ),
-                'error' => CliStyle::error(
-                    '✗ ' . $result['id'] . ': error (codigo ' . $result['exit_code'] . ')',
+                ToolResult::ERROR => CliStyle::error(
+                    '✗ ' . $result->id . ': error (codigo ' . $result->exitCode . ')',
                 ),
-                'skipped' => CliStyle::warning(
-                    '! ' . $result['id'] . ': skipped (' . $result['detail'] . ')',
+                ToolResult::SKIPPED => CliStyle::warning(
+                    '! ' . $result->id . ': skipped (' . $result->detail . ')',
                 ),
-                default => throw new LogicException('Estado de etapa invalido: ' . $result['state']),
+                default => throw new LogicException('Estado de etapa invalido: ' . $result->state),
             };
             echo $line . PHP_EOL;
         }
@@ -154,8 +153,10 @@ final class PipelineRunner
         };
     }
 
-    /** @param list<string> $command */
-    private function runStaticAnalysis(string $tool, array $command, ProjectContext $context): int
+    /** @param list<string> $command
+     *  @return array{0:int,1:list<Finding>}
+     */
+    private function runStaticAnalysis(string $tool, array $command, ProjectContext $context): array
     {
         $result = $this->processRunner->runCaptured($command, $context->root());
 
@@ -172,7 +173,7 @@ final class PipelineRunner
                 fwrite(STDERR, $result->stderr . PHP_EOL);
             }
 
-            return $result->exitCode === 0 ? 1 : $result->exitCode;
+            return [$result->exitCode === 0 ? 1 : $result->exitCode, []];
         }
 
         if ($findings === []) {
@@ -188,13 +189,13 @@ final class PipelineRunner
                 echo CliStyle::success('✓ ' . $tool . ': nenhum achado.') . PHP_EOL;
             }
 
-            return $result->exitCode;
+            return [$result->exitCode, []];
         }
 
         FindingRenderer::render($findings, false);
         echo CliStyle::error('✗ ' . $tool . ': ' . count($findings) . ' achado(s) bloqueante(s).') . PHP_EOL;
 
-        return $result->exitCode === 0 ? 1 : $result->exitCode;
+        return [$result->exitCode === 0 ? 1 : $result->exitCode, $findings];
     }
 
     /** @param list<string> $command */
@@ -256,6 +257,27 @@ final class PipelineRunner
     private function tool(string $name, ProjectContext $context): string
     {
         return $this->toolResolver->resolve($name, $context->root());
+    }
+
+    private function writeSecurityInventory(ProjectContext $context): string
+    {
+        $file = $context->workspace()->file('security-inventory.json');
+        $written = file_put_contents(
+            $file,
+            json_encode(
+                SecurityInventory::fromContext($context),
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+            ) . PHP_EOL,
+        );
+        if ($written === false) {
+            throw new RuntimeException('Não foi possível gravar o inventário de segurança.');
+        }
+        return $file;
+    }
+
+    private function elapsedMs(int $started): int
+    {
+        return (int) round((hrtime(true) - $started) / 1_000_000);
     }
 
     /** @return list<string> */
