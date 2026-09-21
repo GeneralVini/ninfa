@@ -36,7 +36,7 @@ As etapas independentes continuam mesmo quando uma delas encontra um bloqueio ou
 
 | Frente | Estado | Diretriz |
 |---|---|---|
-| SCA | baseline funcional | estruturar inventário/resultados e depois integrar OSV |
+| SCA | inventário + Composer Audit estruturado | integrar OSV e deduplicar aliases |
 | SAST | MVP funcional / beta interna | prioridade de evolução |
 | DAST | fora do pipeline | delegado; evolução congelada |
 
@@ -56,18 +56,34 @@ A arquitetura detalhada, os contratos SAST, a evolução SCA e a ordem de implem
 
 ## Composer Audit
 
-Executa `composer audit --locked --no-interaction` somente quando o projeto possui `composer.lock`. Projetos PHP genéricos sem Composer não falham apenas pela ausência desse recurso.
+Executa Composer Audit somente quando o projeto possui `composer.lock`. A chamada é feita em modo estruturado e defensivo, sem carregar plugins ou scripts do consumidor:
 
-A consulta de advisories depende de conectividade. Um timeout de rede deve ser tratado como condição de infraestrutura, não como achado de vulnerabilidade nem como evidência de ausência de vulnerabilidades.
+```text
+composer --no-plugins --no-scripts --no-interaction audit --locked --format=json
+```
+
+Os advisories retornados em JSON são normalizados em `Finding` SCA. Cada finding preserva, quando disponível:
+
+- package e versão resolvida;
+- relação direta ou transitiva;
+- escopo runtime ou dev;
+- advisory principal e aliases, como CVE/GHSA/PKSA;
+- severidade informada pela fonte;
+- intervalo afetado, link e data do advisory;
+- proveniência da fonte.
+
+Pacotes abandonados reportados pelo Composer também são estruturados, mas como `dependency-policy`: abandono de dependência não é apresentado como vulnerabilidade.
+
+Antes dos scanners, `ninfa security` grava `security-inventory.json` no workspace externo. Para packages Composer, `composer.lock` é a fonte preferencial de versão resolvida; `vendor/composer/installed.json` é apenas fallback quando o lock não existe.
+
+A consulta de advisories depende de conectividade. JSON inválido, falha de rede ou término não-zero sem finding normalizável são tratados como erro de execução, e não como evidência de ausência de vulnerabilidades.
 
 A próxima evolução SCA deve ocorrer nesta ordem:
 
-1. inventário estruturado, preferindo `composer.lock` para versões resolvidas;
-2. separar runtime PHP real de constraint declarada no `composer.json`;
-3. obter saída estruturada do Composer Audit e normalizar findings;
-4. integrar OSV em batch;
-5. deduplicar CVE/GHSA/PKSA/OSV antes de enrichment;
-6. somente depois avaliar EPSS, CISA KEV, NVD e evidência de exploit público.
+1. integrar OSV em batch usando o inventário já estruturado;
+2. deduplicar CVE/GHSA/PKSA/OSV antes de enrichment;
+3. consolidar o relatório canônico de segurança;
+4. somente depois avaliar EPSS, CISA KEV, NVD e evidência de exploit público.
 
 GitHub Advisory não deve entrar agora como terceiro detector primário apenas para repetir advisories já representados por Composer/OSV. ExploitDB/SearchSploit não é detector primário e só pode enriquecer vulnerabilidades já identificadas.
 

@@ -160,7 +160,7 @@ A maturidade atual deve ser interpretada assim:
 
 | Frente | Estado atual no Ninfa | Diretriz |
 |---|---|---|
-| SCA | baseline funcional | estruturar inventário/resultados e depois incorporar OSV |
+| SCA | inventário + Composer Audit estruturado | incorporar OSV e deduplicar aliases |
 | SAST | MVP funcional / beta interna | **prioridade de evolução** |
 | DAST | fora do pipeline público | **delegado; evolução congelada no Ninfa** |
 
@@ -208,11 +208,17 @@ A separação arquitetural pretendida é: contrato SAST define **o que** caracte
 
 ### SCA / Composer Audit
 
-Composer Audit só é executado quando existe `composer.lock`. A consulta depende de conectividade e indisponibilidade de rede não deve ser interpretada como ausência de vulnerabilidades.
+Composer Audit só é executado quando existe `composer.lock`. O Ninfa o chama em modo estruturado e defensivo, com plugins/scripts do consumidor desabilitados e saída JSON:
 
-O baseline atual é útil, mas ainda precisa evoluir para diferenciar explicitamente estados como `passed`, `failed`, `unavailable`, `not_applicable` e cobertura parcial.
+```text
+composer --no-plugins --no-scripts --no-interaction audit --locked --format=json
+```
 
-Antes de multiplicar fontes externas, o SCA deve criar inventário estruturado a partir de `composer.lock`, `composer.json`, runtime PHP real e demais sinais confiáveis. Depois, a próxima fonte planejada é OSV, com normalização e deduplicação de aliases antes de qualquer enrichment por EPSS, KEV, NVD ou evidência de exploit público.
+Advisories são normalizados em `Finding` com package, versão resolvida, relação direta/transitiva, escopo runtime/dev, severidade, aliases e proveniência. Pacotes abandonados permanecem identificados separadamente como `dependency-policy`, sem serem apresentados como vulnerabilidade.
+
+`ninfa security` também grava `security-inventory.json` no workspace externo. Falha de rede ou saída não estruturada do Composer Audit é tratada como erro de execução, e não como evidência de ausência de vulnerabilidades.
+
+A próxima fonte planejada é OSV, com normalização e deduplicação de aliases antes de qualquer enrichment por EPSS, KEV, NVD ou evidência de exploit público.
 
 ### DAST / OWASP ZAP
 
@@ -259,7 +265,7 @@ O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos 
 
 A prioridade atual é estabilizar os quatro profiles em projetos reais e amadurecer o **SAST orientado a profile**, com especialização ativa somente para Yii3 e GLPI Plugin 11.
 
-Antes de avançar para scheduler, DAG, baseline/new-code ou novas camadas de automação, o core deve consolidar resultados estruturados (`ToolResult`, `RunResult`, `Finding`) e reduzir a dependência de exit codes brutos como representação principal de segurança.
+Antes de avançar para scheduler, DAG, baseline/new-code ou novas camadas de automação, o core deve continuar migrando as integrações para os contratos estruturados (`ToolResult`, `RunResult`, `Finding`) já introduzidos e reduzir a dependência de exit codes brutos como representação principal de segurança.
 
 A evolução de DAST permanece congelada e fora do pipeline do Ninfa enquanto essa capacidade for tratada por outra frente institucional. O foco do projeto é evitar duplicação de esforço e investir onde há lacuna real: análise estática de segurança, contexto de profile, normalização de findings e políticas auditáveis.
 

@@ -83,6 +83,7 @@ final class FindingRenderer
             $tool = match ($finding->tool) {
                 'phpstan' => 'PHPStan',
                 'psalm' => 'Psalm',
+                'composer-audit' => 'Composer Audit',
                 default => $finding->tool,
             };
             $where = $finding->file . ($finding->line > 0 ? ':' . $finding->line : '');
@@ -90,11 +91,15 @@ final class FindingRenderer
             echo '╭─ ' . CliStyle::info($tool) . ' ' . str_repeat('─', max(8, 61 - strlen($tool))) . PHP_EOL;
             echo '│ Arquivo: ' . $where . PHP_EOL;
             echo '│ Regra: ' . $finding->rule . PHP_EOL;
+            if ($finding->severity !== null) {
+                echo '│ Severidade: ' . $finding->severity . PHP_EOL;
+            }
+            self::renderMetadata($finding);
             echo '│' . PHP_EOL;
             echo '│ ' . CliStyle::warning('Corrigir:') . PHP_EOL;
             self::renderWrapped($finding->problem);
 
-            if ($withCorrection) {
+            if ($withCorrection && $finding->correction !== '') {
                 echo '│' . PHP_EOL;
                 echo '│ ' . CliStyle::success('Correção:') . PHP_EOL;
                 self::renderWrapped($finding->correction);
@@ -123,6 +128,31 @@ final class FindingRenderer
         }
 
         return 'Corrija o contrato/tipo na origem do dado; não suprima o achado apenas para obter resultado verde.';
+    }
+
+    private static function renderMetadata(Finding $finding): void
+    {
+        $component = $finding->metadata['component'] ?? null;
+        if (is_array($component) && is_string($component['name'] ?? null)) {
+            $label = $component['name'];
+            if (is_string($component['version'] ?? null)) {
+                $label .= ' ' . $component['version'];
+            }
+            $qualifiers = [];
+            foreach (['scope', 'relationship'] as $key) {
+                if (is_string($component[$key] ?? null) && $component[$key] !== 'unknown') {
+                    $qualifiers[] = $component[$key];
+                }
+            }
+            echo '│ Componente: ' . $label
+                . ($qualifiers !== [] ? ' (' . implode(', ', $qualifiers) . ')' : '')
+                . PHP_EOL;
+        }
+
+        $aliases = $finding->metadata['advisory']['aliases'] ?? null;
+        if (is_array($aliases) && $aliases !== []) {
+            echo '│ Aliases: ' . implode(', ', array_map('strval', $aliases)) . PHP_EOL;
+        }
     }
 
     private static function relativePath(string $file, string $root): string

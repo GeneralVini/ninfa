@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 final class Finding implements JsonSerializable
 {
-    /** @param list<string> $provenance */
+    /**
+     * @param list<string> $provenance
+     * @param array<string,mixed> $metadata
+     */
     public function __construct(
         public readonly string $tool,
         public readonly string $file,
@@ -16,6 +19,7 @@ final class Finding implements JsonSerializable
         public readonly ?string $confidence = null,
         public readonly ?string $evidenceType = null,
         public readonly array $provenance = [],
+        public readonly array $metadata = [],
     ) {
         if ($this->tool === '' || $this->rule === '') {
             throw new InvalidArgumentException('Finding exige tool e rule.');
@@ -48,6 +52,9 @@ final class Finding implements JsonSerializable
         }
         if ($this->provenance !== []) {
             $data['provenance'] = $this->provenance;
+        }
+        if ($this->metadata !== []) {
+            $data['metadata'] = $this->metadata;
         }
 
         return $data;

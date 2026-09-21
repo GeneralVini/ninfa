@@ -8,6 +8,7 @@ require_once __DIR__ . '/ExternalConfigGenerator.php';
 require_once __DIR__ . '/ToolResolver.php';
 require_once __DIR__ . '/RunResult.php';
 require_once __DIR__ . '/SecurityInventory.php';
+require_once __DIR__ . '/ComposerAuditParser.php';
 
 final class PipelineRunner
 {
@@ -38,9 +39,11 @@ final class PipelineRunner
             );
         }
 
+        $securityInventory = null;
         if ($operation === 'security') {
-            $inventory = $this->writeSecurityInventory($context);
-            echo CliStyle::info('[NINFA] Inventário de segurança: ' . $inventory) . PHP_EOL;
+            $securityInventory = SecurityInventory::fromContext($context);
+            $inventoryFile = $this->writeSecurityInventory($context, $securityInventory);
+            echo CliStyle::info('[NINFA] Inventário de segurança: ' . $inventoryFile) . PHP_EOL;
         }
 
         $configs = $this->configGenerator->generate($context);
@@ -71,10 +74,16 @@ final class PipelineRunner
             }
 
             echo CliStyle::info('[NINFA] ' . $hook['id']) . ' (' . $hook['mode'] . ')' . PHP_EOL;
-            $structured = $operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true);
+            $structured = ($operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true))
+                || ($operation === 'security' && $hook['id'] === 'composer-audit');
             $findings = [];
             try {
-                if ($structured) {
+                if ($operation === 'security' && $hook['id'] === 'composer-audit') {
+                    if (!$securityInventory instanceof SecurityInventory) {
+                        throw new LogicException('Inventário de segurança ausente para Composer Audit.');
+                    }
+                    [$status, $findings] = $this->runComposerAudit($command, $context, $securityInventory);
+                } elseif ($structured) {
                     [$status, $findings] = $this->runStaticAnalysis($hook['id'], $command, $context);
                 } else {
                     $status = $hook['id'] === 'test'
@@ -146,7 +155,15 @@ final class PipelineRunner
             'prettier' => [$this->tool('prettier', $context), $mode === 'fix' ? '--write' : '--check', '.'],
             'test' => $this->testCommand($context),
             'composer-audit' => is_file($context->root() . '/composer.lock')
-                ? [$this->tool('composer', $context), 'audit', '--locked', '--no-interaction']
+                ? [
+                    $this->tool('composer', $context),
+                    '--no-plugins',
+                    '--no-scripts',
+                    '--no-interaction',
+                    'audit',
+                    '--locked',
+                    '--format=json',
+                ]
                 : null,
             'semgrep' => $this->semgrepCommand($context),
             default => null,
@@ -194,6 +211,55 @@ final class PipelineRunner
 
         FindingRenderer::render($findings, false);
         echo CliStyle::error('✗ ' . $tool . ': ' . count($findings) . ' achado(s) bloqueante(s).') . PHP_EOL;
+
+        return [$result->exitCode === 0 ? 1 : $result->exitCode, $findings];
+    }
+
+    /** @param list<string> $command
+     *  @return array{0:int,1:list<Finding>}
+     */
+    private function runComposerAudit(
+        array $command,
+        ProjectContext $context,
+        SecurityInventory $inventory,
+    ): array {
+        $result = $this->processRunner->runCaptured($command, $context->root());
+
+        try {
+            $findings = ComposerAuditParser::parse($result->stdout, $inventory);
+        } catch (JsonException|UnexpectedValueException $error) {
+            if (trim($result->stderr) !== '') {
+                fwrite(STDERR, $result->stderr . PHP_EOL);
+            }
+            if (trim($result->stdout) !== '') {
+                fwrite(STDERR, $result->stdout . PHP_EOL);
+            }
+            throw new RuntimeException(
+                'Composer Audit não retornou JSON estruturado válido: ' . $error->getMessage(),
+                0,
+                $error,
+            );
+        }
+
+        if ($findings === []) {
+            if ($result->exitCode !== 0) {
+                if (trim($result->stderr) !== '') {
+                    fwrite(STDERR, $result->stderr . PHP_EOL);
+                }
+                throw new RuntimeException(
+                    'Composer Audit terminou com código ' . $result->exitCode
+                    . ' sem finding normalizado; trate como falha de infraestrutura ou política não suportada.',
+                );
+            }
+
+            echo CliStyle::success('✓ composer-audit: nenhum advisory ou policy finding.') . PHP_EOL;
+            return [0, []];
+        }
+
+        FindingRenderer::render($findings, true);
+        echo CliStyle::error(
+            '✗ composer-audit: ' . count($findings) . ' finding(s) SCA/policy.',
+        ) . PHP_EOL;
 
         return [$result->exitCode === 0 ? 1 : $result->exitCode, $findings];
     }
@@ -259,13 +325,13 @@ final class PipelineRunner
         return $this->toolResolver->resolve($name, $context->root());
     }
 
-    private function writeSecurityInventory(ProjectContext $context): string
+    private function writeSecurityInventory(ProjectContext $context, SecurityInventory $inventory): string
     {
         $file = $context->workspace()->file('security-inventory.json');
         $written = file_put_contents(
             $file,
             json_encode(
-                SecurityInventory::fromContext($context),
+                $inventory,
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
             ) . PHP_EOL,
         );

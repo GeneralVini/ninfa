@@ -15,6 +15,7 @@ $finding = new Finding(
     confidence: 'high',
     evidenceType: 'static-analysis',
     provenance: ['phpstan'],
+    metadata: ['category' => 'quality'],
 );
 
 $ok = ToolResult::completed('phpstan', 0, [$finding], 15);
@@ -31,5 +32,6 @@ assert(($data['tools'][0]['duration_ms'] ?? null) === 15);
 assert(($data['findings'][0]['rule'] ?? null) === 'argument.type');
 assert(($data['findings'][0]['confidence'] ?? null) === 'high');
 assert(($data['findings'][0]['evidence_type'] ?? null) === 'static-analysis');
+assert(($data['findings'][0]['metadata']['category'] ?? null) === 'quality');
 
 echo "[OK] Finding, ToolResult e RunResult possuem contratos estruturados e serializáveis.\n";

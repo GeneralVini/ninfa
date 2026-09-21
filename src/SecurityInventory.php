@@ -95,6 +95,29 @@ final class SecurityInventory implements JsonSerializable
         return $this->data;
     }
 
+    /** @return array<string,mixed>|null */
+    public function package(string $name): ?array
+    {
+        $packages = $this->data['composer']['packages'] ?? [];
+        if (!is_array($packages)) {
+            return null;
+        }
+
+        foreach ($packages as $package) {
+            if (is_array($package) && ($package['name'] ?? null) === $name) {
+                return $package;
+            }
+        }
+
+        return null;
+    }
+
+    public function packageSource(): string
+    {
+        $source = $this->data['composer']['package_source'] ?? 'none';
+        return is_string($source) ? $source : 'none';
+    }
+
     /** @param mixed $requirements
      *  @return array<string,string>
      */
