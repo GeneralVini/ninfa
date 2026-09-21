@@ -8,39 +8,45 @@ require_once __DIR__ . '/ToolResult.php';
  * Consolida o resultado completo de uma operação do Ninfa.
  *
  * Mantém o nome da operação, os resultados de cada ferramenta/etapa e o exit
- * code final escolhido pelo runner. `findings()` apenas achata os findings de
+ * code final derivado do primeiro exit não zero. `findings()` apenas achata os findings de
  * todos os ToolResult; não deduplica advisories, não calcula prioridade e não
  * altera o estado das ferramentas.
  */
 final class RunResult implements JsonSerializable
 {
+    /** Primeiro exit code diferente de zero, ou zero quando todas as etapas passam. */
+    public readonly int $finalExitCode;
+
     /**
      * Cria o snapshot imutável de uma execução já finalizada.
      *
-     * O construtor valida somente integridade estrutural: operação não vazia e
-     * coleção formada exclusivamente por ToolResult. Ele não recalcula o exit
-     * code a partir dos estados recebidos; essa decisão pertence ao runner.
+     * O construtor valida operação e coleção, então deriva o exit final do
+     * primeiro ToolResult com código diferente de zero. Etapas `skipped` não
+     * possuem código e não alteram o resultado global.
      *
      * @param string $operation Operação pública executada (`check`, `fix` ou `security`).
      * @param list<ToolResult> $toolResults Resultados das etapas na ordem observada.
-     * @param int $finalExitCode Exit code consolidado escolhido pelo orquestrador.
      * @throws InvalidArgumentException Quando operation está vazia ou a coleção contém outro tipo.
      */
     public function __construct(
         public readonly string $operation,
         public readonly array $toolResults,
-        public readonly int $finalExitCode,
     ) {
         if ($this->operation === '') {
             throw new InvalidArgumentException('RunResult exige operation.');
         }
 
+        $finalExitCode = 0;
         // A coleção tipada é protegida em runtime porque arrays PHP não impõem o tipo dos elementos.
         foreach ($this->toolResults as $result) {
             if (!$result instanceof ToolResult) {
                 throw new InvalidArgumentException('RunResult aceita apenas ToolResult.');
             }
+            if ($finalExitCode === 0 && $result->exitCode !== null && $result->exitCode !== 0) {
+                $finalExitCode = $result->exitCode;
+            }
         }
+        $this->finalExitCode = $finalExitCode;
     }
 
     /**

@@ -156,7 +156,7 @@ try {
         ToolResult::completed('osv', 1, $osvFindings, 7),
         ToolResult::completed('psalm-taint', 0, [], 1),
         ToolResult::completed('semgrep', 0, [], 1),
-    ], 1);
+    ]);
     $report = json_decode(
         json_encode(new SecurityReport($inventory, $runResult), JSON_THROW_ON_ERROR),
         true,

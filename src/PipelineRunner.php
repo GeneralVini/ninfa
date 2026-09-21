@@ -113,8 +113,6 @@ final class PipelineRunner
 
         /** @var list<ToolResult> $results Resultados acumulados sem fail-fast. */
         $results = [];
-        $firstFailure = 0;
-
         foreach ($hooks as $hook) {
             $started = hrtime(true);
 
@@ -122,7 +120,6 @@ final class PipelineRunner
             if ($operation === 'security' && $hook['id'] === 'osv') {
                 if (!$securityInventory instanceof SecurityInventory) {
                     $results[] = ToolResult::error('osv', 'Inventário de segurança ausente.', $this->elapsedMs($started));
-                    $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
                     continue;
                 }
 
@@ -139,12 +136,10 @@ final class PipelineRunner
                 } catch (Throwable $error) {
                     fwrite(STDERR, CliStyle::error('✗ osv: ' . $error->getMessage()) . PHP_EOL);
                     $results[] = ToolResult::error('osv', $error->getMessage(), $this->elapsedMs($started));
-                    $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
                     continue;
                 }
 
                 $results[] = ToolResult::completed('osv', $status, $findings, $this->elapsedMs($started));
-                $firstFailure = $status !== 0 && $firstFailure === 0 ? $status : $firstFailure;
                 continue;
             }
 
@@ -154,7 +149,6 @@ final class PipelineRunner
             } catch (Throwable $error) {
                 fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
                 $results[] = ToolResult::error($hook['id'], $error->getMessage(), $this->elapsedMs($started));
-                $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
                 continue;
             }
 
@@ -186,7 +180,6 @@ final class PipelineRunner
             } catch (Throwable $error) {
                 fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
                 $results[] = ToolResult::error($hook['id'], $error->getMessage(), $this->elapsedMs($started));
-                $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
                 continue;
             }
 
@@ -203,10 +196,9 @@ final class PipelineRunner
                 $findings,
                 $this->elapsedMs($started),
             );
-            $firstFailure = $status !== 0 && $firstFailure === 0 ? $status : $firstFailure;
         }
 
-        $runResult = new RunResult($operation, $results, $firstFailure);
+        $runResult = new RunResult($operation, $results);
 
         // O relatório SCA é efeito final do security e sua falha precisa ficar explícita no próprio RunResult.
         if ($operation === 'security' && $securityInventory instanceof SecurityInventory) {
@@ -216,8 +208,7 @@ final class PipelineRunner
             } catch (Throwable $error) {
                 fwrite(STDERR, CliStyle::error('✗ security-report: ' . $error->getMessage()) . PHP_EOL);
                 $results[] = ToolResult::error('security-report', $error->getMessage());
-                $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
-                $runResult = new RunResult($operation, $results, $firstFailure);
+                $runResult = new RunResult($operation, $results);
             }
         }
 

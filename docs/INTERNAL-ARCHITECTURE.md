@@ -225,11 +225,11 @@ Representa um achado normalizado. Exige `tool` e `rule`, rejeita linha negativa 
 
 ### `src/ToolResult.php`
 
-Representa o resultado de uma etapa. Os estados implementados são `ok`, `failed`, `error` e `skipped`. Mantém exit code, detalhe, duração e findings associados.
+Representa o resultado de uma etapa. Os estados implementados são `ok`, `failed`, `error` e `skipped`. Mantém exit code, detalhe, duração e findings associados. O contrato rejeita estado incompatível com o exit code e duração negativa; somente `skipped` não possui exit code.
 
 ### `src/RunResult.php`
 
-Consolida a operação e todos os `ToolResult`. `findings()` apenas achata os findings das ferramentas; o objeto não deduplica vulnerabilidades nem calcula prioridade.
+Consolida a operação e todos os `ToolResult`. O exit final é derivado do primeiro código diferente de zero, preservando a ordem das etapas. `findings()` apenas achata os findings das ferramentas; o objeto não deduplica vulnerabilidades nem calcula prioridade.
 
 ## SCA implementado
 

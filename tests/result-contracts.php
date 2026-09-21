@@ -20,7 +20,7 @@ $finding = new Finding(
 
 $ok = ToolResult::completed('phpstan', 0, [$finding], 15);
 $skipped = ToolResult::skipped('test', 'nao aplicavel');
-$run = new RunResult('check', [$ok, $skipped], 0);
+$run = new RunResult('check', [$ok, $skipped]);
 
 assert($ok->state === ToolResult::OK);
 assert($ok->findings === [$finding]);
@@ -33,5 +33,32 @@ assert(($data['findings'][0]['rule'] ?? null) === 'argument.type');
 assert(($data['findings'][0]['confidence'] ?? null) === 'high');
 assert(($data['findings'][0]['evidence_type'] ?? null) === 'static-analysis');
 assert(($data['findings'][0]['metadata']['category'] ?? null) === 'quality');
+
+$failed = ToolResult::completed('phpstan', 2);
+$laterFailure = ToolResult::completed('psalm', 3);
+$failedRun = new RunResult('check', [$ok, $failed, $laterFailure]);
+assert($failedRun->finalExitCode === 2);
+
+$invalidToolResults = [
+    static fn (): ToolResult => new ToolResult('phpstan', ToolResult::OK, null),
+    static fn (): ToolResult => new ToolResult('phpstan', ToolResult::OK, 1),
+    static fn (): ToolResult => new ToolResult('phpstan', ToolResult::FAILED, 0),
+    static fn (): ToolResult => new ToolResult('phpstan', ToolResult::ERROR, 0),
+    static fn (): ToolResult => new ToolResult('test', ToolResult::SKIPPED, 1),
+    static fn (): ToolResult => ToolResult::completed('phpstan', 0, [], -1),
+];
+foreach ($invalidToolResults as $invalidToolResult) {
+    try {
+        $invalidToolResult();
+        assert(false, 'ToolResult contraditório deveria ser rejeitado.');
+    } catch (InvalidArgumentException) {
+    }
+}
+
+try {
+    new RunResult('', []);
+    assert(false, 'RunResult sem operação deveria ser rejeitado.');
+} catch (InvalidArgumentException) {
+}
 
 echo "[OK] Finding, ToolResult e RunResult possuem contratos estruturados e serializáveis.\n";

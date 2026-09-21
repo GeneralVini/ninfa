@@ -29,9 +29,10 @@ final class ToolResult implements JsonSerializable
     /**
      * Cria o resultado imutável de uma etapa e valida seu estado/coleção de findings.
      *
-     * `exitCode` pode ser null somente quando a semântica da etapa não possui
-     * processo concluído, como `skipped`. O construtor não tenta inferir estado
-     * a partir do exit code; fábricas como `completed()` fazem essa derivação.
+     * `exitCode` é null somente para `skipped`; `ok` exige zero e estados de
+     * falha exigem código diferente de zero. O construtor não infere o estado,
+     * mas rejeita combinações contraditórias. Duração, quando presente, nunca
+     * pode ser negativa.
      *
      * @param string $id Identificador da etapa no PipelinePlan.
      * @param string $state Um dos estados públicos definidos nesta classe.
@@ -54,6 +55,21 @@ final class ToolResult implements JsonSerializable
         }
         if (!in_array($this->state, [self::OK, self::FAILED, self::ERROR, self::SKIPPED], true)) {
             throw new InvalidArgumentException('Estado de ToolResult inválido: ' . $this->state);
+        }
+        if ($this->state === self::SKIPPED && $this->exitCode !== null) {
+            throw new InvalidArgumentException('ToolResult skipped não possui exit code.');
+        }
+        if ($this->state !== self::SKIPPED && $this->exitCode === null) {
+            throw new InvalidArgumentException('ToolResult executado exige exit code.');
+        }
+        if ($this->state === self::OK && $this->exitCode !== 0) {
+            throw new InvalidArgumentException('ToolResult ok exige exit code 0.');
+        }
+        if (in_array($this->state, [self::FAILED, self::ERROR], true) && $this->exitCode === 0) {
+            throw new InvalidArgumentException('ToolResult de falha exige exit code diferente de 0.');
+        }
+        if ($this->durationMs !== null && $this->durationMs < 0) {
+            throw new InvalidArgumentException('Duração de ToolResult não pode ser negativa.');
         }
 
         // Arrays PHP não protegem o tipo dos elementos; o contrato é validado em runtime.
