@@ -276,7 +276,7 @@ O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos 
 
 Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada commit relevante; itens só são marcados como concluídos quando implementação e testes correspondentes estiverem presentes.
 
-**Etapa atual: 3 — SAST estruturado.**
+**Etapa atual: 2.5 — Documentação interna e mapa de fluxo.**
 
 ### Etapa 1 — Fundação
 
@@ -293,12 +293,14 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 ### Etapa 2.5 — Documentação interna e mapa de fluxo
 
 - [x] Criar mapa interno baseado nas responsabilidades observadas no código atual, sem duplicar o README.
-- [x] Documentar classes, entrypoints e configurações PHP de produção com responsabilidade, entradas, saídas, efeitos colaterais e invariantes relevantes.
-- [x] Documentar scripts shell com finalidade, variáveis de ambiente, efeitos externos, limites de segurança e condições de falha relevantes.
-- [x] Definir e proteger o padrão para JavaScript próprio; atualmente não há arquivo `.js` versionado no Ninfa.
-- [x] Documentar fixtures de teste cujo cenário não é autoexplicativo, incluindo runner, inventário SCA, OSV e GLPI Plugin 11.
-- [x] Adicionar verificação na suíte para impedir novas classes, entrypoints, scripts shell e futuros módulos JavaScript próprios sem documentação mínima.
-- [x] Revisar o mapa interno e os comentários contra a implementação atual.
+- [x] Tornar documentação de símbolo/bloco uma premissa de implementação, e não apenas cabeçalho de arquivo.
+- [x] Migrar `src/OsvClient.php` como referência do padrão estrito, incluindo métodos privados, exceções e tipos/shapes de estruturas locais.
+- [x] Documentar blocos semânticos dos scripts PHP/shell atuais, além dos cabeçalhos.
+- [x] Endurecer a suíte para que arquivos novos e arquivos já migrados cumpram o padrão estrito.
+- [x] Definir e proteger o mesmo princípio para JavaScript próprio quando existir; atualmente não há arquivo `.js` versionado no Ninfa.
+- [ ] Migrar os demais arquivos de `src/` para PHPDoc em classes, métodos/funções e tipos compostos relevantes.
+- [ ] Eliminar a allowlist temporária de dívida documental usada pelo guard.
+- [ ] Revisar o mapa interno e os comentários após a migração completa, removendo divergências restantes.
 
 ### Etapa 3 — SAST estruturado
 
@@ -339,7 +341,7 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 
 ## Evolução prevista
 
-A **Etapa 2.5 está fechada**: o fluxo interno foi mapeado a partir do código, os componentes de produção receberam documentação factual e a suíte agora protege a presença mínima dessa documentação. A prioridade volta para a **Etapa 3**, estruturando Psalm Taint e Semgrep antes de ampliar regras ou adicionar novos scanners.
+A **Etapa 2.5 foi reaberta com critério mais forte**: cabeçalhos de arquivo não bastam. O padrão agora exige documentação factual em classes, métodos/funções, estruturas de dados relevantes e blocos semânticos. `OsvClient` funciona como referência inicial; os demais arquivos de `src/` ainda precisam ser migrados antes de avançar formalmente para a Etapa 3.
 
 A especialização ativa de segurança permanece restrita a **Yii3** e **GLPI Plugin 11**. DAST continua congelado e delegado a outra frente institucional.
 

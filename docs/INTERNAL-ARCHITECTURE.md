@@ -8,6 +8,44 @@ A Etapa 2.5 existe para tornar o código compreensível sem depender de conhecim
 
 Não é objetivo repetir README, explicar sintaxe trivial ou escrever comentários que apenas traduzam o nome de um método.
 
+## Premissa obrigatória de documentação
+
+A documentação interna é parte do contrato de implementação do Ninfa, não um acabamento posterior. Código de produção novo ou alterado deve nascer documentado no mesmo commit.
+
+A unidade mínima de documentação não é o arquivo. Um cabeçalho de classe, módulo ou script **não substitui** a documentação dos símbolos e blocos internos relevantes.
+
+Para PHP, a premissa é:
+
+1. toda classe de produção deve possuir PHPDoc com responsabilidade e limites;
+2. todo método ou função nomeada de produção deve possuir PHPDoc descritivo, inclusive métodos privados;
+3. `@param`, `@return`, `@var` e shapes devem preservar informação que o type hint nativo não consegue expressar;
+4. `array` não deve ficar semanticamente sem tipo quando o código conhece o shape, a lista ou os tipos de chave/valor;
+5. acumuladores e estruturas locais não triviais devem receber `@var` quando o tipo não é evidente ou se perde entre blocos;
+6. blocos de controle relevantes devem explicar a decisão, a precedência ou a invariável que protegem; comentários que apenas narram `if`, `foreach` ou atribuições não atendem ao objetivo;
+7. exceções relevantes, I/O, arquivos gerados, rede e mutações devem ser documentados junto do método que os executa.
+
+Exemplo de informação insuficiente:
+
+```php
+/** @return list<Finding> */
+public function scan(SecurityInventory $inventory): array
+```
+
+O tipo de retorno é útil, mas não explica quais componentes entram na consulta, quais efeitos externos existem, quais respostas são ignoradas, como falhas são tratadas ou o que o método deliberadamente não faz.
+
+Quando uma coleção possui contrato conhecido, a documentação deve preservar esse contrato. Por exemplo:
+
+```php
+/** @var list<array{name:string,version:string,scope:string}> $packages */
+$packages = [];
+```
+
+Para shell, a mesma premissa vale em outra sintaxe: cabeçalho do arquivo, funções e blocos semânticos devem registrar finalidade, variáveis relevantes, efeitos externos, restrições e motivo das validações. Um comentário antes de um `if` deve explicar **por que** aquela condição é uma fronteira importante, e não apenas dizer que o `if` verifica algo.
+
+Para JavaScript próprio do Ninfa, quando existir, módulos e funções devem usar JSDoc com responsabilidade, tipos úteis, efeitos em DOM/rede/estado e eventos consumidos/emitidos. Estruturas complexas devem usar typedefs/shapes em vez de `Object` genérico quando o formato for conhecido.
+
+A suíte pode manter temporariamente uma lista explícita de dívida documental para arquivos antigos ainda não migrados para o padrão estrito. Essa lista é uma fila de migração, não uma exceção arquitetural: arquivo novo não pode entrar nela, e a Etapa 2.5 só fecha quando ela estiver vazia.
+
 ## Fluxo executável atual
 
 O caminho normal dos comandos públicos é:
@@ -222,6 +260,8 @@ Consulta OSV para packages Composer resolvidos. A implementação atual:
 - ignora registros retirados (`withdrawn`);
 - produz `Finding` `sca-advisory` correlacionado ao componente do inventário.
 
+`OsvClient` é o primeiro arquivo de produção migrado para o padrão documental estrito da Etapa 2.5: métodos públicos e privados descrevem contrato, efeitos, exceções e invariantes; acumuladores e coleções internas relevantes registram shapes/tipos com `@var`.
+
 O cliente não faz deduplicação entre Composer Audit e OSV; essa responsabilidade fica fora dele.
 
 ### `src/ScaFindingDeduplicator.php`
@@ -254,7 +294,7 @@ Prepara um host GLPI para uso/teste do profile. Usa `NINFA_GLPI_ROOT` ou um dire
 
 ## Padrão para PHPDoc e comentários de código
 
-A documentação deve ser colocada junto ao símbolo que ela explica e conter somente fatos sustentados pelo código ou por uma decisão arquitetural explícita.
+A documentação deve ser colocada junto ao símbolo ou bloco que ela explica e conter somente fatos sustentados pelo código ou por uma decisão arquitetural explícita.
 
 Para classes PHP de domínio/orquestração, o docblock deve responder, quando aplicável:
 
@@ -267,21 +307,39 @@ Invariantes/precedências importantes
 O que a classe deliberadamente NÃO faz
 ```
 
-Métodos públicos não triviais devem documentar formato de coleções/arrays, exceções relevantes e efeitos externos. Métodos privados só precisam de comentário quando a regra não é evidente pela assinatura e pelo nome.
+Para **todo método e função nomeada de produção**, inclusive privados, o PHPDoc deve informar a responsabilidade daquele símbolo. Quando houver arrays, coleções, callbacks ou dados heterogêneos, os tipos genéricos/shapes devem ser registrados com `@param`, `@return` e/ou `@var`. Uma anotação contendo apenas `@return list<X>` não é suficiente quando o comportamento do método possui regras relevantes que não aparecem na assinatura.
 
-Para scripts PHP executáveis, o cabeçalho deve registrar finalidade, argumentos/flags, arquivos gerados e exit codes relevantes.
+Variáveis locais não precisam receber comentários redundantes quando o tipo é escalar e evidente. Porém acumuladores, mapas indexados, filas, payloads, respostas JSON e outras estruturas compostas devem receber `@var` quando isso evita perder informação de tipo ou semântica entre blocos.
 
-Para shell scripts, os comentários iniciais devem registrar finalidade, variáveis de ambiente lidas, efeitos externos e condições de falha. Comentários dentro do script devem explicar decisões como restrição a localhost ou por que uma ferramenta é ignorada, não repetir comandos shell óbvios.
+Blocos de controle devem ser comentados quando expressam uma decisão de negócio, segurança, precedência, fallback, correlação, política de erro ou proteção contra estado ambíguo. O comentário deve explicar a intenção/invariante; não deve apenas traduzir a condição para português.
 
-Para JavaScript próprio do Ninfa, quando existir, o cabeçalho do módulo deve registrar responsabilidade, entradas, efeitos sobre DOM/rede/estado e eventos emitidos/consumidos. Hoje não há arquivo `.js` próprio versionado no repositório.
+Para scripts PHP executáveis, o cabeçalho continua obrigatório, mas também são exigidos PHPDoc nas funções nomeadas e comentários nos blocos semânticos relevantes do fluxo principal.
+
+Para shell scripts, os comentários iniciais registram finalidade, variáveis de ambiente lidas, efeitos externos e condições de falha. Além disso, funções e blocos semânticos (`if`, `case`, loops de política/fallback) devem ter comentários locais que expliquem o motivo da decisão, especialmente em validações de segurança, precedência de ferramentas e operações externas.
+
+Para JavaScript próprio do Ninfa, quando existir, o cabeçalho do módulo e cada função nomeada devem registrar responsabilidade e tipos úteis via JSDoc. Efeitos sobre DOM/rede/estado e eventos emitidos/consumidos devem ser explícitos. Hoje não há arquivo `.js` próprio versionado no repositório.
+
+## Migração para o padrão estrito
+
+O guard `tests/internal-docs.php` possui duas responsabilidades distintas:
+
+- impedir que arquivos novos de produção nasçam abaixo do padrão estrito;
+- tornar explícita a dívida dos arquivos antigos ainda não migrados.
+
+Arquivos legados podem aparecer temporariamente em uma allowlist de dívida documental. Remover um arquivo dessa lista significa que suas classes, métodos/funções e tipos compostos relevantes foram revisados. A lista só pode diminuir; adicionar um arquivo novo a ela contradiz a premissa desta etapa.
+
+`src/OsvClient.php` é a referência inicial do padrão estrito. Os demais arquivos de `src/` devem ser migrados progressivamente antes de a Etapa 2.5 ser considerada encerrada.
 
 ## Critério de conclusão da Etapa 2.5
 
 A etapa só deve ser marcada como concluída quando:
 
-1. classes e scripts de produção tiverem documentação factual junto ao código;
-2. scripts shell tiverem cabeçalhos com variáveis, efeitos e limites;
-3. entrypoints PHP tiverem propósito, argumentos, efeitos e exit codes documentados;
-4. o mapa deste documento estiver consistente com a implementação;
-5. a suíte tiver uma verificação simples que impeça novos arquivos de produção sem documentação mínima;
-6. a documentação for atualizada quando a responsabilidade de um componente mudar.
+1. todas as classes, métodos e funções nomeadas de produção tiverem documentação factual junto ao código;
+2. arrays/coleções/estruturas compostas tiverem tipos genéricos ou shapes quando a assinatura nativa perder informação;
+3. acumuladores e estruturas locais relevantes tiverem `@var` quando necessário para preservar tipo/semântica;
+4. scripts PHP e shell tiverem documentação interna em funções e blocos semânticos, não apenas cabeçalhos;
+5. futuros módulos JavaScript estiverem sujeitos ao mesmo princípio por JSDoc;
+6. o mapa deste documento estiver consistente com a implementação;
+7. a suíte impedir regressão do padrão estrito para arquivos novos e migrados;
+8. a allowlist de dívida documental estiver vazia;
+9. a documentação for atualizada no mesmo commit quando a responsabilidade de um componente mudar.
