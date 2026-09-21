@@ -160,13 +160,15 @@ A maturidade atual deve ser interpretada assim:
 
 | Frente | Estado atual no Ninfa | Diretriz |
 |---|---|---|
-| SCA | baseline funcional | manter e integrar melhor aos resultados estruturados |
+| SCA | baseline funcional | estruturar inventário/resultados e depois incorporar OSV |
 | SAST | MVP funcional / beta interna | **prioridade de evolução** |
 | DAST | fora do pipeline público | **delegado; evolução congelada no Ninfa** |
 
 ### Diretriz atual: foco em SAST
 
-A prioridade de segurança do Ninfa é **SAST orientado a profile**. O objetivo é amadurecer análise estática de segurança para `glpi-plugin`, Yii e PHP genérico, consolidar achados estruturados e aplicar políticas auditáveis sem transformar o Ninfa em um scanner genérico que apenas empilha ferramentas.
+A prioridade de segurança do Ninfa é **SAST orientado a profile**. Nesta fase, o baseline comum continua PHP e a evolução específica de `SecurityContract` fica restrita a **Yii3** e **GLPI Plugin 11**.
+
+Yii2 continua suportado pelo pipeline geral, mas não recebe agora evolução SAST específica. O profile `php-generic` utiliza o baseline comum sem contrato especializado adicional. Outros frameworks permanecem fora do escopo ativo.
 
 DAST permanece deliberadamente fora do `ninfa security`. Se `NINFA_DAST=1` for informado, o Ninfa apenas avisa que a capacidade está desabilitada/delegada e **não executa OWASP ZAP**.
 
@@ -195,17 +197,22 @@ O próximo estágio de maturidade SAST deve priorizar:
 2. distinguir finding, erro de ferramenta, indisponibilidade e etapa não aplicável;
 3. criar fixtures reais de segurança com casos positivos e negativos em CI;
 4. medir cobertura efetiva dos paths e arquivos analisados;
-5. evoluir regras específicas por profile, principalmente `glpi-plugin`, Yii e PHP genérico;
-6. preservar proveniência de regra, severidade, arquivo, linha e mensagem;
-7. só depois aplicar políticas/quality gates de segurança mais sofisticados.
+5. formalizar contratos SAST para command injection, SQL injection, XSS, path traversal, file access, SSRF, unsafe redirect, header injection, dynamic include/require, unsafe deserialization, dangerous eval/assert e cryptographic misuse;
+6. especializar esses contratos, quando necessário, apenas para `yii3` e `glpi-plugin-11` nesta fase;
+7. preservar proveniência de regra, severidade, confiança, arquivo, linha, mensagem e tipo de evidência;
+8. só depois aplicar políticas/quality gates de segurança mais sofisticados.
 
 Não é objetivo imediato adicionar vários scanners diferentes. Primeiro, o Ninfa deve extrair resultados confiáveis, estruturados e auditáveis das ferramentas que já utiliza.
+
+A separação arquitetural pretendida é: contrato SAST define **o que** caracteriza a vulnerabilidade, `Profile SecurityContract` define **o que** as APIs daquele ecossistema significam e o adapter define **como** Psalm/Semgrep executam essa semântica.
 
 ### SCA / Composer Audit
 
 Composer Audit só é executado quando existe `composer.lock`. A consulta depende de conectividade e indisponibilidade de rede não deve ser interpretada como ausência de vulnerabilidades.
 
 O baseline atual é útil, mas ainda precisa evoluir para diferenciar explicitamente estados como `passed`, `failed`, `unavailable`, `not_applicable` e cobertura parcial.
+
+Antes de multiplicar fontes externas, o SCA deve criar inventário estruturado a partir de `composer.lock`, `composer.json`, runtime PHP real e demais sinais confiáveis. Depois, a próxima fonte planejada é OSV, com normalização e deduplicação de aliases antes de qualquer enrichment por EPSS, KEV, NVD ou evidência de exploit público.
 
 ### DAST / OWASP ZAP
 
@@ -226,7 +233,9 @@ Um `ninfa security` com exit code 0 significa apenas que as fontes SCA/SAST cons
 "aprovado por todos os controles de segurança"
 ```
 
-Testes de campo mostraram que cobertura, conectividade, cache, inventário e escopo influenciam diretamente a interpretação do resultado. O objetivo da evolução SAST é tornar essas condições explícitas e auditáveis.
+Testes de campo mostraram que cobertura, conectividade, cache, inventário e escopo influenciam diretamente a interpretação do resultado. O objetivo da evolução SAST/SCA é tornar essas condições explícitas e auditáveis.
+
+A arquitetura detalhada e a ordem de implementação estão em [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md).
 
 ## Diagnóstico manual
 
@@ -248,7 +257,7 @@ O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos 
 
 ## Evolução prevista
 
-A prioridade atual é estabilizar os quatro profiles em projetos reais e amadurecer o **SAST orientado a profile**.
+A prioridade atual é estabilizar os quatro profiles em projetos reais e amadurecer o **SAST orientado a profile**, com especialização ativa somente para Yii3 e GLPI Plugin 11.
 
 Antes de avançar para scheduler, DAG, baseline/new-code ou novas camadas de automação, o core deve consolidar resultados estruturados (`ToolResult`, `RunResult`, `Finding`) e reduzir a dependência de exit codes brutos como representação principal de segurança.
 
@@ -265,3 +274,4 @@ Em etapa posterior, o core poderá alimentar uma interface web/dashboard para hi
 - [Profile GLPI](docs/GLPI_PLUGIN.md)
 - [Customização](docs/CUSTOMIZACAO.md)
 - [Segurança](docs/SEGURANCA.md)
+- [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md)
