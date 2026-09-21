@@ -65,7 +65,14 @@ try {
     assert(($requiredExtensions[0]['name'] ?? null) === 'ext-json');
     assert(($requiredExtensions[0]['installed'] ?? null) === true);
 
-    foreach (['composer', 'psalm', 'semgrep'] as $tool) {
+    $composer = $projectRoot . '/vendor/bin/composer';
+    file_put_contents(
+        $composer,
+        "#!/usr/bin/env php\n<?php echo '{\"advisories\":[],\"abandoned\":[]}'; exit(0);\n",
+    );
+    chmod($composer, 0755);
+
+    foreach (['psalm', 'semgrep'] as $tool) {
         $path = $projectRoot . '/vendor/bin/' . $tool;
         file_put_contents($path, "#!/bin/sh\nexit 0\n");
         chmod($path, 0755);
@@ -86,6 +93,7 @@ try {
     $writtenInventory = json_decode((string) file_get_contents($inventoryFile), true, 512, JSON_THROW_ON_ERROR);
     assert(($writtenInventory['composer']['package_source'] ?? null) === 'composer.lock');
     assert(str_contains($execution->stdout, 'Inventário de segurança:'));
+    assert(str_contains($execution->stdout, 'composer-audit: nenhum advisory ou policy finding'));
 
     echo "[OK] SecurityInventory prioriza composer.lock, separa runtime/constraint e integra ninfa security.\n";
 } finally {
