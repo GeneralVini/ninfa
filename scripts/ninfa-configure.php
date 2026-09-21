@@ -52,6 +52,7 @@ require_once dirname(__DIR__) . '/src/ToolResolver.php';
  */
 function runAssist(ProjectContext $context, array $configs): int
 {
+    /** @var string $dir Diretório externo que preserva a auditoria bruta do assist. */
     $dir = $context->workspace()->file('assist');
 
     // A auditoria deve existir fora do consumidor; falha de criação interrompe
@@ -60,18 +61,20 @@ function runAssist(ProjectContext $context, array $configs): int
         throw new RuntimeException('Não foi possível criar a auditoria do assist.');
     }
 
+    /** @var ToolResolver $resolver Resolve binários conforme a precedência do Ninfa. */
     $resolver = new ToolResolver();
+    /** @var ProcessRunner $runner Executa as ferramentas preservando stdout/stderr. */
     $runner = new ProcessRunner();
 
     // Captura saída estruturada e stderr separadamente para preservar a evidência
     // original antes de qualquer normalização em Finding.
-    /** @var ProcessResult $phpstan */
+    /** @var ProcessResult $phpstan Resultado bruto capturado do PHPStan. */
     $phpstan = $runner->runCaptured([
         $resolver->resolve('phpstan', $context->root()),
         'analyse', '--configuration', $configs['phpstan'], '--error-format=json', '--no-progress',
     ], $context->root());
 
-    /** @var ProcessResult $psalm */
+    /** @var ProcessResult $psalm Resultado bruto capturado do Psalm. */
     $psalm = $runner->runCaptured([
         $resolver->resolve('psalm', $context->root()),
         '--config=' . $configs['psalm'], '--output-format=json', '--no-progress',
@@ -84,13 +87,14 @@ function runAssist(ProjectContext $context, array $configs): int
     file_put_contents($dir . '/psalm.json', $psalm->stdout);
     file_put_contents($dir . '/psalm.stderr.log', $psalm->stderr);
 
-    /** @var list<Finding> $findings */
+    /** @var list<Finding> $findings Achados normalizados das duas ferramentas. */
     $findings = [
         ...FindingRenderer::phpStan($phpstan->stdout, $context->root()),
         ...FindingRenderer::psalm($psalm->stdout, $context->root()),
     ];
 
     // Consolida uma visão estável dos findings sem substituir os artefatos brutos.
+    /** @var string $audit Caminho do relatório estruturado do modo assist. */
     $audit = $dir . '/findings.json';
     file_put_contents(
         $audit,
@@ -113,7 +117,7 @@ function runAssist(ProjectContext $context, array $configs): int
         return 1;
     }
 
-    /** @var list<array{0:string,1:ProcessResult}> $toolResults */
+    /** @var list<array{0:string,1:ProcessResult}> $toolResults Pares nome/resultado para diagnóstico. */
     $toolResults = [['PHPStan', $phpstan], ['Psalm', $psalm]];
 
     // Sem findings, exit code não zero indica falha que o parser não conseguiu
@@ -137,16 +141,19 @@ function runAssist(ProjectContext $context, array $configs): int
     return 0;
 }
 
-/** @var list<string> $args */
+/** @var list<string> $args Argumentos do processo após remover o nome do script. */
 $args = $argv;
 array_shift($args);
 
 // Flags são removidas antes de resolver o argumento posicional de raiz para
 // aceitar a ordem já suportada pelo script sem confundir uma flag com path.
+/** @var bool $force Flag legada reconhecida apenas por compatibilidade. */
 $force = in_array('--force', $args, true);
+/** @var bool $assist Seleciona o modo de assistência auditável. */
 $assist = in_array('--assist', $args, true);
 $args = array_values(array_filter($args, static fn (string $arg): bool => !in_array($arg, ['--force', '--assist'], true)));
 
+/** @var string|false|null $projectRoot Raiz posicional ou diretório atual quando omitida. */
 $projectRoot = $args[0] ?? getcwd();
 if (!is_string($projectRoot) || $projectRoot === '') {
     fwrite(STDERR, "[ERRO] Informe a raiz do projeto.\n");
@@ -156,9 +163,10 @@ if (!is_string($projectRoot) || $projectRoot === '') {
 try {
     // Contexto e configurações são comuns aos dois modos; assist diverge somente
     // depois que as configurações externas já existem no workspace.
+    /** @var ProjectContext $context Contexto validado do consumidor. */
     $context = ProjectContext::fromRoot($projectRoot);
 
-    /** @var array<string,string> $configs */
+    /** @var array<string,string> $configs Paths de configuração gerados por ferramenta. */
     $configs = (new ExternalConfigGenerator())->generate($context);
 
     if ($assist) {
@@ -167,8 +175,11 @@ try {
 
     // O modo normal produz apenas artefatos auxiliares externos. O índice
     // semântico continua documental e não deve ser interpretado como call graph.
+    /** @var string $lefthookConfig Caminho do lefthook.yml externo gerado. */
     $lefthookConfig = (new LefthookConfigGenerator())->generate($context);
+    /** @var SemanticHints $semanticHints Hints extraídos apenas de documentação do consumidor. */
     $semanticHints = SemanticHints::fromProject($context->root());
+    /** @var string $semanticIndex Caminho do semantic-index.json documental. */
     $semanticIndex = $context->workspace()->file('semantic-index.json');
     file_put_contents(
         $semanticIndex,

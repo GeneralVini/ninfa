@@ -18,7 +18,9 @@ set -euo pipefail
 
 # A precedência do destino permite CI isolado sem exigir configuração explícita,
 # mas mantém NINFA_GLPI_ROOT como override principal para execução local.
+# @var GLPI_ROOT absolute-path — diretório do host GLPI usado pelo profile.
 GLPI_ROOT="${NINFA_GLPI_ROOT:-${RUNNER_TEMP:-/tmp}/ninfa-glpi}"
+# @var GLPI_VERSION version-string — tag/branch GLPI solicitada, restrita à major 11.
 GLPI_VERSION="${NINFA_GLPI_VERSION:-11.0.8}"
 
 # O profile ativo é específico de GLPI 11; aceitar outra major faria os stubs e

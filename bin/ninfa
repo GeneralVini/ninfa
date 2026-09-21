@@ -20,27 +20,39 @@ require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/RecheckingPipelineRunner.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';
 
+/** @var list<string> $args Argumentos posicionais do CLI após remover argv[0]. */
 $args = $argv;
 array_shift($args);
+
+/** @var string|null $operation Operação pública solicitada pelo usuário. */
 $operation = $args[0] ?? null;
+/** @var string|false|null $root Raiz explícita do consumidor ou diretório atual. */
 $root = $args[1] ?? getcwd();
 
+// Help é tratado antes da validação geral para permanecer disponível sem projeto.
 if ($args === ['--help']) {
     echo "Uso: ninfa <check|fix|security|assist> [root]\nRoot omitido: diretorio atual.\n";
     exit(0);
 }
+
+// Entrada inválida deve falhar como erro de uso (2), sem tentar materializar
+// contexto ou executar qualquer ferramenta contra um path potencialmente errado.
 if (count($args) > 2 || !in_array($operation, ['check', 'fix', 'security', 'assist'], true) || (is_string($root) && str_starts_with($root, '-'))) {
     fwrite(STDERR, "Uso: ninfa <check|fix|security|assist> [root]\n");
     exit(2);
 }
 
 try {
+    /** @var ProjectContext $context Contexto validado do projeto consumidor. */
     $context = ProjectContext::fromRoot((string) $root);
     echo '[NINFA] Projeto consumidor: ' . $context->root() . PHP_EOL;
     echo '[NINFA] Profile: ' . $context->profile() . PHP_EOL;
     echo '[NINFA] Workspace externo: ' . $context->workspace()->path() . PHP_EOL;
 
+    // `assist` usa o configurador auditável; as demais operações passam pelo
+    // runner que implementa recheck específico após `fix`.
     if ($operation === 'assist') {
+        /** @var int $status Exit code propagado pelo configurador em modo assist. */
         $status = (new ProcessRunner())->run([
             PHP_BINARY,
             dirname(__DIR__) . '/scripts/ninfa-configure.php',
@@ -48,11 +60,15 @@ try {
             '--assist',
         ], $context->root());
     } else {
+        /** @var int $status Exit code consolidado do pipeline solicitado. */
         $status = (new RecheckingPipelineRunner())->run((string) $operation, $context);
     }
 } catch (Throwable $error) {
+    // O entrypoint converte falhas de preparação/execução em erro CLI conciso;
+    // stack trace não integra a interface pública normal.
     fwrite(STDERR, '[ERRO] ' . $error->getMessage() . PHP_EOL);
     exit(1);
 }
 
+// Preserva o status decidido pela camada que realmente executou a operação.
 exit($status);

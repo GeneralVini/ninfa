@@ -16,15 +16,21 @@ set -euo pipefail
 
 # Resolve caminhos somente dentro do repositório Ninfa; ferramentas gerenciadas
 # não são instaladas no projeto consumidor.
+# @var ROOT absolute-path — raiz física do repositório Ninfa.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# @var TOOLS absolute-path — diretório de ferramentas privadas gerenciadas pelo Ninfa.
 TOOLS="$ROOT/.tools"
+# @var SEMGREP_VERSION version-string — versão exata do Semgrep a instalar/reutilizar.
 SEMGREP_VERSION="${NINFA_SEMGREP_VERSION:-1.177.0}"
 
+# A base de ferramentas é criada antes de validar/instalar o virtualenv e nunca
+# aponta para o projeto consumidor.
 mkdir -p "$TOOLS"
 
 # Python 3.10+ é pré-condição do Semgrep usado pelo Ninfa. A validação ocorre
 # antes de criar o virtualenv para não deixar uma instalação parcialmente criada.
 command -v python3 >/dev/null || { echo '[ERRO] Python 3.10+ é necessário para Semgrep.' >&2; exit 1; }
+# @var PYTHON_OK boolean-string — "1" quando o interpretador atende a versão mínima.
 PYTHON_OK="$(python3 -c 'import sys; print(1 if sys.version_info >= (3, 10) else 0)')"
 [[ "$PYTHON_OK" == "1" ]] || { echo '[ERRO] Python 3.10+ é necessário para Semgrep.' >&2; exit 1; }
 

@@ -19,11 +19,15 @@ set -euo pipefail
 
 # O script opera a partir da raiz do Ninfa para manter caminhos relativos de
 # ferramenta estáveis, independentemente do diretório de onde foi chamado.
+# @var ROOT absolute-path — raiz física do repositório Ninfa.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# @var TARGET url — alvo local explícito do active scan manual.
 TARGET="${NINFA_ZAP_TARGET:-}"
+# @var ZAP_BIN executable-path — executável preferencial do ZAP, passível de fallback para PATH.
 ZAP_BIN="${NINFA_ZAP_BIN:-$ROOT/.tools/zap/zap.sh}"
+# @var REPORT absolute-or-relative-path — arquivo de relatório definido pelo chamador.
 REPORT="${1:-${NINFA_ZAP_REPORT:-}}"
 
 # Alvo explícito é obrigatório; ausência não deve cair em nenhum default de rede.
