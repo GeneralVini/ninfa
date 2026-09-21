@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/PipelineRunner.php';
 
+/**
+ * Adiciona a política de revalidação ao `fix` sem duplicar o runner principal.
+ *
+ * A operação solicitada é executada uma vez. Apenas quando `fix` termina com
+ * código 0 esta classe dispara exatamente um `check` completo. Se o recheck
+ * falhar, a saída orienta o usuário a executar `ninfa assist`.
+ */
 final class RecheckingPipelineRunner
 {
     public function __construct(

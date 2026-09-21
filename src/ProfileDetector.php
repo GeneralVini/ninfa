@@ -2,6 +2,17 @@
 
 declare(strict_types=1);
 
+/**
+ * Classifica o projeto consumidor em um dos profiles suportados pelo Ninfa.
+ *
+ * A precedência atual é GLPI Plugin, Yii2, Yii3 e PHP genérico. GLPI usa
+ * sinais estruturais/semânticos do plugin; Yii2 e Yii3 usam dependências
+ * Composer; o fallback genérico exige evidência concreta de arquivos PHP.
+ *
+ * O detector não resolve capabilities nem semântica de segurança de
+ * framework: sua responsabilidade termina ao retornar o identificador do
+ * profile aplicável ou falhar quando nenhum profile é reconhecido.
+ */
 final class ProfileDetector
 {
     /** @param array<string, mixed> $composer */

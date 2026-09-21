@@ -2,6 +2,22 @@
 
 declare(strict_types=1);
 
+/**
+ * Gera artefatos auxiliares do Ninfa e executa o modo `assist`.
+ *
+ * Uso normal: `php scripts/ninfa-configure.php [root] [--force]`.
+ * Uso assist: `php scripts/ninfa-configure.php [root] --assist`.
+ *
+ * No modo normal, gera configurações externas, `lefthook.yml` e
+ * `semantic-index.json` no workspace do projeto. `--force` é aceito apenas
+ * por compatibilidade e não muda a regeneração do workspace.
+ *
+ * No modo assist, executa PHPStan e Psalm em saída JSON, grava stdout/stderr e
+ * `findings.json` em `<workspace>/assist`, renderiza os achados e retorna
+ * código não zero quando há findings ou quando uma ferramenta falha sem
+ * produzir finding estruturado.
+ */
+
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/ExternalConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/SemanticHints.php';
@@ -9,6 +25,13 @@ require_once dirname(__DIR__) . '/src/LefthookConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';
 require_once dirname(__DIR__) . '/src/ToolResolver.php';
 
+/**
+ * Executa PHPStan e Psalm para assistência auditável sem modificar o consumidor.
+ *
+ * @param array<string,string> $configs Caminhos das configurações geradas.
+ * @return int 0 sem findings; 1 quando há findings; ou o exit code da primeira
+ *             ferramenta que falhar sem finding estruturado.
+ */
 function runAssist(ProjectContext $context, array $configs): int
 {
     $dir = $context->workspace()->file('assist');

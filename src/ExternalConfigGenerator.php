@@ -4,6 +4,18 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/ProjectContext.php';
 
+/**
+ * Gera no workspace as configurações consumidas pelas ferramentas de qualidade.
+ *
+ * A entrada é o ProjectContext; os paths analisáveis e níveis vêm dele. A
+ * classe escreve `phpstan.neon`, `psalm.xml`, `ecs.php` e `rector.php` fora do
+ * projeto consumidor e retorna os caminhos gerados.
+ *
+ * Para `glpi-plugin`, também pode localizar a extensão phpstan-glpi, gerar
+ * `glpi-bootstrap.php`, adicionar source/stubs do host ao PHPStan e declarar o
+ * global `$DB`/exceção específica de InvalidGlobal no Psalm. Não instala
+ * dependências e não altera configurações versionadas do consumidor.
+ */
 final class ExternalConfigGenerator
 {
     /** @return array<string,string> */

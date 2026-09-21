@@ -4,6 +4,18 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/ProjectContext.php';
 
+/**
+ * Constrói o inventário local usado pelas fontes SCA e pelo relatório de segurança.
+ *
+ * O inventário combina fatos do ProjectContext, `composer.json`,
+ * `composer.lock` ou `vendor/composer/installed.json`, além do runtime PHP e
+ * das extensões carregadas. Para versões resolvidas de packages, o lock tem
+ * precedência; `installed.json` é usado somente quando o lock não existe.
+ *
+ * Dependências declaradas são usadas para classificar packages como
+ * direct/transitive e runtime/dev quando possível. A classe não consulta
+ * serviços externos e não decide se uma versão é vulnerável.
+ */
 final class SecurityInventory implements JsonSerializable
 {
     /** @param array<string,mixed> $data */

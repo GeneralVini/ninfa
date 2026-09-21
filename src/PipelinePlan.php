@@ -5,6 +5,17 @@ declare(strict_types=1);
 require_once __DIR__ . '/ProjectContext.php';
 require_once __DIR__ . '/FrontendDetector.php';
 
+/**
+ * Produz o plano declarativo das operações públicas executadas pelo runner.
+ *
+ * `check` define as verificações de qualidade e adiciona ESLint/Prettier
+ * somente quando o FrontendDetector indicar suporte. `fix` deriva apenas as
+ * etapas marcadas como corrigíveis. `security` lista Composer Audit, OSV,
+ * Psalm Taint e Semgrep.
+ *
+ * Esta classe não resolve binários nem inicia processos; ela apenas descreve
+ * a ordem, o modo e a capacidade de correção das etapas.
+ */
 final class PipelinePlan
 {
     public function __construct(private readonly FrontendDetector $frontendDetector = new FrontendDetector())

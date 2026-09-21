@@ -2,6 +2,14 @@
 
 declare(strict_types=1);
 
+/**
+ * Localiza o executável usado por cada etapa sem instalar nada no consumidor.
+ *
+ * A resolução verifica, nesta ordem, binários do projeto consumidor,
+ * ferramentas gerenciadas pelo Ninfa, dependências do próprio Ninfa e o
+ * `PATH` do processo. Quando nenhuma opção é executável, lança exceção em vez
+ * de deixar `proc_open()` falhar de forma opaca.
+ */
 final class ToolResolver
 {
     private readonly string $ninfaRoot;

@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# Prepara um host GLPI 11 para testes/uso do profile glpi-plugin.
+#
+# Entradas de ambiente:
+# - NINFA_GLPI_ROOT: destino do host; default <RUNNER_TEMP>/ninfa-glpi ou /tmp/ninfa-glpi.
+# - NINFA_GLPI_VERSION: tag/branch GLPI; default 11.0.8 e obrigatoriamente 11.x.
+# - RUNNER_TEMP: base usada apenas quando NINFA_GLPI_ROOT não foi informado.
+#
+# Efeitos externos:
+# - clona glpi-project/glpi no destino quando ainda não há host reconhecível;
+# - executa composer install --no-dev dentro do host clonado;
+# - não modifica o plugin consumidor.
+#
+# Se o destino já contiver src/autoload/constants.php, considera o host pronto.
+# Se o caminho existir sem esse marcador, ou a versão solicitada não for 11.x,
+# encerra com erro para não reutilizar um host ambíguo.
 set -euo pipefail
 
 GLPI_ROOT="${NINFA_GLPI_ROOT:-${RUNNER_TEMP:-/tmp}/ninfa-glpi}"

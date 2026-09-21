@@ -5,6 +5,18 @@ declare(strict_types=1);
 require_once __DIR__ . '/Finding.php';
 require_once __DIR__ . '/SecurityInventory.php';
 
+/**
+ * Converte a saída JSON de `composer audit` em findings normalizados do Ninfa.
+ *
+ * Advisories de segurança viram `sca-advisory` e são correlacionados ao
+ * componente/versão do SecurityInventory. Pacotes abandonados são preservados
+ * separadamente como `dependency-policy`, pois abandono não é tratado como
+ * vulnerabilidade.
+ *
+ * O parser preserva IDs, aliases, severidade, intervalo afetado, URL, data e
+ * proveniência quando disponíveis. Ele não consulta a rede e não deduplica
+ * findings contra outras fontes como OSV.
+ */
 final class ComposerAuditParser
 {
     /** @return list<Finding> */

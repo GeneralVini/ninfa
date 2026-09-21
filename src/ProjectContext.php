@@ -5,6 +5,17 @@ declare(strict_types=1);
 require_once __DIR__ . '/ProfileDetector.php';
 require_once __DIR__ . '/Workspace.php';
 
+/**
+ * Materializa o contexto de execução de um único projeto consumidor.
+ *
+ * A construção resolve a raiz real, carrega composer.json quando presente,
+ * detecta o profile e os paths analisáveis, registra o PHP efetivamente em
+ * execução e cria o workspace externo usado pelos geradores e runners.
+ *
+ * Para o profile glpi-plugin, também resolve um host GLPI 11 e falha quando o
+ * host ou sua versão não podem ser determinados. Esta classe não executa
+ * ferramentas de análise; ela fornece os fatos locais usados pelo pipeline.
+ */
 final class ProjectContext
 {
     /** @var array<string, mixed> */

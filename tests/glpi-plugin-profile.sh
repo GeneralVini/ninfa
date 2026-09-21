@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+# Fixture de integração do profile GLPI Plugin 11.
+#
+# O teste monta um host GLPI mínimo e um plugin fora de qualquer instalação
+# real, executa `ninfa-configure.php` com workspace temporário e verifica:
+# - detecção do profile glpi-plugin e níveis PHPStan/Psalm 8;
+# - uso dos arquivos/stubs do host nas configurações geradas;
+# - declaração do global $DB no Psalm;
+# - ausência de boilerplate/configuração do Ninfa dentro do plugin consumidor.
+#
+# Todos os artefatos são criados em um diretório temporário removido no EXIT.
 set -euo pipefail
 
 NINFA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

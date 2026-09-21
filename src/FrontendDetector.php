@@ -2,6 +2,14 @@
 
 declare(strict_types=1);
 
+/**
+ * Detecta sinais de JavaScript/TypeScript e ferramentas frontend no consumidor.
+ *
+ * A detecção usa dependências de `package.json`, binários em
+ * `node_modules/.bin`, arquivos de configuração conhecidos e extensões de
+ * arquivos em diretórios candidatos. O resultado é usado pelo PipelinePlan
+ * para decidir se ESLint e Prettier entram no `check`/`fix`.
+ */
 final class FrontendDetector
 {
     public function hasJavaScript(string $root): bool

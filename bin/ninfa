@@ -3,6 +3,19 @@
 
 declare(strict_types=1);
 
+/**
+ * Entrypoint público do CLI Ninfa.
+ *
+ * Uso: `ninfa <check|fix|security|assist> [root]`.
+ * Quando `root` é omitido, usa o diretório atual. O script cria ProjectContext,
+ * imprime projeto/profile/workspace e delega check/fix/security ao
+ * RecheckingPipelineRunner. `assist` é delegado a `scripts/ninfa-configure.php
+ * --assist` por meio de ProcessRunner.
+ *
+ * Exit codes: 0 para sucesso; 2 para uso inválido; 1 para exceção capturada;
+ * nos fluxos normais preserva o status retornado pelo runner/configurador.
+ */
+
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/RecheckingPipelineRunner.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';

@@ -4,6 +4,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/ToolResult.php';
 
+/**
+ * Consolida o resultado completo de uma operação do Ninfa.
+ *
+ * Mantém o nome da operação, os resultados de cada ferramenta/etapa e o exit
+ * code final escolhido pelo runner. `findings()` apenas achata os findings de
+ * todos os ToolResult; não deduplica advisories, não calcula prioridade e não
+ * altera o estado das ferramentas.
+ */
 final class RunResult implements JsonSerializable
 {
     /** @param list<ToolResult> $toolResults */

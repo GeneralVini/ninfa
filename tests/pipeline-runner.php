@@ -2,6 +2,16 @@
 
 declare(strict_types=1);
 
+/**
+ * Exercita o fluxo integrado do CLI com ferramentas falsas e workspace isolado.
+ *
+ * O cenário protege comportamentos que não são evidentes por testes unitários:
+ * execução security não fail-fast, preservação do primeiro exit code, Composer
+ * Audit estruturado + OSV + security-report, aviso de DAST sem execução, etapas
+ * não aplicáveis/indisponíveis, preferência por `composer test` e falha quando
+ * PHPUnit termina sem executar testes.
+ */
+
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';
 

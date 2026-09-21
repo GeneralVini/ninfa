@@ -2,6 +2,16 @@
 
 declare(strict_types=1);
 
+/**
+ * Verifica a precedência e a integração do SecurityInventory no fluxo security.
+ *
+ * A fixture mantém `composer.lock` e `installed.json` simultaneamente para
+ * provar que o lock prevalece, valida runtime/constraint, direct/transitive,
+ * runtime/dev e extensões, e depois executa o CLI com ferramentas/OSV falsos
+ * para confirmar a gravação de `security-inventory.json` e
+ * `security-report.json` fora do consumidor.
+ */
+
 require_once dirname(__DIR__) . '/src/SecurityInventory.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';
 

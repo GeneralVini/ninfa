@@ -4,6 +4,17 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Finding.php';
 
+/**
+ * Registra o resultado observável de uma única etapa do pipeline.
+ *
+ * O estado distingue conclusão sem erro (`ok`), conclusão com exit code não
+ * zero (`failed`), erro de execução/orquestração (`error`) e etapa não
+ * executada (`skipped`). O objeto também preserva duração, detalhe e findings
+ * produzidos pela etapa.
+ *
+ * `completed()` deriva `ok`/`failed` exclusivamente do exit code recebido;
+ * políticas de bloqueio ou cobertura ficam fora deste contrato.
+ */
 final class ToolResult implements JsonSerializable
 {
     public const OK = 'ok';

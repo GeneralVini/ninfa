@@ -2,6 +2,18 @@
 
 declare(strict_types=1);
 
+/**
+ * Representa um achado normalizado produzido por uma ferramenta ou fonte.
+ *
+ * O contrato preserva localização, regra, problema, correção opcional e
+ * atributos de segurança como severidade, confiança, tipo de evidência,
+ * proveniência e metadata específica. A serialização omite campos opcionais
+ * ausentes, mas sempre inclui tool, file, line, rule, problem e correction.
+ *
+ * Esta classe não calcula prioridade, não deduplica advisories e não decide
+ * se o achado bloqueia a execução; essas responsabilidades ficam em camadas
+ * superiores.
+ */
 final class Finding implements JsonSerializable
 {
     /**

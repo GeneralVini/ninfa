@@ -4,6 +4,19 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Finding.php';
 
+/**
+ * Consolida findings SCA equivalentes em vulnerabilidades canônicas.
+ *
+ * Considera somente findings `sca-advisory`, normaliza IDs para maiúsculas e
+ * agrupa advisories que compartilham rule, advisory id, CVE ou aliases. O
+ * agrupamento usa união de conjuntos, de forma que aliases transitivos também
+ * conectem findings de fontes diferentes.
+ *
+ * A preferência de ID canônico é CVE, GHSA, PKSA, OSV e depois qualquer outro
+ * identificador disponível. O resultado preserva fontes, proveniência,
+ * componentes e IDs de origem e escolhe a severidade mais forte conhecida.
+ * Esta classe não consulta fontes externas nem decide exposure/prioridade.
+ */
 final class ScaFindingDeduplicator
 {
     /**

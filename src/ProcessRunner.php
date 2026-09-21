@@ -5,6 +5,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/CliStyle.php';
 require_once __DIR__ . '/Finding.php';
 
+/**
+ * Valor imutável retornado por execuções capturadas de processo.
+ *
+ * Preserva exatamente o exit code observado e o conteúdo capturado de stdout
+ * e stderr. Não interpreta a semântica da ferramenta executada.
+ */
 final class ProcessResult
 {
     public function __construct(
@@ -15,6 +21,16 @@ final class ProcessResult
     }
 }
 
+/**
+ * Normaliza e renderiza findings das ferramentas estáticas já estruturadas.
+ *
+ * Atualmente entende o JSON de PHPStan e Psalm, convertendo mensagens para
+ * Finding com caminho relativo ao projeto. Também renderiza findings no
+ * terminal e produz sugestões simples baseadas em regra/mensagem.
+ *
+ * Não inicia processos e não decide o exit code da pipeline. A normalização
+ * SAST específica de Psalm Taint/Semgrep ainda não está implementada aqui.
+ */
 final class FindingRenderer
 {
     /** @return list<Finding> */
@@ -176,6 +192,17 @@ final class FindingRenderer
     }
 }
 
+/**
+ * Inicia ferramentas externas no diretório de trabalho informado.
+ *
+ * `run()` conecta stdin/stdout/stderr diretamente ao processo atual e retorna
+ * somente o exit code. `runCaptured()` usa arquivos temporários para capturar
+ * stdout/stderr e devolve ProcessResult. Ambos rejeitam comandos vazios e
+ * lançam RuntimeException quando `proc_open()` não consegue iniciar o processo.
+ *
+ * A classe não resolve o caminho das ferramentas; essa responsabilidade é de
+ * ToolResolver.
+ */
 final class ProcessRunner
 {
     /** @param list<string> $command */

@@ -6,6 +6,17 @@ require_once __DIR__ . '/RunResult.php';
 require_once __DIR__ . '/SecurityInventory.php';
 require_once __DIR__ . '/ScaFindingDeduplicator.php';
 
+/**
+ * Monta o relatório canônico atual da operação `security`.
+ *
+ * O schema 1 incorpora o SecurityInventory, registra o estado das fontes SCA,
+ * separa findings de advisory e de policy e deduplica vulnerabilidades SCA por
+ * meio de ScaFindingDeduplicator. Nesta versão somente `composer-audit` e
+ * `osv` são tratados como fontes SCA do relatório.
+ *
+ * A classe rejeita RunResult de outras operações e não executa scanners nem
+ * calcula exposure, exploitability ou prioridade operacional.
+ */
 final class SecurityReport implements JsonSerializable
 {
     public function __construct(

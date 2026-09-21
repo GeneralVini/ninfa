@@ -12,6 +12,22 @@ require_once __DIR__ . '/ComposerAuditParser.php';
 require_once __DIR__ . '/OsvClient.php';
 require_once __DIR__ . '/SecurityReport.php';
 
+/**
+ * Orquestra as operações `check`, `fix` e `security` sobre um ProjectContext.
+ *
+ * O runner gera configurações externas, obtém o PipelinePlan, resolve e
+ * executa as etapas sem fail-fast e converte cada resultado em ToolResult. O
+ * primeiro exit code não zero observado é preservado como exit code final.
+ *
+ * Em `security`, cria e grava SecurityInventory antes dos scanners, executa
+ * OSV pelo cliente interno e, ao final, grava `security-report.json`. Composer
+ * Audit já é capturado em JSON; Psalm Taint e Semgrep ainda seguem o caminho
+ * de processo não estruturado nesta etapa do projeto.
+ *
+ * A variável NINFA_DAST apenas gera aviso: esta classe não executa ZAP. O
+ * runner também não aplica o recheck posterior ao `fix`; essa política fica em
+ * RecheckingPipelineRunner.
+ */
 final class PipelineRunner
 {
     private static bool $legendShown = false;

@@ -5,6 +5,19 @@ declare(strict_types=1);
 require_once __DIR__ . '/Finding.php';
 require_once __DIR__ . '/SecurityInventory.php';
 
+/**
+ * Consulta a API OSV para os packages Composer resolvidos no SecurityInventory.
+ *
+ * A implementação usa o ecossistema `Packagist`, envia lotes de até 100
+ * package+version por `querybatch`, trata paginação por componente e busca o
+ * registro completo de cada vulnerabilidade encontrada. Registros `withdrawn`
+ * são ignorados.
+ *
+ * O resultado é uma lista de Finding `sca-advisory` correlacionada ao mesmo
+ * componente do inventário. Esta classe não deduplica findings contra Composer
+ * Audit nem calcula prioridade/exposure. Um transport injetável e
+ * `NINFA_OSV_FIXTURE` existem para testes determinísticos sem rede.
+ */
 final class OsvClient
 {
     private const DEFAULT_BASE_URL = 'https://api.osv.dev/v1';

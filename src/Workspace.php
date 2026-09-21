@@ -2,6 +2,14 @@
 
 declare(strict_types=1);
 
+/**
+ * Representa o workspace externo e descartável associado a um projeto.
+ *
+ * A base vem de NINFA_WORKSPACE_ROOT ou, por padrão, de <tmp>/ninfa. Cada
+ * projeto recebe um subdiretório derivado do SHA-256 da raiz real. A classe
+ * rejeita workspaces localizados dentro do projeto consumidor para preservar
+ * a separação entre artefatos do Ninfa e arquivos do repositório analisado.
+ */
 final class Workspace
 {
     public static function forProject(string $projectRoot): self

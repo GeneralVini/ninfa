@@ -1,4 +1,20 @@
 #!/usr/bin/env bash
+# Wrapper legado para execução manual de OWASP ZAP fora do pipeline público.
+#
+# Este script NÃO é chamado por `ninfa security` e permanece congelado como
+# referência/uso manual controlado.
+#
+# Entradas:
+# - NINFA_ZAP_TARGET: URL alvo; aceita somente localhost ou 127.0.0.1.
+# - NINFA_ZAP_BIN: binário/script ZAP; default <repo>/.tools/zap/zap.sh.
+# - NINFA_ZAP_REPORT ou primeiro argumento: caminho do relatório de saída.
+#
+# Efeitos externos:
+# - cria o diretório pai do relatório;
+# - executa ZAP em modo `-cmd -quickurl ... -quickout ... -quickprogress`.
+#
+# Falha quando alvo/relatório não são informados, quando o alvo não é local ou
+# quando nenhum executável ZAP pode ser resolvido.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

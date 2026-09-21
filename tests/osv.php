@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/**
+ * Testa o fluxo SCA OSV sem rede usando o transport injetável do OsvClient.
+ *
+ * A fixture verifica batch Packagist com package+version, paginação por
+ * `next_page_token`, busca dos registros completos, normalização em Finding e
+ * deduplicação no SecurityReport contra um advisory equivalente do Composer.
+ * A ordem dos packages no inventário não é tratada como contrato.
+ */
+
 require_once dirname(__DIR__) . '/src/OsvClient.php';
 require_once dirname(__DIR__) . '/src/ComposerAuditParser.php';
 require_once dirname(__DIR__) . '/src/SecurityReport.php';

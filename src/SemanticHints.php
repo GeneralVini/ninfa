@@ -2,6 +2,17 @@
 
 declare(strict_types=1);
 
+/**
+ * Extrai hints semânticos exclusivamente da documentação do projeto consumidor.
+ *
+ * Lê um conjunto limitado de arquivos Markdown, registra quais foram usados,
+ * coleta trechos entre crases como símbolos documentados e conta menções a
+ * GLPI/Yii2/Yii3. Os limites de quantidade e tamanho evitam varredura
+ * documental irrestrita.
+ *
+ * O resultado não representa símbolos reais do código, call graph nem
+ * reachability e não deve ser usado como evidência de exposição.
+ */
 final class SemanticHints
 {
     private const MAX_FILE_BYTES = 131072;

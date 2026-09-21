@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+# Prepara a ferramenta SAST gerenciada pelo próprio Ninfa.
+#
+# Entradas de ambiente:
+# - NINFA_SEMGREP_VERSION: versão do Semgrep instalada no venv; default 1.177.0.
+# - NINFA_INSTALL_ZAP: legado; quando verdadeiro apenas emite aviso e é ignorado.
+#
+# Efeitos externos:
+# - cria/usa <repo>/.tools/semgrep como virtualenv Python;
+# - instala Semgrep via pip quando o binário ainda não existe;
+# - não altera o projeto consumidor e não instala OWASP ZAP.
+#
+# Falha com exit code não zero se Python 3.10+ ou python3-venv não estiverem
+# disponíveis, ou se qualquer comando de preparação falhar.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

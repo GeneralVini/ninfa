@@ -11,6 +11,7 @@ syntax:
 profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/project-context.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/result-contracts.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/internal-docs.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/security-inventory.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/composer-audit.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/osv.php

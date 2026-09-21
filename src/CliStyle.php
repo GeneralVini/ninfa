@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+/**
+ * Centraliza a decoração ANSI usada na saída humana do CLI.
+ *
+ * `NO_COLOR` desabilita cores. `NINFA_COLOR` aceita `always`, `never` ou
+ * `auto`; no modo automático a decisão depende de STDOUT ser um TTY. A classe
+ * apenas formata strings e não altera exit codes nem o modelo de resultados.
+ */
 final class CliStyle
 {
     private const RESET = "\033[0m";
