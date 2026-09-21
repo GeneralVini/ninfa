@@ -263,32 +263,66 @@ O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos 
 
 ## Acompanhamento da evolução
 
-Este checklist é o quadro rápido de avanço do MVP. Ele deve ser revisado a cada commit relevante; itens só são marcados como concluídos quando a implementação e os testes correspondentes estiverem presentes.
+Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada commit relevante; itens só são marcados como concluídos quando implementação e testes correspondentes estiverem presentes.
+
+**Etapa atual: 2 — SCA estruturado.**
+
+### Etapa 1 — Fundação
 
 - [x] Consolidar `Finding`, `ToolResult` e `RunResult` como contratos estruturados e serializáveis.
-- [x] Gerar inventário de segurança externo com runtime PHP, extensões e inventário Composer.
-- [x] Estruturar Composer Audit em JSON e normalizar advisories como `Finding` SCA.
-- [ ] Integrar OSV em batch e deduplicar aliases CVE/GHSA/PKSA/OSV.
+- [x] Gerar `SecurityInventory` externo com runtime PHP, constraint, extensões e inventário Composer.
+
+### Etapa 2 — SCA estruturado
+
+- [x] Executar Composer Audit em modo defensivo/JSON e normalizar advisories como `Finding` SCA.
+- [ ] Integrar OSV em batch a partir do inventário resolvido.
+- [ ] Deduplicar aliases CVE/GHSA/PKSA/OSV em vulnerabilidades canônicas.
+- [ ] Gerar `security-report.json` consolidado para os resultados SCA.
+
+### Etapa 3 — SAST estruturado
+
 - [ ] Normalizar Psalm Taint em `Finding` SAST.
 - [ ] Normalizar Semgrep em `Finding` SAST.
 - [ ] Distinguir explicitamente finding, erro de ferramenta, indisponibilidade, não aplicabilidade e cobertura parcial.
 - [ ] Executar fixtures SAST reais positivas e negativas em CI.
 - [ ] Registrar cobertura efetiva de paths e arquivos analisados.
-- [ ] Formalizar os contratos SAST comuns do Ninfa.
-- [ ] Implementar capabilities + `SecurityContract` para Yii3.
+- [ ] Preservar regra, severidade, confiança, arquivo, linha, mensagem, evidência e proveniência nos findings SAST.
+
+### Etapa 4 — Contratos SAST e profiles
+
+- [ ] Formalizar os 12 contratos SAST comuns: command injection, SQL injection, XSS, path traversal, file access, SSRF, unsafe redirect, header injection, dynamic include/require, unsafe deserialization, dangerous eval/assert e cryptographic misuse.
+- [ ] Implementar capabilities de segurança para Yii3.
+- [ ] Implementar `SecurityContract` do Yii3 sobre os contratos comuns.
 - [ ] Implementar especializações de segurança para GLPI Plugin 11.
-- [ ] Estabilizar semântica de resultados antes de introduzir quality gates de segurança.
-- [ ] Só então avaliar DAG, scheduler, baseline/new-code e automações mais avançadas.
+- [ ] Manter Yii2 e `php-generic` fora de especializações adicionais nesta fase; `php-generic` usa apenas o baseline comum.
+
+### Etapa 5 — Intelligence
+
+- [ ] Enriquecer CVEs canônicos com EPSS.
+- [ ] Correlacionar CISA KEV sem transformar KEV em scanner primário.
+- [ ] Avaliar NVD e evidência de exploit público somente como enrichment posterior.
+
+### Etapa 6 — Exposure, prioridade e gates
+
+- [ ] Criar índice de código apropriado para correlação de símbolos/calls; não reutilizar o `semantic-index.json` documental como prova de uso real.
+- [ ] Correlacionar SCA com código somente quando houver evidência demonstrável de exposição/reachability.
+- [ ] Modelar Exposure separadamente de direct/transitive dependency.
+- [ ] Calibrar `Ninfa Priority` sem substituir a severidade oficial do advisory.
+- [ ] Introduzir quality gates de segurança somente após estabilizar findings, coverage e prioridade.
+
+### Etapa 7 — Evolução posterior
+
+- [ ] Avaliar baseline/new-code e análise diff-aware.
+- [ ] Avaliar DAG, scheduler e paralelismo após estabilização dos contratos de execução.
+- [ ] Avaliar automações avançadas e dashboard/histórico sem acoplar essas camadas ao core prematuramente.
 
 ## Evolução prevista
 
-A prioridade atual é estabilizar os quatro profiles em projetos reais e amadurecer o **SAST orientado a profile**, com especialização ativa somente para Yii3 e GLPI Plugin 11.
+A prioridade imediata é fechar a **Etapa 2** com OSV, deduplicação e relatório SCA consolidado; em seguida, avançar para a **Etapa 3**, estruturando Psalm Taint e Semgrep antes de ampliar regras ou introduzir novos scanners.
 
-Antes de avançar para scheduler, DAG, baseline/new-code ou novas camadas de automação, o core deve continuar migrando as integrações para os contratos estruturados (`ToolResult`, `RunResult`, `Finding`) já introduzidos e reduzir a dependência de exit codes brutos como representação principal de segurança.
+A especialização ativa de segurança permanece restrita a **Yii3** e **GLPI Plugin 11**. DAST continua congelado e delegado a outra frente institucional.
 
-A evolução de DAST permanece congelada e fora do pipeline do Ninfa enquanto essa capacidade for tratada por outra frente institucional. O foco do projeto é evitar duplicação de esforço e investir onde há lacuna real: análise estática de segurança, contexto de profile, normalização de findings e políticas auditáveis.
-
-Em etapa posterior, o core poderá alimentar uma interface web/dashboard para histórico, findings, tendências e acompanhamento de execuções. API, banco e frontend não fazem parte do MVP atual.
+A arquitetura detalhada, os limites de escopo e a ordem das decisões estão em [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md).
 
 ## Documentação
 
