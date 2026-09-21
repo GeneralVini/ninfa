@@ -78,8 +78,21 @@ try {
         chmod($path, 0755);
     }
 
+    $osvFixture = $root . '/osv.json';
+    file_put_contents($osvFixture, json_encode([
+        'querybatch' => [
+            'results' => [
+                ['vulns' => []],
+                ['vulns' => []],
+                ['vulns' => []],
+            ],
+        ],
+        'vulns' => [],
+    ], JSON_THROW_ON_ERROR));
+
     $workspaceRoot = $root . '/workspace';
     putenv('NINFA_WORKSPACE_ROOT=' . $workspaceRoot);
+    putenv('NINFA_OSV_FIXTURE=' . $osvFixture);
     putenv('NO_COLOR=1');
     $execution = (new ProcessRunner())->runCaptured([
         PHP_BINARY,
@@ -88,16 +101,28 @@ try {
         $projectRoot,
     ], $projectRoot);
     assert($execution->exitCode === 0);
-    $inventoryFile = ProjectContext::fromRoot($projectRoot)->workspace()->file('security-inventory.json');
+
+    $runContext = ProjectContext::fromRoot($projectRoot);
+    $inventoryFile = $runContext->workspace()->file('security-inventory.json');
+    $reportFile = $runContext->workspace()->file('security-report.json');
     assert(is_file($inventoryFile));
+    assert(is_file($reportFile));
+
     $writtenInventory = json_decode((string) file_get_contents($inventoryFile), true, 512, JSON_THROW_ON_ERROR);
     assert(($writtenInventory['composer']['package_source'] ?? null) === 'composer.lock');
-    assert(str_contains($execution->stdout, 'Inventário de segurança:'));
-    assert(str_contains($execution->stdout, 'composer-audit: nenhum advisory ou policy finding'));
 
-    echo "[OK] SecurityInventory prioriza composer.lock, separa runtime/constraint e integra ninfa security.\n";
+    $report = json_decode((string) file_get_contents($reportFile), true, 512, JSON_THROW_ON_ERROR);
+    assert(($report['schema_version'] ?? null) === 1);
+    assert(($report['profile'] ?? null) === 'php-generic');
+    assert(count($report['sca']['sources'] ?? []) === 2);
+    assert(($report['sca']['sources'][0]['id'] ?? null) === 'composer-audit');
+    assert(($report['sca']['sources'][1]['id'] ?? null) === 'osv');
+    assert(($report['sca']['vulnerabilities'] ?? null) === []);
+
+    echo "[OK] SecurityInventory integra Composer Audit, OSV e security-report sem tocar o consumidor.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
+    putenv('NINFA_OSV_FIXTURE');
     putenv('NO_COLOR');
     if (is_dir($root)) {
         $iterator = new RecursiveIteratorIterator(

@@ -54,7 +54,7 @@ try {
     assert($plan->lefthookFixHooks($frontendContext) === ['ecs', 'rector', 'eslint', 'prettier']);
 
     $security = $plan->security($context);
-    assert(array_column($security, 'id') === ['composer-audit', 'psalm-taint', 'semgrep']);
+    assert(array_column($security, 'id') === ['composer-audit', 'osv', 'psalm-taint', 'semgrep']);
     assert(!in_array('dast', array_column($security, 'id'), true));
 
     $genericRoot = $root . '/generic';
@@ -64,7 +64,7 @@ try {
     assert($genericContext->profile() === 'php-generic');
     assert(array_column($plan->check($genericContext), 'id') === ['ecs', 'rector', 'phpstan', 'psalm', 'test']);
     assert(array_column($plan->fix($genericContext), 'id') === ['ecs', 'rector']);
-    assert(array_column($plan->security($genericContext), 'id') === ['composer-audit', 'psalm-taint', 'semgrep']);
+    assert(array_column($plan->security($genericContext), 'id') === ['composer-audit', 'osv', 'psalm-taint', 'semgrep']);
 
     $recheckingSource = (string) file_get_contents(dirname(__DIR__) . '/src/RecheckingPipelineRunner.php');
     assert(substr_count($recheckingSource, "run('check'") === 1);
@@ -74,6 +74,8 @@ try {
     assert(str_contains($runnerSource, "'eslint' =>"));
     assert(str_contains($runnerSource, "'prettier' =>"));
     assert(str_contains($runnerSource, "composer.lock"));
+    assert(str_contains($runnerSource, 'runOsv'));
+    assert(str_contains($runnerSource, 'security-report.json'));
     assert(!str_contains($runnerSource, "'dast' =>"));
 
     echo "[OK] Pipelines GLPI e PHP genérico, frontend unificado, recheck único e security SCA/SAST definidos.\n";

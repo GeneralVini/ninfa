@@ -26,6 +26,7 @@ O baseline ativo considera:
 
 ```text
 Composer Audit        # quando houver composer.lock
+OSV                   # packages resolvidos do inventário Composer
 Psalm Taint Analysis
 Semgrep
 ```
@@ -36,11 +37,11 @@ As etapas independentes continuam mesmo quando uma delas encontra um bloqueio ou
 
 | Frente | Estado | Diretriz |
 |---|---|---|
-| SCA | inventário + Composer Audit estruturado | integrar OSV e deduplicar aliases |
-| SAST | MVP funcional / beta interna | prioridade de evolução |
+| SCA | inventário + Composer Audit + OSV + deduplicação/report estruturados | estrutura base concluída; enrichment fica para depois |
+| SAST | MVP funcional / beta interna | próxima prioridade de evolução |
 | DAST | fora do pipeline | delegado; evolução congelada |
 
-O foco do Ninfa é amadurecer SAST por profile sem transformar o projeto em um agregador indiscriminado de scanners.
+O foco do Ninfa passa agora a amadurecer SAST por profile sem transformar o projeto em um agregador indiscriminado de scanners.
 
 A especialização SAST ativa nesta fase está limitada a:
 
@@ -53,6 +54,18 @@ PHP common
 Yii2 continua suportado pelo pipeline geral, mas não recebe agora `SecurityContract` específico. PHP genérico usa o baseline comum. Outros frameworks permanecem fora do escopo ativo.
 
 A arquitetura detalhada, os contratos SAST, a evolução SCA e a ordem de implementação estão em [SECURITY-ARCHITECTURE.md](SECURITY-ARCHITECTURE.md).
+
+## Inventário de segurança
+
+Antes dos scanners, `ninfa security` grava `security-inventory.json` no workspace externo. O inventário separa:
+
+- constraint PHP declarada e runtime PHP real;
+- extensões requeridas e carregadas;
+- dependências runtime/dev;
+- dependências diretas/transitivas;
+- `composer.lock` como fonte preferencial de versões resolvidas;
+- `vendor/composer/installed.json` apenas como fallback quando o lock não existe;
+- profile e contexto de host quando aplicável.
 
 ## Composer Audit
 
@@ -74,18 +87,79 @@ Os advisories retornados em JSON são normalizados em `Finding` SCA. Cada findin
 
 Pacotes abandonados reportados pelo Composer também são estruturados, mas como `dependency-policy`: abandono de dependência não é apresentado como vulnerabilidade.
 
-Antes dos scanners, `ninfa security` grava `security-inventory.json` no workspace externo. Para packages Composer, `composer.lock` é a fonte preferencial de versão resolvida; `vendor/composer/installed.json` é apenas fallback quando o lock não existe.
+JSON inválido, falha de rede ou término não-zero sem finding normalizável são tratados como erro de execução, e não como evidência de ausência de vulnerabilidades.
 
-A consulta de advisories depende de conectividade. JSON inválido, falha de rede ou término não-zero sem finding normalizável são tratados como erro de execução, e não como evidência de ausência de vulnerabilidades.
+## OSV
 
-A próxima evolução SCA deve ocorrer nesta ordem:
+OSV é a segunda fonte SCA do Ninfa. A consulta usa o inventário resolvido em batch:
 
-1. integrar OSV em batch usando o inventário já estruturado;
-2. deduplicar CVE/GHSA/PKSA/OSV antes de enrichment;
-3. consolidar o relatório canônico de segurança;
-4. somente depois avaliar EPSS, CISA KEV, NVD e evidência de exploit público.
+```text
+package name + installed version + ecosystem Packagist
+        ↓
+POST /v1/querybatch
+        ↓
+IDs de vulnerabilidade
+        ↓
+GET /v1/vulns/{id}
+        ↓
+Finding SCA normalizado
+```
 
-GitHub Advisory não deve entrar agora como terceiro detector primário apenas para repetir advisories já representados por Composer/OSV. ExploitDB/SearchSploit não é detector primário e só pode enriquecer vulnerabilidades já identificadas.
+A resposta de `querybatch` é correlacionada pela posição da consulta e o Ninfa acompanha `next_page_token` quando houver paginação. Cada ID é buscado uma única vez por execução e depois associado aos componentes que o originaram.
+
+Os findings OSV preservam package, versão, relação, escopo, aliases, severidade quando disponível, referência e proveniência. O Ninfa envia para OSV somente package/versão; código fonte não é enviado.
+
+Quando não existem packages Composer resolvidos, a etapa OSV é marcada como ignorada. Falha de transporte, HTTP ou JSON é erro de execução e não equivale a “nenhuma vulnerabilidade”.
+
+`NINFA_OSV_FIXTURE` existe como seam de teste/replay controlado e não altera o modelo público do relatório.
+
+## Deduplicação SCA
+
+Composer Audit e OSV podem representar a mesma vulnerabilidade com identificadores diferentes. O Ninfa consolida aliases antes de qualquer enrichment posterior.
+
+A identidade canônica prefere, nessa ordem, quando disponível:
+
+```text
+CVE
+GHSA
+PKSA
+OSV
+outro identificador estável
+```
+
+A deduplicação preserva:
+
+- todos os aliases conhecidos;
+- fontes que confirmaram o problema;
+- provenance de origem;
+- componentes afetados;
+- maior severidade técnica observada entre as fontes, sem criar score próprio.
+
+Uma vulnerabilidade confirmada por duas fontes continua sendo uma vulnerabilidade canônica, não dois problemas independentes no relatório consolidado.
+
+## Relatório estruturado
+
+`ninfa security` grava:
+
+```text
+/tmp/ninfa/<hash>/security-report.json
+```
+
+O relatório canônico SCA contém:
+
+- versão do schema;
+- profile e inventário usado;
+- estado das fontes `composer-audit` e `osv`;
+- vulnerabilidades canônicas deduplicadas;
+- policy findings, como dependências abandonadas;
+- findings de origem para auditoria;
+- exit code consolidado da execução.
+
+O terminal continua sendo um renderer/feedback operacional; o artefato JSON é a representação estruturada para automação e evolução posterior.
+
+A Etapa 2 da evolução está concluída com inventário, Composer Audit estruturado, OSV batch, deduplicação e `security-report.json`. EPSS, CISA KEV, NVD e evidência de exploit público ficam para a fase de intelligence e não devem ser adicionados como scanners primários agora.
+
+GitHub Advisory também não deve entrar como terceiro detector primário apenas para repetir advisories já representados por Composer/OSV. ExploitDB/SearchSploit não é detector primário e só pode enriquecer vulnerabilidades já identificadas.
 
 ## Psalm Taint
 
@@ -149,17 +223,16 @@ Nesta fase, não será adicionado um terceiro scanner SAST.
 
 ## Prioridades SAST
 
-A evolução deve concentrar-se em:
+A Etapa 3 passa a ser a prioridade imediata:
 
-1. normalizar Semgrep e Psalm Taint em `Finding`;
-2. distinguir finding, erro de ferramenta, indisponibilidade e não aplicabilidade;
-3. executar fixtures reais positivas e negativas no CI;
-4. registrar cobertura efetiva de paths/arquivos;
-5. formalizar os contratos SAST comuns;
-6. implementar capabilities + `SecurityContract` de Yii3;
-7. implementar especializações de GLPI Plugin 11;
-8. preservar regra, severidade, confiança, arquivo, linha, mensagem, proveniência e tipo de evidência;
-9. aplicar quality gates somente depois que o modelo de resultado estiver estável.
+1. normalizar Psalm Taint em `Finding`;
+2. normalizar Semgrep em `Finding`;
+3. distinguir finding, erro de ferramenta, indisponibilidade, não aplicabilidade e cobertura parcial;
+4. executar fixtures reais positivas e negativas no CI;
+5. registrar cobertura efetiva de paths/arquivos;
+6. preservar regra, severidade, confiança, arquivo, linha, mensagem, proveniência e tipo de evidência.
+
+Depois disso entram os contratos SAST comuns, capabilities/`SecurityContract` de Yii3 e especializações de GLPI Plugin 11.
 
 Não é prioridade adicionar novos scanners antes de tornar confiáveis e auditáveis os resultados das ferramentas já adotadas.
 
@@ -208,16 +281,6 @@ Exposure       0–20
 
 mas não deve virar security gate enquanto inventário, normalização, aliases, enrichment e exposure não estiverem calibrados em projetos reais.
 
-## Relatório estruturado
-
-A direção é produzir um relatório canônico externo, por exemplo:
-
-```text
-/tmp/ninfa/<hash>/security-report.json
-```
-
-O terminal deve renderizar esse modelo. O relatório deve registrar inventário, findings, fontes consultadas, fontes indisponíveis, coverage e evidências relevantes.
-
 ## semantic-index.json
 
 O `semantic-index.json` atual deriva de documentação e símbolos mencionados nela. Ele não representa uso real de funções, calls ou reachability e não deve ser usado como prova de exposure.
@@ -241,7 +304,7 @@ Não correlacionar extensões como `ext-curl`, `ext-openssl`, `ext-libxml`, `ext
 
 ## Cache, degradação e privacidade
 
-Antes de ampliar fontes online, o Ninfa deve prever cache externo, batch APIs, timeouts, rate limits e estados explícitos de indisponibilidade.
+OSV já usa batch e evita buscar repetidamente o mesmo ID dentro da execução. Cache externo persistente, política explícita de retry/rate limit e estados mais ricos de degradação continuam como evolução futura.
 
 Falha de uma fonte externa não deve virar finding de vulnerabilidade e não deve ser interpretada como ausência de vulnerabilidades.
 

@@ -105,7 +105,7 @@ ninfa assist [root]
 
 O workspace é descartável e pode ser redefinido por `NINFA_WORKSPACE_ROOT`, mas não pode ficar dentro do projeto consumidor.
 
-As configurações geradas ficam no workspace externo, por exemplo:
+As configurações e artefatos gerados ficam no workspace externo, por exemplo:
 
 ```text
 phpstan.neon
@@ -114,6 +114,8 @@ rector.php
 ecs.php
 lefthook.yml
 semantic-index.json
+security-inventory.json
+security-report.json
 glpi-bootstrap.php   # quando aplicável
 ```
 
@@ -150,7 +152,7 @@ O comando não modifica o projeto. PHPStan e Psalm são executados em formato es
 `security` permanece separado do pipeline comum de qualidade e, no escopo atual do Ninfa, executa duas frentes:
 
 ```text
-SCA   Composer Audit
+SCA   Composer Audit + OSV
 SAST  Psalm Taint + Semgrep
 ```
 
@@ -160,8 +162,8 @@ A maturidade atual deve ser interpretada assim:
 
 | Frente | Estado atual no Ninfa | Diretriz |
 |---|---|---|
-| SCA | inventário + Composer Audit estruturado | incorporar OSV e deduplicar aliases |
-| SAST | MVP funcional / beta interna | **prioridade de evolução** |
+| SCA | inventário + Composer Audit + OSV + deduplicação/report estruturados | etapa estrutural concluída; enrichment fica para depois |
+| SAST | MVP funcional / beta interna | **próxima etapa de evolução** |
 | DAST | fora do pipeline público | **delegado; evolução congelada no Ninfa** |
 
 ### Diretriz atual: foco em SAST
@@ -206,7 +208,7 @@ Não é objetivo imediato adicionar vários scanners diferentes. Primeiro, o Nin
 
 A separação arquitetural pretendida é: contrato SAST define **o que** caracteriza a vulnerabilidade, `Profile SecurityContract` define **o que** as APIs daquele ecossistema significam e o adapter define **como** Psalm/Semgrep executam essa semântica.
 
-### SCA / Composer Audit
+### SCA / Composer Audit + OSV
 
 Composer Audit só é executado quando existe `composer.lock`. O Ninfa o chama em modo estruturado e defensivo, com plugins/scripts do consumidor desabilitados e saída JSON:
 
@@ -216,9 +218,18 @@ composer --no-plugins --no-scripts --no-interaction audit --locked --format=json
 
 Advisories são normalizados em `Finding` com package, versão resolvida, relação direta/transitiva, escopo runtime/dev, severidade, aliases e proveniência. Pacotes abandonados permanecem identificados separadamente como `dependency-policy`, sem serem apresentados como vulnerabilidade.
 
-`ninfa security` também grava `security-inventory.json` no workspace externo. Falha de rede ou saída não estruturada do Composer Audit é tratada como erro de execução, e não como evidência de ausência de vulnerabilidades.
+OSV consulta o inventário resolvido em `querybatch` usando package + versão do ecossistema Packagist. Os IDs retornados são enriquecidos com o registro OSV correspondente, normalizados em `Finding` e correlacionados com o mesmo componente do inventário. A deduplicação usa aliases CVE/GHSA/PKSA/OSV e preserva as fontes que confirmaram a vulnerabilidade.
 
-A próxima fonte planejada é OSV, com normalização e deduplicação de aliases antes de qualquer enrichment por EPSS, KEV, NVD ou evidência de exploit público.
+`ninfa security` grava dois artefatos estruturados no workspace externo:
+
+```text
+security-inventory.json
+security-report.json
+```
+
+O relatório SCA consolida estado das fontes, findings de origem, policy findings e vulnerabilidades canônicas deduplicadas. Falha de rede ou saída inválida de uma fonte é tratada como erro de execução, não como evidência de ausência de vulnerabilidades.
+
+EPSS, KEV, NVD e evidência de exploit público permanecem fora desta etapa; quando entrarem, serão enrichment sobre vulnerabilidades já normalizadas e deduplicadas.
 
 ### DAST / OWASP ZAP
 
@@ -265,7 +276,7 @@ O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos 
 
 Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada commit relevante; itens só são marcados como concluídos quando implementação e testes correspondentes estiverem presentes.
 
-**Etapa atual: 2 — SCA estruturado.**
+**Etapa atual: 3 — SAST estruturado.**
 
 ### Etapa 1 — Fundação
 
@@ -275,9 +286,9 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 ### Etapa 2 — SCA estruturado
 
 - [x] Executar Composer Audit em modo defensivo/JSON e normalizar advisories como `Finding` SCA.
-- [ ] Integrar OSV em batch a partir do inventário resolvido.
-- [ ] Deduplicar aliases CVE/GHSA/PKSA/OSV em vulnerabilidades canônicas.
-- [ ] Gerar `security-report.json` consolidado para os resultados SCA.
+- [x] Integrar OSV em batch a partir do inventário resolvido.
+- [x] Deduplicar aliases CVE/GHSA/PKSA/OSV em vulnerabilidades canônicas.
+- [x] Gerar `security-report.json` consolidado para os resultados SCA.
 
 ### Etapa 3 — SAST estruturado
 
@@ -318,7 +329,7 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 
 ## Evolução prevista
 
-A prioridade imediata é fechar a **Etapa 2** com OSV, deduplicação e relatório SCA consolidado; em seguida, avançar para a **Etapa 3**, estruturando Psalm Taint e Semgrep antes de ampliar regras ou introduzir novos scanners.
+A **Etapa 2 está fechada** com inventário, Composer Audit estruturado, OSV batch, deduplicação de aliases e `security-report.json`. A prioridade imediata passa a ser a **Etapa 3**, estruturando Psalm Taint e Semgrep antes de ampliar regras ou introduzir novos scanners.
 
 A especialização ativa de segurança permanece restrita a **Yii3** e **GLPI Plugin 11**. DAST continua congelado e delegado a outra frente institucional.
 

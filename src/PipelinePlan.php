@@ -58,6 +58,7 @@ final class PipelinePlan
 
         return [
             ['id' => 'composer-audit', 'mode' => 'check'],
+            ['id' => 'osv', 'mode' => 'check'],
             ['id' => 'psalm-taint', 'mode' => 'check'],
             ['id' => 'semgrep', 'mode' => 'check'],
         ];

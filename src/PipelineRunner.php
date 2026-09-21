@@ -9,6 +9,8 @@ require_once __DIR__ . '/ToolResolver.php';
 require_once __DIR__ . '/RunResult.php';
 require_once __DIR__ . '/SecurityInventory.php';
 require_once __DIR__ . '/ComposerAuditParser.php';
+require_once __DIR__ . '/OsvClient.php';
+require_once __DIR__ . '/SecurityReport.php';
 
 final class PipelineRunner
 {
@@ -19,6 +21,7 @@ final class PipelineRunner
         private readonly PipelinePlan $plan = new PipelinePlan(),
         private readonly ExternalConfigGenerator $configGenerator = new ExternalConfigGenerator(),
         private readonly ToolResolver $toolResolver = new ToolResolver(),
+        private readonly OsvClient $osvClient = new OsvClient(),
     ) {
     }
 
@@ -59,6 +62,36 @@ final class PipelineRunner
 
         foreach ($hooks as $hook) {
             $started = hrtime(true);
+
+            if ($operation === 'security' && $hook['id'] === 'osv') {
+                if (!$securityInventory instanceof SecurityInventory) {
+                    $results[] = ToolResult::error('osv', 'Inventário de segurança ausente.', $this->elapsedMs($started));
+                    $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
+                    continue;
+                }
+
+                $packages = $securityInventory->toArray()['composer']['packages'] ?? [];
+                if (!is_array($packages) || $packages === []) {
+                    echo CliStyle::warning('! osv: sem packages Composer resolvidos para consulta.') . PHP_EOL;
+                    $results[] = ToolResult::skipped('osv', 'sem packages Composer resolvidos');
+                    continue;
+                }
+
+                echo CliStyle::info('[NINFA] osv') . ' (' . $hook['mode'] . ')' . PHP_EOL;
+                try {
+                    [$status, $findings] = $this->runOsv($securityInventory);
+                } catch (Throwable $error) {
+                    fwrite(STDERR, CliStyle::error('✗ osv: ' . $error->getMessage()) . PHP_EOL);
+                    $results[] = ToolResult::error('osv', $error->getMessage(), $this->elapsedMs($started));
+                    $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
+                    continue;
+                }
+
+                $results[] = ToolResult::completed('osv', $status, $findings, $this->elapsedMs($started));
+                $firstFailure = $status !== 0 && $firstFailure === 0 ? $status : $firstFailure;
+                continue;
+            }
+
             try {
                 $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
             } catch (Throwable $error) {
@@ -112,9 +145,22 @@ final class PipelineRunner
             $firstFailure = $status !== 0 && $firstFailure === 0 ? $status : $firstFailure;
         }
 
+        $runResult = new RunResult($operation, $results, $firstFailure);
+        if ($operation === 'security' && $securityInventory instanceof SecurityInventory) {
+            try {
+                $reportFile = $this->writeSecurityReport($context, $securityInventory, $runResult);
+                echo CliStyle::info('[NINFA] Relatório de segurança: ' . $reportFile) . PHP_EOL;
+            } catch (Throwable $error) {
+                fwrite(STDERR, CliStyle::error('✗ security-report: ' . $error->getMessage()) . PHP_EOL);
+                $results[] = ToolResult::error('security-report', $error->getMessage());
+                $firstFailure = $firstFailure === 0 ? 1 : $firstFailure;
+                $runResult = new RunResult($operation, $results, $firstFailure);
+            }
+        }
+
         $this->renderSummary($operation, $results);
 
-        return new RunResult($operation, $results, $firstFailure);
+        return $runResult;
     }
 
     /** @param list<ToolResult> $results */
@@ -264,6 +310,20 @@ final class PipelineRunner
         return [$result->exitCode === 0 ? 1 : $result->exitCode, $findings];
     }
 
+    /** @return array{0:int,1:list<Finding>} */
+    private function runOsv(SecurityInventory $inventory): array
+    {
+        $findings = $this->osvClient->scan($inventory);
+        if ($findings === []) {
+            echo CliStyle::success('✓ osv: nenhuma vulnerabilidade conhecida para o inventário resolvido.') . PHP_EOL;
+            return [0, []];
+        }
+
+        FindingRenderer::render($findings, true);
+        echo CliStyle::error('✗ osv: ' . count($findings) . ' finding(s) SCA.') . PHP_EOL;
+        return [1, $findings];
+    }
+
     /** @param list<string> $command */
     private function runTests(array $command, ProjectContext $context): int
     {
@@ -337,6 +397,25 @@ final class PipelineRunner
         );
         if ($written === false) {
             throw new RuntimeException('Não foi possível gravar o inventário de segurança.');
+        }
+        return $file;
+    }
+
+    private function writeSecurityReport(
+        ProjectContext $context,
+        SecurityInventory $inventory,
+        RunResult $runResult,
+    ): string {
+        $file = $context->workspace()->file('security-report.json');
+        $written = file_put_contents(
+            $file,
+            json_encode(
+                new SecurityReport($inventory, $runResult),
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+            ) . PHP_EOL,
+        );
+        if ($written === false) {
+            throw new RuntimeException('Não foi possível gravar o relatório de segurança.');
         }
         return $file;
     }
