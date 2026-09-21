@@ -15,21 +15,35 @@ declare(strict_types=1);
  */
 final class SemanticHints
 {
+    /** Limite por arquivo para evitar carregar documentação arbitrariamente grande. */
     private const MAX_FILE_BYTES = 131072;
+    /** Quantidade máxima de documentos consumidos por projeto. */
     private const MAX_FILES = 32;
 
-    /** @var list<string> */
+    /** @var list<string> Paths documentais relativos/normalizados efetivamente consumidos. */
     private array $files = [];
 
-    /** @var list<string> */
+    /** @var list<string> Tokens entre crases aceitos como símbolos documentados. */
     private array $symbols = [];
 
-    /** @var array<string, int> */
+    /** @var array<string,int> Contadores textuais por profile conhecido. */
     private array $signals = ['glpi-plugin' => 0, 'yii2' => 0, 'yii3' => 0];
 
+    /**
+     * Constrói os hints a partir de documentação Markdown conhecida do consumidor.
+     *
+     * Arquivos inexistentes, maiores que o limite ou ilegíveis são ignorados. A
+     * coleta é limitada e determinística; símbolos são deduplicados/ordenados no
+     * final. Nenhum arquivo PHP/JS é percorrido por este método.
+     *
+     * @param string $root Raiz do projeto consumidor.
+     * @return self Snapshot documental pronto para serialização/consulta.
+     */
     public static function fromProject(string $root): self
     {
         $self = new self();
+
+        /** @var list<string> $candidates Arquivos Markdown candidatos em ordem de precedência. */
         $candidates = [
             $root . '/README.md',
             $root . '/AGENTS.md',
@@ -37,11 +51,13 @@ final class SemanticHints
             $root . '/ARCHITECTURE.md',
         ];
 
+        // docs/*.md amplia contexto sem percorrer recursivamente toda a árvore do consumidor.
         foreach (glob($root . '/docs/*.md') ?: [] as $file) {
             $candidates[] = $file;
         }
 
         foreach (array_values(array_unique($candidates)) as $file) {
+            // O limite global e os filtros de existência/tamanho protegem custo previsível.
             if (count($self->files) >= self::MAX_FILES || !is_file($file)) {
                 continue;
             }
@@ -63,30 +79,51 @@ final class SemanticHints
             $self->consume($content);
         }
 
+        // A saída estável evita diferenças apenas por repetição/ordem dos documentos.
         $self->symbols = array_values(array_unique($self->symbols));
         sort($self->symbols);
 
         return $self;
     }
 
-    /** @return list<string> */
+    /**
+     * Retorna os documentos que contribuíram efetivamente para os hints.
+     *
+     * @return list<string> Paths relativos quando localizados sob a raiz do consumidor.
+     */
     public function files(): array
     {
         return $this->files;
     }
 
-    /** @return list<string> */
+    /**
+     * Retorna os símbolos textuais encontrados entre crases na documentação.
+     *
+     * @return list<string> Símbolos deduplicados e ordenados; não representam AST real.
+     */
     public function symbols(): array
     {
         return $this->symbols;
     }
 
-    /** @return array<string, int> */
+    /**
+     * Retorna contagens textuais de menções aos profiles conhecidos.
+     *
+     * @return array<string,int> Contadores documentais por identificador de profile.
+     */
     public function profileSignals(): array
     {
         return $this->signals;
     }
 
+    /**
+     * Incorpora um documento aos contadores e símbolos internos.
+     *
+     * Trechos entre pares de crases só são aceitos quando curtos, sem espaços e
+     * não vazios; sufixo `()` é removido para normalizar nomes de função/método.
+     *
+     * @param string $content Conteúdo Markdown já validado pelo chamador.
+     */
     private function consume(string $content): void
     {
         $lower = strtolower($content);
@@ -94,6 +131,7 @@ final class SemanticHints
         $this->signals['yii2'] += substr_count($lower, 'yii2') + substr_count($lower, 'yii 2');
         $this->signals['yii3'] += substr_count($lower, 'yii3') + substr_count($lower, 'yii 3');
 
+        // Apenas segmentos ímpares de explode('`') representam conteúdo entre crases simples.
         foreach (explode('`', $content) as $index => $chunk) {
             if ($index % 2 === 0) {
                 continue;

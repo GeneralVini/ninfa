@@ -30,8 +30,18 @@ require_once __DIR__ . '/SecurityReport.php';
  */
 final class PipelineRunner
 {
+    /** Evita repetir a legenda visual quando `fix` é seguido por recheck na mesma execução PHP. */
     private static bool $legendShown = false;
 
+    /**
+     * Recebe as dependências de execução para permitir substituição determinística em testes.
+     *
+     * @param ProcessRunner $processRunner Executor de processos externos.
+     * @param PipelinePlan $plan Planejador declarativo das etapas.
+     * @param ExternalConfigGenerator $configGenerator Gerador de configs externas.
+     * @param ToolResolver $toolResolver Resolvedor de executáveis.
+     * @param OsvClient $osvClient Cliente SCA interno que não usa processo externo.
+     */
     public function __construct(
         private readonly ProcessRunner $processRunner = new ProcessRunner(),
         private readonly PipelinePlan $plan = new PipelinePlan(),
@@ -41,14 +51,40 @@ final class PipelineRunner
     ) {
     }
 
+    /**
+     * Executa uma operação e devolve somente seu exit code consolidado.
+     *
+     * O método é a interface simples usada pelo CLI/RecheckingPipelineRunner;
+     * todos os detalhes estruturados permanecem disponíveis em `runResult()`.
+     *
+     * @param string $operation Operação pública `check`, `fix` ou `security`.
+     * @param ProjectContext $context Contexto validado do consumidor.
+     * @return int Primeiro exit code não zero observado, ou 0.
+     */
     public function run(string $operation, ProjectContext $context): int
     {
         return $this->runResult($operation, $context)->finalExitCode;
     }
 
+    /**
+     * Executa o plano completo e retorna resultados estruturados por etapa.
+     *
+     * A execução é deliberadamente não fail-fast: erros/falhas são registrados
+     * e as etapas seguintes continuam quando possível. Em `security`, inventário
+     * é criado antes dos scanners; OSV roda via cliente interno; o relatório é
+     * escrito depois de todas as etapas. Erro na gravação do relatório vira um
+     * ToolResult adicional e altera o exit code consolidado.
+     *
+     * @param string $operation Operação pública a executar.
+     * @param ProjectContext $context Contexto imutável que delimita raiz/profile/workspace.
+     * @return RunResult Snapshot final da execução, incluindo erros e findings observados.
+     * @throws InvalidArgumentException Quando a operação não é suportada.
+     */
     public function runResult(string $operation, ProjectContext $context): RunResult
     {
         $this->showLegend();
+
+        // DAST é explicitamente delegado: variável legada gera aviso, nunca scan.
         if ($operation === 'security' && $this->dastRequested()) {
             fwrite(
                 STDERR,
@@ -65,7 +101,9 @@ final class PipelineRunner
             echo CliStyle::info('[NINFA] Inventário de segurança: ' . $inventoryFile) . PHP_EOL;
         }
 
+        /** @var array<string,string> $configs Configurações externas geradas para esta execução. */
         $configs = $this->configGenerator->generate($context);
+        /** @var list<array<string,mixed>> $hooks Plano em ordem de execução. */
         $hooks = match ($operation) {
             'check' => $this->plan->check($context),
             'fix' => $this->plan->fix($context),
@@ -73,12 +111,14 @@ final class PipelineRunner
             default => throw new InvalidArgumentException('Operacao invalida: ' . $operation),
         };
 
+        /** @var list<ToolResult> $results Resultados acumulados sem fail-fast. */
         $results = [];
         $firstFailure = 0;
 
         foreach ($hooks as $hook) {
             $started = hrtime(true);
 
+            // OSV é um adapter HTTP interno e portanto não passa por commandFor/ProcessRunner.
             if ($operation === 'security' && $hook['id'] === 'osv') {
                 if (!$securityInventory instanceof SecurityInventory) {
                     $results[] = ToolResult::error('osv', 'Inventário de segurança ausente.', $this->elapsedMs($started));
@@ -108,6 +148,7 @@ final class PipelineRunner
                 continue;
             }
 
+            // Falha ao resolver/montar comando é erro de etapa, não motivo para abortar o restante do plano.
             try {
                 $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
             } catch (Throwable $error) {
@@ -117,6 +158,7 @@ final class PipelineRunner
                 continue;
             }
 
+            // null significa etapa conhecida mas não aplicável (por exemplo composer-audit sem lock/test sem runner).
             if ($command === null) {
                 $results[] = ToolResult::skipped($hook['id'], 'nao aplicavel');
                 continue;
@@ -125,7 +167,9 @@ final class PipelineRunner
             echo CliStyle::info('[NINFA] ' . $hook['id']) . ' (' . $hook['mode'] . ')' . PHP_EOL;
             $structured = ($operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true))
                 || ($operation === 'security' && $hook['id'] === 'composer-audit');
+            /** @var list<Finding> $findings Findings produzidos pela etapa atual quando estruturada. */
             $findings = [];
+
             try {
                 if ($operation === 'security' && $hook['id'] === 'composer-audit') {
                     if (!$securityInventory instanceof SecurityInventory) {
@@ -146,6 +190,7 @@ final class PipelineRunner
                 continue;
             }
 
+            // Etapas estruturadas renderizam seu próprio diagnóstico com contagem de findings.
             if (!$structured) {
                 echo $status === 0
                     ? CliStyle::success('✓ ' . $hook['id'] . ': concluido.') . PHP_EOL
@@ -162,6 +207,8 @@ final class PipelineRunner
         }
 
         $runResult = new RunResult($operation, $results, $firstFailure);
+
+        // O relatório SCA é efeito final do security e sua falha precisa ficar explícita no próprio RunResult.
         if ($operation === 'security' && $securityInventory instanceof SecurityInventory) {
             try {
                 $reportFile = $this->writeSecurityReport($context, $securityInventory, $runResult);
@@ -179,7 +226,12 @@ final class PipelineRunner
         return $runResult;
     }
 
-    /** @param list<ToolResult> $results */
+    /**
+     * Renderiza o estado final de cada etapa sem recomputar findings/exit codes.
+     *
+     * @param string $operation Operação usada no título do resumo.
+     * @param list<ToolResult> $results Resultados na mesma ordem do plano executado.
+     */
     private function renderSummary(string $operation, array $results): void
     {
         echo PHP_EOL . CliStyle::info('[NINFA] Resumo (' . $operation . ')') . PHP_EOL;
@@ -202,8 +254,18 @@ final class PipelineRunner
         }
     }
 
-    /** @param array<string,string> $configs
-     *  @return list<string>|null
+    /**
+     * Traduz um hook do plano para o comando externo concreto da ferramenta.
+     *
+     * null representa etapa não aplicável. A função apenas monta argumentos e
+     * resolve binários; não inicia processos. Composer Audit é endurecido com
+     * `--no-plugins --no-scripts --no-interaction` e JSON estruturado.
+     *
+     * @param string $id Identificador da etapa no plano.
+     * @param string $mode Modo declarativo (`check`, `fix` ou `dry-run`).
+     * @param ProjectContext $context Contexto usado para paths/binários/profile.
+     * @param array<string,string> $configs Arquivos de configuração externos gerados.
+     * @return list<string>|null Executável + argumentos, ou null quando a etapa não se aplica.
      */
     private function commandFor(string $id, string $mode, ProjectContext $context, array $configs): ?array
     {
@@ -232,14 +294,24 @@ final class PipelineRunner
         };
     }
 
-    /** @param list<string> $command
-     *  @return array{0:int,1:list<Finding>}
+    /**
+     * Executa PHPStan/Psalm em modo capturado e normaliza findings estruturados.
+     *
+     * JSON inválido não é tratado como ausência de findings: imprime evidência
+     * bruta e converte sucesso aparente em código 1. Quando existem findings e
+     * a ferramenta retornou 0, o código também vira 1 para preservar bloqueio.
+     *
+     * @param string $tool `phpstan` ou `psalm`.
+     * @param list<string> $command Comando já resolvido para execução capturada.
+     * @param ProjectContext $context Contexto que fornece cwd e raiz para relativização.
+     * @return array{0:int,1:list<Finding>} Status normalizado e findings.
      */
     private function runStaticAnalysis(string $tool, array $command, ProjectContext $context): array
     {
         $result = $this->processRunner->runCaptured($command, $context->root());
 
         try {
+            /** @var list<Finding> $findings */
             $findings = $tool === 'phpstan'
                 ? FindingRenderer::phpStan($result->stdout, $context->root())
                 : FindingRenderer::psalm($result->stdout, $context->root());
@@ -255,6 +327,7 @@ final class PipelineRunner
             return [$result->exitCode === 0 ? 1 : $result->exitCode, []];
         }
 
+        // Exit não zero sem finding é tratado como falha da ferramenta; não como finding inventado.
         if ($findings === []) {
             if ($result->exitCode !== 0) {
                 if (trim($result->stderr) !== '') {
@@ -277,8 +350,19 @@ final class PipelineRunner
         return [$result->exitCode === 0 ? 1 : $result->exitCode, $findings];
     }
 
-    /** @param list<string> $command
-     *  @return array{0:int,1:list<Finding>}
+    /**
+     * Executa Composer Audit estruturado e converte seu JSON em findings SCA/policy.
+     *
+     * JSON inválido ou saída não normalizável é erro de execução. Exit não zero
+     * sem finding também vira RuntimeException para não produzir falsa impressão
+     * de “sem vulnerabilidades”. Findings válidos preservam o exit code da fonte,
+     * usando 1 quando a ferramenta retornar 0 apesar de findings.
+     *
+     * @param list<string> $command Comando defensivo de Composer Audit.
+     * @param ProjectContext $context Contexto que fornece cwd.
+     * @param SecurityInventory $inventory Inventário usado pelo parser para correlacionar componentes.
+     * @return array{0:int,1:list<Finding>} Status e findings normalizados.
+     * @throws RuntimeException Quando a saída/execução não pode ser interpretada com segurança.
      */
     private function runComposerAudit(
         array $command,
@@ -288,6 +372,7 @@ final class PipelineRunner
         $result = $this->processRunner->runCaptured($command, $context->root());
 
         try {
+            /** @var list<Finding> $findings */
             $findings = ComposerAuditParser::parse($result->stdout, $inventory);
         } catch (JsonException|UnexpectedValueException $error) {
             if (trim($result->stderr) !== '') {
@@ -326,9 +411,18 @@ final class PipelineRunner
         return [$result->exitCode === 0 ? 1 : $result->exitCode, $findings];
     }
 
-    /** @return array{0:int,1:list<Finding>} */
+    /**
+     * Executa a consulta OSV a partir do inventário já resolvido.
+     *
+     * O cliente é responsável por rede/normalização. Este método apenas renderiza
+     * o resultado e converte presença de findings em exit code 1.
+     *
+     * @param SecurityInventory $inventory Inventário Composer que será consultado no OSV.
+     * @return array{0:int,1:list<Finding>} 0 sem findings ou 1 acompanhado dos findings encontrados.
+     */
     private function runOsv(SecurityInventory $inventory): array
     {
+        /** @var list<Finding> $findings */
         $findings = $this->osvClient->scan($inventory);
         if ($findings === []) {
             echo CliStyle::success('✓ osv: nenhuma vulnerabilidade conhecida para o inventário resolvido.') . PHP_EOL;
@@ -340,7 +434,17 @@ final class PipelineRunner
         return [1, $findings];
     }
 
-    /** @param list<string> $command */
+    /**
+     * Executa a suíte de testes capturando saída para detectar falso sucesso sem testes.
+     *
+     * stdout/stderr são reproduzidos para o usuário. Mesmo com exit code 0,
+     * mensagens “no tests executed/found” são convertidas em falha 1 porque uma
+     * etapa vazia não comprova qualidade.
+     *
+     * @param list<string> $command Comando de teste resolvido.
+     * @param ProjectContext $context Contexto que fornece o cwd do consumidor.
+     * @return int Exit code do teste, ou 1 para suíte vazia detectada.
+     */
     private function runTests(array $command, ProjectContext $context): int
     {
         $result = $this->processRunner->runCaptured($command, $context->root());
@@ -351,6 +455,7 @@ final class PipelineRunner
             fwrite(STDERR, $result->stderr);
         }
 
+        // Exit 0 acompanhado de “no tests” é cobertura ausente, não sucesso confiável.
         if (
             $result->exitCode === 0
             && preg_match('/\b(?:no tests executed|no tests found)\b/i', $result->stdout . "\n" . $result->stderr) === 1
@@ -363,7 +468,16 @@ final class PipelineRunner
         return $result->exitCode;
     }
 
-    /** @return list<string>|null */
+    /**
+     * Resolve o comando de testes preferindo script Composer explícito a PHPUnit local.
+     *
+     * O script Composer roda com plugins desabilitados e sem interação. Na ausência
+     * de script, `vendor/bin/phpunit` só é usado quando o arquivo existe; caso
+     * contrário a etapa retorna null e será marcada como não aplicável.
+     *
+     * @param ProjectContext $context Contexto do consumidor.
+     * @return list<string>|null Comando de teste ou null quando não há suíte detectável.
+     */
     private function testCommand(ProjectContext $context): ?array
     {
         if ($context->hasComposerScript('test')) {
@@ -381,6 +495,9 @@ final class PipelineRunner
             : null;
     }
 
+    /**
+     * Exibe a legenda de cores/símbolos apenas uma vez por processo PHP.
+     */
     private function showLegend(): void
     {
         if (self::$legendShown) {
@@ -391,16 +508,37 @@ final class PipelineRunner
         echo '[NINFA] Legenda: ' . CliStyle::legend() . PHP_EOL;
     }
 
+    /**
+     * Interpreta a variável legada NINFA_DAST exclusivamente para emitir aviso.
+     *
+     * @return bool True para valores booleanos textuais que solicitavam DAST historicamente.
+     */
     private function dastRequested(): bool
     {
         return in_array(strtolower((string) getenv('NINFA_DAST')), ['1', 'true', 'yes', 'on'], true);
     }
 
+    /**
+     * Resolve um executável pelo ToolResolver usando a raiz do contexto.
+     *
+     * @param string $name Nome lógico/binário da ferramenta.
+     * @param ProjectContext $context Contexto que fornece a raiz do consumidor.
+     * @return string Caminho executável resolvido.
+     */
     private function tool(string $name, ProjectContext $context): string
     {
         return $this->toolResolver->resolve($name, $context->root());
     }
 
+    /**
+     * Serializa SecurityInventory no workspace antes da execução dos scanners.
+     *
+     * @param ProjectContext $context Contexto que fornece o workspace externo.
+     * @param SecurityInventory $inventory Inventário já materializado.
+     * @return string Caminho absoluto de `security-inventory.json`.
+     * @throws JsonException Quando a serialização falha.
+     * @throws RuntimeException Quando o arquivo não pode ser gravado.
+     */
     private function writeSecurityInventory(ProjectContext $context, SecurityInventory $inventory): string
     {
         $file = $context->workspace()->file('security-inventory.json');
@@ -417,6 +555,16 @@ final class PipelineRunner
         return $file;
     }
 
+    /**
+     * Serializa o SecurityReport canônico depois da execução das etapas security.
+     *
+     * @param ProjectContext $context Contexto que fornece o workspace externo.
+     * @param SecurityInventory $inventory Inventário utilizado pelas fontes SCA.
+     * @param RunResult $runResult Resultado consolidado que será incorporado ao relatório.
+     * @return string Caminho absoluto de `security-report.json`.
+     * @throws JsonException Quando a serialização falha.
+     * @throws RuntimeException Quando o arquivo não pode ser gravado.
+     */
     private function writeSecurityReport(
         ProjectContext $context,
         SecurityInventory $inventory,
@@ -436,12 +584,27 @@ final class PipelineRunner
         return $file;
     }
 
+    /**
+     * Converte um timestamp de `hrtime(true)` em duração inteira de milissegundos.
+     *
+     * @param int $started Valor monotônico capturado antes da etapa.
+     * @return int Duração arredondada em milissegundos.
+     */
     private function elapsedMs(int $started): int
     {
         return (int) round((hrtime(true) - $started) / 1_000_000);
     }
 
-    /** @return list<string> */
+    /**
+     * Monta o comando Semgrep com regra Ninfa, métricas desligadas e paths do contexto.
+     *
+     * `NINFA_SEMGREP_BIN` tem precedência quando aponta texto não vazio; caso
+     * contrário ToolResolver encontra o executável. `vendor` e `runtime` são
+     * excluídos, e cada path detectado vira alvo absoluto explícito.
+     *
+     * @param ProjectContext $context Contexto que fornece raiz e paths analisáveis.
+     * @return list<string> Comando completo do Semgrep sem shell intermediário.
+     */
     private function semgrepCommand(ProjectContext $context): array
     {
         $binary = getenv('NINFA_SEMGREP_BIN');
@@ -449,6 +612,7 @@ final class PipelineRunner
             $binary = $this->tool('semgrep', $context);
         }
 
+        /** @var list<string> $command Argumentos Semgrep em ordem de execução. */
         $command = [
             $binary,
             '--config', dirname(__DIR__) . '/security/semgrep.yml',

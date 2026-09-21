@@ -20,17 +20,28 @@ require_once __DIR__ . '/Finding.php';
 final class ScaFindingDeduplicator
 {
     /**
-     * @param list<Finding> $findings
-     * @return list<array<string,mixed>>
+     * Agrupa findings SCA conectados por qualquer identificador compartilhado.
+     *
+     * Findings de outro evidence type são ignorados. Quando uma fonte não
+     * fornece ID utilizável, um identificador sintético estável na execução
+     * impede perda do finding sem conectá-lo indevidamente a outro advisory.
+     * A saída é ordenada pelo ID canônico para produzir relatórios determinísticos.
+     *
+     * @param list<Finding> $findings Findings potencialmente oriundos de múltiplas fontes SCA.
+     * @return list<array<string,mixed>> Vulnerabilidades canônicas com aliases, fontes e componentes.
+     * @throws JsonException Quando metadata de componente não pode ser serializada para chave de deduplicação.
      */
     public static function canonicalize(array $findings): array
     {
+        /** @var list<array{finding:Finding,identifiers:list<string>}> $advisories */
         $advisories = [];
         foreach ($findings as $index => $finding) {
             if (!$finding instanceof Finding || $finding->evidenceType !== 'sca-advisory') {
                 continue;
             }
+
             $identifiers = self::identifiers($finding);
+            // Sem ID compartilhável, cria identidade local para não fundir findings por acidente.
             if ($identifiers === []) {
                 $identifiers = ['NINFA-SCA-' . sha1($finding->tool . '|' . $finding->rule . '|' . $index)];
             }
@@ -44,7 +55,7 @@ final class ScaFindingDeduplicator
             return [];
         }
 
-        /** @var array<string,string> $parent */
+        /** @var array<string,string> $parent Estrutura union-find indexada por identificador normalizado. */
         $parent = [];
         foreach ($advisories as $entry) {
             $ids = $entry['identifiers'];
@@ -56,19 +67,25 @@ final class ScaFindingDeduplicator
             }
         }
 
-        /** @var array<string,list<array{finding:Finding,identifiers:list<string>}>> $groups */
+        /** @var array<string,list<array{finding:Finding,identifiers:list<string>}>> $groups Findings agrupados pela raiz union-find. */
         $groups = [];
         foreach ($advisories as $entry) {
             $root = self::find($parent, $entry['identifiers'][0]);
             $groups[$root][] = $entry;
         }
 
+        /** @var list<array<string,mixed>> $canonical Vulnerabilidades canônicas materializadas. */
         $canonical = [];
         foreach ($groups as $entries) {
+            /** @var array<string,true> $allIdentifiers Conjunto de IDs/aliases do grupo. */
             $allIdentifiers = [];
+            /** @var array<string,true> $sources Conjunto de ferramentas/fontes que confirmaram o grupo. */
             $sources = [];
+            /** @var array<string,true> $provenance Proveniências únicas herdadas dos findings. */
             $provenance = [];
+            /** @var array<string,array<string,mixed>> $components Componentes únicos indexados por JSON estável. */
             $components = [];
+            /** @var array<string,array{source:string,id:string}> $sourceIds IDs originais por fonte. */
             $sourceIds = [];
             $summary = null;
             $severity = null;
@@ -85,12 +102,14 @@ final class ScaFindingDeduplicator
                 $severity = self::strongerSeverity($severity, $finding->severity);
                 $summary ??= $finding->problem;
 
+                // Componentes idênticos são colapsados pelo conteúdo, preservando registros distintos de versão/escopo.
                 $component = $finding->metadata['component'] ?? null;
                 if (is_array($component)) {
                     $key = json_encode($component, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
                     $components[$key] = $component;
                 }
 
+                // source_ids preserva o identificador que cada fonte efetivamente apresentou.
                 $advisory = $finding->metadata['advisory'] ?? [];
                 $sourceId = [
                     'source' => $finding->tool,
@@ -101,14 +120,19 @@ final class ScaFindingDeduplicator
                 $sourceIds[$sourceId['source'] . '|' . $sourceId['id']] = $sourceId;
             }
 
+            /** @var list<string> $ids Identificadores únicos ordenados antes da escolha canônica. */
             $ids = array_keys($allIdentifiers);
             sort($ids);
             $canonicalId = self::canonicalId($ids);
+            /** @var list<string> $aliases IDs restantes após remover o canônico. */
             $aliases = array_values(array_filter($ids, static fn (string $id): bool => $id !== $canonicalId));
+            /** @var list<string> $sourceList Fontes confirmadoras ordenadas. */
             $sourceList = array_keys($sources);
             sort($sourceList);
+            /** @var list<string> $provenanceList Proveniência ordenada para relatório determinístico. */
             $provenanceList = array_keys($provenance);
             sort($provenanceList);
+            /** @var list<array<string,mixed>> $componentList Componentes únicos ordenados por nome/versão/escopo. */
             $componentList = array_values($components);
             usort(
                 $componentList,
@@ -122,6 +146,7 @@ final class ScaFindingDeduplicator
                     (string) ($b['scope'] ?? ''),
                 ],
             );
+            /** @var list<array{source:string,id:string}> $sourceIdList IDs por fonte em ordem estável. */
             $sourceIdList = array_values($sourceIds);
             usort(
                 $sourceIdList,
@@ -148,9 +173,18 @@ final class ScaFindingDeduplicator
         return $canonical;
     }
 
-    /** @return list<string> */
+    /**
+     * Extrai IDs úteis de rule e metadata advisory de um Finding SCA.
+     *
+     * IDs são normalizados/deduplicados por `addIdentifier()`; valores genéricos
+     * do Composer que não identificam advisory real são descartados.
+     *
+     * @param Finding $finding Finding SCA a inspecionar.
+     * @return list<string> Identificadores normalizados sem duplicatas.
+     */
     private static function identifiers(Finding $finding): array
     {
+        /** @var array<string,true> $ids Conjunto de identificadores normalizados. */
         $ids = [];
         self::addIdentifier($ids, $finding->rule);
         $advisory = $finding->metadata['advisory'] ?? null;
@@ -167,20 +201,32 @@ final class ScaFindingDeduplicator
         return array_keys($ids);
     }
 
-    /** @param array<string,true> $ids */
+    /**
+     * Adiciona um identificador textual válido ao conjunto normalizado.
+     *
+     * @param array<string,true> $ids Conjunto mutável indexado pelo próprio ID.
+     * @param mixed $value Valor candidato vindo de regra/metadata.
+     */
     private static function addIdentifier(array &$ids, mixed $value): void
     {
         if (!is_string($value) || trim($value) === '') {
             return;
         }
         $id = strtoupper(trim($value));
+        // Marcadores genéricos não identificam vulnerabilidade e não podem unir findings distintos.
         if (in_array($id, ['COMPOSER-ADVISORY', 'COMPOSER.ABANDONED'], true)) {
             return;
         }
         $ids[$id] = true;
     }
 
-    /** @param array<string,string> $parent */
+    /**
+     * Localiza a raiz union-find de um identificador aplicando path compression.
+     *
+     * @param array<string,string> $parent Mapa mutável de pais por identificador.
+     * @param string $id Identificador cuja raiz será resolvida.
+     * @return string Raiz representativa do conjunto.
+     */
     private static function find(array &$parent, string $id): string
     {
         $parent[$id] ??= $id;
@@ -190,7 +236,13 @@ final class ScaFindingDeduplicator
         return $parent[$id];
     }
 
-    /** @param array<string,string> $parent */
+    /**
+     * Une dois identificadores quando pertencem a conjuntos diferentes.
+     *
+     * @param array<string,string> $parent Estrutura union-find mutável.
+     * @param string $a Primeiro identificador.
+     * @param string $b Segundo identificador conectado ao primeiro.
+     */
     private static function union(array &$parent, string $a, string $b): void
     {
         $rootA = self::find($parent, $a);
@@ -200,7 +252,12 @@ final class ScaFindingDeduplicator
         }
     }
 
-    /** @param list<string> $ids */
+    /**
+     * Escolhe o ID canônico usando a preferência CVE > GHSA > PKSA > OSV > outro.
+     *
+     * @param list<string> $ids Lista não vazia de IDs já normalizados/ordenados.
+     * @return string Identificador escolhido para representar o grupo.
+     */
     private static function canonicalId(array $ids): string
     {
         foreach ([
@@ -218,8 +275,19 @@ final class ScaFindingDeduplicator
         return $ids[0];
     }
 
+    /**
+     * Retém a severidade reconhecida mais forte entre duas fontes.
+     *
+     * `moderate` é normalizado para `medium`; severidades desconhecidas não
+     * substituem uma conhecida. Este método não calcula CVSS nem prioridade.
+     *
+     * @param string|null $current Severidade já acumulada.
+     * @param string|null $candidate Severidade da próxima fonte.
+     * @return string|null Severidade canônica mais forte conhecida.
+     */
     private static function strongerSeverity(?string $current, ?string $candidate): ?string
     {
+        /** @var array<string,int> $rank Ordem técnica simplificada usada apenas para consolidação. */
         $rank = [
             'critical' => 4,
             'high' => 3,

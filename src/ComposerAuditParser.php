@@ -19,20 +19,36 @@ require_once __DIR__ . '/SecurityInventory.php';
  */
 final class ComposerAuditParser
 {
-    /** @return list<Finding> */
+    /**
+     * Normaliza o documento JSON produzido por `composer audit --format=json`.
+     *
+     * Advisories sem nome de package são ignorados porque não podem ser
+     * correlacionados ao inventário. Package abandonado é emitido como policy
+     * finding separado. O método não assume que exit code do Composer define a
+     * existência de vulnerabilidade; essa decisão permanece no runner.
+     *
+     * @param string $json Saída stdout do Composer Audit.
+     * @param SecurityInventory $inventory Inventário usado para enriquecer componente/versão/escopo.
+     * @return list<Finding> Advisories e policy findings normalizados.
+     * @throws JsonException Quando o conteúdo não é JSON válido.
+     * @throws UnexpectedValueException Quando a raiz ou `advisories` possuem formato incompatível.
+     */
     public static function parse(string $json, SecurityInventory $inventory): array
     {
+        /** @var mixed $data Documento decodificado do Composer Audit. */
         $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($data)) {
             throw new UnexpectedValueException('Saída JSON do Composer Audit inválida.');
         }
 
+        /** @var list<Finding> $findings Findings SCA/policy preservados na ordem da fonte. */
         $findings = [];
         $advisories = $data['advisories'] ?? [];
         if (!is_array($advisories)) {
             throw new UnexpectedValueException('Campo advisories inválido na saída do Composer Audit.');
         }
 
+        // Cada chave de package pode conter múltiplos advisories independentes.
         foreach ($advisories as $packageKey => $packageAdvisories) {
             if (!is_array($packageAdvisories)) {
                 continue;
@@ -43,6 +59,7 @@ final class ComposerAuditParser
                     continue;
                 }
 
+                // O payload pode trazer packageName no advisory ou somente como chave externa.
                 $packageName = self::firstString(
                     $advisory['packageName'] ?? null,
                     is_string($packageKey) ? $packageKey : null,
@@ -51,6 +68,7 @@ final class ComposerAuditParser
                     continue;
                 }
 
+                // ID oficial tem precedência; CVE/fonte remota funcionam como fallback auditável.
                 $advisoryId = self::firstString(
                     $advisory['advisoryId'] ?? null,
                     $advisory['cve'] ?? null,
@@ -83,6 +101,7 @@ final class ComposerAuditParser
                     $correction .= ' Consulte ' . $link;
                 }
 
+                /** @var list<string> $provenance Fonte principal e IDs remotos que sustentam o finding. */
                 $provenance = ['composer-audit'];
                 foreach ($sources as $source) {
                     $provenance[] = $source['name'] . ':' . $source['remote_id'];
@@ -115,6 +134,7 @@ final class ComposerAuditParser
             }
         }
 
+        // Abandono é informação de manutenção/policy e nunca recebe evidenceType de vulnerabilidade.
         $abandoned = $data['abandoned'] ?? [];
         if (is_array($abandoned)) {
             foreach ($abandoned as $packageName => $replacement) {
@@ -155,8 +175,17 @@ final class ComposerAuditParser
         return $findings;
     }
 
-    /** @param array<string,mixed>|null $package
-     *  @return array<string,mixed>
+    /**
+     * Constrói a metadata comum do componente usando fatos do SecurityInventory.
+     *
+     * Valores desconhecidos de relacionamento/escopo são mantidos como
+     * `unknown`; versão ausente é omitida por `array_filter`. Nenhuma inferência
+     * de direct/transitive é refeita aqui.
+     *
+     * @param string $packageName Nome Packagist/Composer do componente.
+     * @param array<string,mixed>|null $package Registro resolvido no inventário ou null.
+     * @param SecurityInventory $inventory Inventário que informa a origem dos packages.
+     * @return array<string,mixed> Metadata normalizada do componente.
      */
     private static function componentMetadata(
         string $packageName,
@@ -178,13 +207,22 @@ final class ComposerAuditParser
         ], static fn (mixed $value): bool => $value !== null);
     }
 
-    /** @return list<array{name:string,remote_id:string}> */
+    /**
+     * Converte o campo `sources` do Composer para uma lista mínima e estável.
+     *
+     * Entradas sem `name` ou remote ID textual são descartadas porque não
+     * fornecem proveniência identificável.
+     *
+     * @param mixed $rawSources Valor bruto de `sources` no advisory.
+     * @return list<array{name:string,remote_id:string}> Fontes válidas preservadas na ordem original.
+     */
     private static function normalizeSources(mixed $rawSources): array
     {
         if (!is_array($rawSources)) {
             return [];
         }
 
+        /** @var list<array{name:string,remote_id:string}> $sources */
         $sources = [];
         foreach ($rawSources as $source) {
             if (!is_array($source)) {
@@ -201,11 +239,17 @@ final class ComposerAuditParser
         return $sources;
     }
 
-    /** @param list<array{name:string,remote_id:string}> $sources
-     *  @return list<string>
+    /**
+     * Deriva aliases diferentes do ID principal a partir de CVE e fontes remotas.
+     *
+     * @param string $advisoryId ID escolhido como regra principal do finding.
+     * @param string|null $cve CVE informado diretamente pelo Composer, quando existe.
+     * @param list<array{name:string,remote_id:string}> $sources Fontes normalizadas do advisory.
+     * @return list<string> Aliases únicos sem repetir o ID principal.
      */
     private static function aliases(string $advisoryId, ?string $cve, array $sources): array
     {
+        /** @var list<string> $aliases */
         $aliases = [];
         if ($cve !== null && $cve !== $advisoryId) {
             $aliases[] = $cve;
@@ -219,6 +263,12 @@ final class ComposerAuditParser
         return array_values(array_unique($aliases));
     }
 
+    /**
+     * Retorna o primeiro remote ID válido disponível no campo de fontes.
+     *
+     * @param mixed $rawSources Valor bruto recebido do Composer.
+     * @return string|null Primeiro ID remoto normalizado ou null quando não existe.
+     */
     private static function firstRemoteId(mixed $rawSources): ?string
     {
         foreach (self::normalizeSources($rawSources) as $source) {
@@ -228,6 +278,12 @@ final class ComposerAuditParser
         return null;
     }
 
+    /**
+     * Normaliza severidade textual sem inventar classificação quando a fonte usa `none`.
+     *
+     * @param string|null $severity Valor bruto do advisory.
+     * @return string|null Severidade em lowercase ou null para vazio/none.
+     */
     private static function normalizeSeverity(?string $severity): ?string
     {
         if ($severity === null) {
@@ -238,6 +294,12 @@ final class ComposerAuditParser
         return $normalized === '' || $normalized === 'none' ? null : $normalized;
     }
 
+    /**
+     * Seleciona o primeiro valor textual não vazio entre alternativas de payload.
+     *
+     * @param mixed ...$values Valores candidatos em ordem de precedência.
+     * @return string|null Primeiro texto trimado não vazio ou null.
+     */
     private static function firstString(mixed ...$values): ?string
     {
         foreach ($values as $value) {

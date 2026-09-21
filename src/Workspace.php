@@ -12,6 +12,18 @@ declare(strict_types=1);
  */
 final class Workspace
 {
+    /**
+     * Resolve o workspace determinístico de um projeto sem escrever no consumidor.
+     *
+     * `NINFA_WORKSPACE_ROOT` pode apontar para base absoluta ou relativa. Bases
+     * relativas são ancoradas no diretório atual; bases iguais ou internas à
+     * raiz do consumidor são rejeitadas. O identificador final usa os primeiros
+     * 16 caracteres do SHA-256 da raiz real do projeto.
+     *
+     * @param string $projectRoot Raiz informada para o projeto consumidor.
+     * @return self Workspace criado/validado para esse projeto.
+     * @throws RuntimeException Quando não é possível resolver cwd ou a base fica dentro do consumidor.
+     */
     public static function forProject(string $projectRoot): self
     {
         $realProjectRoot = realpath($projectRoot) ?: $projectRoot;
@@ -20,6 +32,7 @@ final class Workspace
             $base = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'ninfa';
         }
 
+        // Base relativa precisa ser estabilizada antes da verificação de isolamento.
         if (!str_starts_with($base, DIRECTORY_SEPARATOR)) {
             $cwd = getcwd();
             if ($cwd === false) {
@@ -30,6 +43,8 @@ final class Workspace
 
         $project = rtrim($realProjectRoot, DIRECTORY_SEPARATOR);
         $base = rtrim($base, DIRECTORY_SEPARATOR);
+
+        // Artefatos do Ninfa não podem ser materializados dentro do repositório analisado.
         if ($base === $project || str_starts_with($base, $project . DIRECTORY_SEPARATOR)) {
             throw new RuntimeException('NINFA_WORKSPACE_ROOT não pode ficar dentro do projeto consumidor.');
         }
@@ -38,6 +53,12 @@ final class Workspace
         return new self($base . DIRECTORY_SEPARATOR . $id);
     }
 
+    /**
+     * Materializa o diretório de workspace quando ele ainda não existe.
+     *
+     * @param string $path Caminho absoluto/normalizado resolvido por `forProject()` ou teste.
+     * @throws RuntimeException Quando a criação do diretório falha.
+     */
     public function __construct(private readonly string $path)
     {
         if (!is_dir($this->path) && !mkdir($this->path, 0775, true) && !is_dir($this->path)) {
@@ -45,11 +66,23 @@ final class Workspace
         }
     }
 
+    /**
+     * Retorna o diretório raiz do workspace associado ao projeto.
+     */
     public function path(): string
     {
         return $this->path;
     }
 
+    /**
+     * Monta um caminho filho dentro do workspace sem criar o arquivo solicitado.
+     *
+     * A barra inicial do nome é removida para impedir que concatenação transforme
+     * o argumento em path absoluto e descarte a raiz do workspace.
+     *
+     * @param string $name Nome/path relativo do artefato.
+     * @return string Caminho resultante dentro do workspace.
+     */
     public function file(string $name): string
     {
         return $this->path . DIRECTORY_SEPARATOR . ltrim($name, DIRECTORY_SEPARATOR);

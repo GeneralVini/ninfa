@@ -44,7 +44,7 @@ Para shell, a mesma premissa vale em outra sintaxe: cabeçalho do arquivo, funç
 
 Para JavaScript próprio do Ninfa, quando existir, módulos e funções devem usar JSDoc com responsabilidade, tipos úteis, efeitos em DOM/rede/estado e eventos consumidos/emitidos. Estruturas complexas devem usar typedefs/shapes em vez de `Object` genérico quando o formato for conhecido.
 
-A suíte pode manter temporariamente uma lista explícita de dívida documental para arquivos antigos ainda não migrados para o padrão estrito. Essa lista é uma fila de migração, não uma exceção arquitetural: arquivo novo não pode entrar nela, e a Etapa 2.5 só fecha quando ela estiver vazia.
+A suíte não mantém mais exceção/allowlist para `src/`: todos os arquivos de produção desse diretório estão sujeitos ao mesmo padrão estrito. Arquivo novo entra automaticamente nas verificações de documentação e não existe mecanismo previsto para registrar nova dívida como exceção permanente.
 
 ## Fluxo executável atual
 
@@ -260,7 +260,7 @@ Consulta OSV para packages Composer resolvidos. A implementação atual:
 - ignora registros retirados (`withdrawn`);
 - produz `Finding` `sca-advisory` correlacionado ao componente do inventário.
 
-`OsvClient` é o primeiro arquivo de produção migrado para o padrão documental estrito da Etapa 2.5: métodos públicos e privados descrevem contrato, efeitos, exceções e invariantes; acumuladores e coleções internas relevantes registram shapes/tipos com `@var`.
+`OsvClient` foi o primeiro arquivo usado como referência do padrão documental estrito da Etapa 2.5. O mesmo nível de documentação agora se aplica a **todos os arquivos de `src/`**, incluindo métodos públicos/privados, contratos de collections/shapes e comentários de decisão/invariante.
 
 O cliente não faz deduplicação entre Composer Audit e OSV; essa responsabilidade fica fora dele.
 
@@ -315,31 +315,32 @@ Blocos de controle devem ser comentados quando expressam uma decisão de negóci
 
 Para scripts PHP executáveis, o cabeçalho continua obrigatório, mas também são exigidos PHPDoc nas funções nomeadas e comentários nos blocos semânticos relevantes do fluxo principal.
 
-Para shell scripts, os comentários iniciais registram finalidade, variáveis de ambiente lidas, efeitos externos e condições de falha. Além disso, funções e blocos semânticos (`if`, `case`, loops de política/fallback) devem ter comentários locais que expliquem o motivo da decisão, especialmente em validações de segurança, precedência de ferramentas e operações externas.
+Para shell scripts, os comentários iniciais registram finalidade, variáveis de ambiente lidas, efeitos externos e condições de falha. Além disso, funções e blocos semânticos (`if`, `case`, loops de política/fallback) devem ter comentários locais que expliquem o motivo da decisão, especialmente em validações de segurança, precedência de ferramentas e operações externas. `tests/shell-docs.php` percorre recursivamente os scripts versionados e protege esse contrato.
 
-Para JavaScript próprio do Ninfa, quando existir, o cabeçalho do módulo e cada função nomeada devem registrar responsabilidade e tipos úteis via JSDoc. Efeitos sobre DOM/rede/estado e eventos emitidos/consumidos devem ser explícitos. Hoje não há arquivo `.js` próprio versionado no repositório.
+Para JavaScript próprio do Ninfa, quando existir, o cabeçalho do módulo e cada função nomeada devem registrar responsabilidade e tipos úteis via JSDoc. Efeitos sobre DOM/rede/estado e eventos emitidos/consumidos devem ser explícitos. Hoje não há arquivo `.js` próprio versionado no repositório, mas `tests/internal-docs.php` já aplica o requisito mínimo automaticamente quando um módulo aparecer.
 
-## Migração para o padrão estrito
+## Padrão estrito aplicado
 
-O guard `tests/internal-docs.php` possui duas responsabilidades distintas:
+`tests/internal-docs.php` aplica o padrão documental a **todo `src/*.php`**, sem allowlist. O guard verifica presença de PHPDoc narrativo em classes e métodos/funções nomeadas, exige tipos genéricos/shapes quando uma assinatura PHP usa `array`, exige `@var` próximo de acumuladores inicializados como arrays vazios e sinaliza arquivos com fluxo de controle relevante sem comentário local de decisão/invariante.
 
-- impedir que arquivos novos de produção nasçam abaixo do padrão estrito;
-- tornar explícita a dívida dos arquivos antigos ainda não migrados.
+`src/OsvClient.php` foi a referência inicial para calibrar o nível de detalhe, mas não possui exceção especial. `PipelineRunner`, `SecurityInventory`, `ProjectContext`, parsers, modelos de resultado, detectores, geradores e utilitários seguem a mesma premissa.
 
-Arquivos legados podem aparecer temporariamente em uma allowlist de dívida documental. Remover um arquivo dessa lista significa que suas classes, métodos/funções e tipos compostos relevantes foram revisados. A lista só pode diminuir; adicionar um arquivo novo a ela contradiz a premissa desta etapa.
+`tests/shell-docs.php` protege todos os `.sh` versionados em `scripts/` e `tests/`. O guard de PHP também prepara a regra de JSDoc para futuros `.js`, `.mjs` e `.cjs` próprios do Ninfa.
 
-`src/OsvClient.php` é a referência inicial do padrão estrito. Os demais arquivos de `src/` devem ser migrados progressivamente antes de a Etapa 2.5 ser considerada encerrada.
+Não existe allowlist de dívida documental em `src/`. Se um arquivo novo ou alterado não atender o padrão, a suíte deve falhar em vez de registrar uma nova exceção.
 
-## Critério de conclusão da Etapa 2.5
+## Conclusão da Etapa 2.5
 
-A etapa só deve ser marcada como concluída quando:
+A Etapa 2.5 está concluída com os seguintes critérios atendidos:
 
-1. todas as classes, métodos e funções nomeadas de produção tiverem documentação factual junto ao código;
-2. arrays/coleções/estruturas compostas tiverem tipos genéricos ou shapes quando a assinatura nativa perder informação;
-3. acumuladores e estruturas locais relevantes tiverem `@var` quando necessário para preservar tipo/semântica;
-4. scripts PHP e shell tiverem documentação interna em funções e blocos semânticos, não apenas cabeçalhos;
-5. futuros módulos JavaScript estiverem sujeitos ao mesmo princípio por JSDoc;
-6. o mapa deste documento estiver consistente com a implementação;
-7. a suíte impedir regressão do padrão estrito para arquivos novos e migrados;
-8. a allowlist de dívida documental estiver vazia;
-9. a documentação for atualizada no mesmo commit quando a responsabilidade de um componente mudar.
+1. classes, métodos e funções nomeadas de produção possuem documentação factual junto ao código;
+2. arrays/coleções/estruturas compostas preservam genéricos ou shapes quando a assinatura nativa perde informação;
+3. acumuladores e estruturas locais relevantes usam `@var` quando necessário para preservar tipo/semântica;
+4. scripts PHP e shell possuem documentação interna em funções e blocos semânticos, não apenas cabeçalhos;
+5. futuros módulos JavaScript estão sujeitos ao mesmo princípio por JSDoc;
+6. este mapa foi revisado contra a implementação após a migração completa;
+7. a suíte impede regressão do padrão estrito;
+8. a allowlist de dívida documental foi eliminada;
+9. a documentação continua sendo atualizada no mesmo commit quando a responsabilidade de um componente muda.
+
+Com essa fundação encerrada, o roadmap volta para a Etapa 3 — SAST estruturado.

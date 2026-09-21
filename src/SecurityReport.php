@@ -19,6 +19,13 @@ require_once __DIR__ . '/ScaFindingDeduplicator.php';
  */
 final class SecurityReport implements JsonSerializable
 {
+    /**
+     * Associa inventário e resultado de uma execução `security` já finalizada.
+     *
+     * @param SecurityInventory $inventory Inventário usado pelas fontes SCA dessa execução.
+     * @param RunResult $runResult Resultado consolidado que deve pertencer à operação security.
+     * @throws InvalidArgumentException Quando o RunResult pertence a outra operação.
+     */
     public function __construct(
         private readonly SecurityInventory $inventory,
         private readonly RunResult $runResult,
@@ -28,15 +35,28 @@ final class SecurityReport implements JsonSerializable
         }
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * Materializa o schema 1 do relatório sem executar novas consultas/scanners.
+     *
+     * Apenas resultados de `composer-audit` e `osv` alimentam a seção SCA nesta
+     * versão. Advisories são separados de policy findings e deduplicados depois
+     * de toda a coleta para preservar source findings auditáveis.
+     *
+     * @return array<string,mixed> Relatório canônico serializável da execução security.
+     */
     public function jsonSerialize(): array
     {
+        /** @var list<string> $scaToolIds Fontes SCA reconhecidas pelo schema atual. */
         $scaToolIds = ['composer-audit', 'osv'];
+        /** @var list<array{id:string,state:string,exit_code:?int,detail:?string,duration_ms:?int}> $sourceResults */
         $sourceResults = [];
+        /** @var list<Finding> $scaFindings Advisories usados na deduplicação canônica. */
         $scaFindings = [];
+        /** @var list<Finding> $policies Findings de política separados de vulnerabilidades. */
         $policies = [];
 
         foreach ($this->runResult->toolResults as $result) {
+            // Ferramentas SAST/auxiliares continuam no RunResult, mas não pertencem à seção SCA schema 1.
             if (!in_array($result->id, $scaToolIds, true)) {
                 continue;
             }
@@ -49,6 +69,7 @@ final class SecurityReport implements JsonSerializable
                 'duration_ms' => $result->durationMs,
             ];
 
+            // Evidence type define a seção; outros tipos futuros não são reclassificados implicitamente.
             foreach ($result->findings as $finding) {
                 if ($finding->evidenceType === 'sca-advisory') {
                     $scaFindings[] = $finding;

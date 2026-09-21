@@ -18,15 +18,31 @@ require_once __DIR__ . '/FrontendDetector.php';
  */
 final class PipelinePlan
 {
+    /**
+     * Cria o planejador com o detector frontend usado para etapas condicionais.
+     *
+     * @param FrontendDetector $frontendDetector Detector reutilizado durante a montagem do plano.
+     */
     public function __construct(private readonly FrontendDetector $frontendDetector = new FrontendDetector())
     {
     }
 
-    /** @return list<array{id:string,mode:string,fixable:bool}> */
+    /**
+     * Monta a sequência de `check` aplicável ao contexto.
+     *
+     * ECS, Rector, PHPStan e Psalm são sempre planejados para profiles suportados.
+     * ESLint e Prettier entram somente quando seus sinais específicos existem; a
+     * etapa de testes é sempre adicionada e poderá ser marcada como não aplicável
+     * posteriormente pelo runner quando não houver comando de teste.
+     *
+     * @param ProjectContext $context Contexto já detectado do projeto consumidor.
+     * @return list<array{id:string,mode:string,fixable:bool}> Hooks em ordem de execução.
+     */
     public function check(ProjectContext $context): array
     {
         $this->assertSupported($context);
 
+        /** @var list<array{id:string,mode:string,fixable:bool}> $hooks */
         $hooks = [
             ['id' => 'ecs', 'mode' => 'check', 'fixable' => true],
             ['id' => 'rector', 'mode' => 'dry-run', 'fixable' => true],
@@ -34,6 +50,7 @@ final class PipelinePlan
             ['id' => 'psalm', 'mode' => 'check', 'fixable' => false],
         ];
 
+        // Frontend é opcional e só entra quando o consumidor fornece sinais concretos.
         if ($this->frontendDetector->hasEslint($context->root())) {
             $hooks[] = ['id' => 'eslint', 'mode' => 'check', 'fixable' => true];
         }
@@ -46,7 +63,16 @@ final class PipelinePlan
         return $hooks;
     }
 
-    /** @return list<array{id:string,mode:string,fixable:bool}> */
+    /**
+     * Deriva o plano de `fix` exclusivamente das etapas corrigíveis do `check`.
+     *
+     * A derivação evita manter duas listas divergentes: cada hook corrigível
+     * preserva o mesmo `id` e passa a usar modo `fix`. O recheck posterior não
+     * pertence a este plano; é responsabilidade de RecheckingPipelineRunner.
+     *
+     * @param ProjectContext $context Contexto usado para obter o mesmo conjunto de hooks do check.
+     * @return list<array{id:string,mode:string,fixable:bool}> Hooks mutadores em ordem estável.
+     */
     public function fix(ProjectContext $context): array
     {
         return array_map(
@@ -62,7 +88,15 @@ final class PipelinePlan
         );
     }
 
-    /** @return list<array{id:string,mode:string}> */
+    /**
+     * Retorna o plano de segurança independente do pipeline de qualidade.
+     *
+     * A ordem atual executa Composer Audit e OSV antes dos scanners SAST para
+     * que inventário/SCA sejam produzidos mesmo quando SAST falhar depois.
+     *
+     * @param ProjectContext $context Contexto cujo profile precisa ser suportado.
+     * @return list<array{id:string,mode:string}> Etapas de segurança em ordem de execução.
+     */
     public function security(ProjectContext $context): array
     {
         $this->assertSupported($context);
@@ -75,7 +109,12 @@ final class PipelinePlan
         ];
     }
 
-    /** @return list<string> */
+    /**
+     * Expõe somente os IDs corrigíveis usados por integrações de hook.
+     *
+     * @param ProjectContext $context Contexto usado para derivar o plano de fix.
+     * @return list<string> Identificadores das etapas corrigíveis em ordem de execução.
+     */
     public function lefthookFixHooks(ProjectContext $context): array
     {
         return array_map(
@@ -84,6 +123,12 @@ final class PipelinePlan
         );
     }
 
+    /**
+     * Impede que um profile desconhecido receba silenciosamente um plano genérico.
+     *
+     * @param ProjectContext $context Contexto cujo identificador de profile será validado.
+     * @throws LogicException Quando o profile não possui pipeline definido pelo Ninfa.
+     */
     private function assertSupported(ProjectContext $context): void
     {
         if (!in_array($context->profile(), ['glpi-plugin', 'yii2', 'yii3', 'php-generic'], true)) {

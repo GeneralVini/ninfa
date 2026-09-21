@@ -18,16 +18,35 @@ require_once __DIR__ . '/ProjectContext.php';
  */
 final class SecurityInventory implements JsonSerializable
 {
-    /** @param array<string,mixed> $data */
+    /**
+     * Armazena o snapshot normalizado já materializado por `fromContext()`.
+     *
+     * @param array<string,mixed> $data Estrutura canônica do inventário desta execução.
+     */
     private function __construct(private readonly array $data)
     {
     }
 
+    /**
+     * Constrói o inventário SCA a partir de fatos locais do projeto e do runtime.
+     *
+     * `composer.lock` prevalece sobre `installed.json` para versões resolvidas.
+     * A constraint PHP declarada permanece separada do runtime real. Extensões
+     * requeridas são correlacionadas ao estado carregado, sem tentar mapear
+     * automaticamente extensões PHP para bibliotecas nativas/CVEs.
+     *
+     * @param ProjectContext $context Contexto validado do projeto consumidor.
+     * @return self Inventário imutável pronto para scanners e relatório.
+     * @throws RuntimeException Quando lock/installed JSON presente é inválido.
+     */
     public static function fromContext(ProjectContext $context): self
     {
         $composer = $context->composer();
+        /** @var array<string,string> $directRuntime Dependências runtime diretas declaradas. */
         $directRuntime = self::packageRequirements($composer['require'] ?? []);
+        /** @var array<string,string> $directDev Dependências dev diretas declaradas. */
         $directDev = self::packageRequirements($composer['require-dev'] ?? []);
+        /** @var array{php:?string,extensions:list<array{name:string,constraint:string,dev:bool}>} $platform */
         $platform = self::platformRequirements($composer);
 
         [$packageSource, $packages, $lockMetadata, $installedMetadata] = self::packages(
@@ -36,8 +55,10 @@ final class SecurityInventory implements JsonSerializable
             $directDev,
         );
 
+        /** @var list<string> $loadedExtensions Extensões carregadas no runtime atual. */
         $loadedExtensions = get_loaded_extensions();
         sort($loadedExtensions);
+        /** @var list<array{name:string,version:?string}> $loaded Extensões carregadas com versão observável. */
         $loaded = [];
         foreach ($loadedExtensions as $extension) {
             $version = phpversion($extension);
@@ -47,6 +68,7 @@ final class SecurityInventory implements JsonSerializable
             ];
         }
 
+        /** @var list<array{name:string,constraint:string,dev:bool,installed:bool,installed_version:?string}> $requiredExtensions */
         $requiredExtensions = [];
         foreach ($platform['extensions'] as $requirement) {
             $name = substr($requirement['name'], 4);
@@ -58,6 +80,7 @@ final class SecurityInventory implements JsonSerializable
             ];
         }
 
+        // Contexto do host é separado do inventário do plugin e só existe no profile GLPI.
         $host = null;
         if ($context->profile() === 'glpi-plugin') {
             $host = [
@@ -95,19 +118,32 @@ final class SecurityInventory implements JsonSerializable
         ]);
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * Serializa exatamente o snapshot normalizado do inventário.
+     *
+     * @return array<string,mixed> Estrutura canônica usada no relatório JSON.
+     */
     public function jsonSerialize(): array
     {
         return $this->data;
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * Expõe o inventário como array para adapters que precisam consultar campos específicos.
+     *
+     * @return array<string,mixed> Cópia por valor do array interno do inventário.
+     */
     public function toArray(): array
     {
         return $this->data;
     }
 
-    /** @return array<string,mixed>|null */
+    /**
+     * Localiza um package resolvido pelo nome Composer exato.
+     *
+     * @param string $name Nome `vendor/package` procurado.
+     * @return array<string,mixed>|null Registro normalizado ou null quando ausente/inválido.
+     */
     public function package(string $name): ?array
     {
         $packages = $this->data['composer']['packages'] ?? [];
@@ -124,14 +160,26 @@ final class SecurityInventory implements JsonSerializable
         return null;
     }
 
+    /**
+     * Retorna a fonte usada para obter as versões resolvidas de packages.
+     *
+     * Valores atuais são `composer.lock`, `installed.json` ou `none`; qualquer
+     * estado interno inesperado degrada para `none` em vez de inventar cobertura.
+     */
     public function packageSource(): string
     {
         $source = $this->data['composer']['package_source'] ?? 'none';
         return is_string($source) ? $source : 'none';
     }
 
-    /** @param mixed $requirements
-     *  @return array<string,string>
+    /**
+     * Filtra requisitos Composer para manter somente packages de aplicação/biblioteca.
+     *
+     * `php`, `ext-*` e `lib-*` pertencem ao inventário de plataforma e são
+     * excluídos daqui. Apenas constraint textual é preservada.
+     *
+     * @param mixed $requirements Valor bruto de `require` ou `require-dev`.
+     * @return array<string,string> Mapa ordenado `package => constraint`.
      */
     private static function packageRequirements(mixed $requirements): array
     {
@@ -139,6 +187,7 @@ final class SecurityInventory implements JsonSerializable
             return [];
         }
 
+        /** @var array<string,string> $packages Dependências Composer não-plataforma. */
         $packages = [];
         foreach ($requirements as $name => $constraint) {
             if (!is_string($name) || !is_string($constraint)) {
@@ -153,12 +202,20 @@ final class SecurityInventory implements JsonSerializable
         return $packages;
     }
 
-    /** @param array<string,mixed> $composer
-     *  @return array{php:?string,extensions:list<array{name:string,constraint:string,dev:bool}>}
+    /**
+     * Extrai constraint PHP e extensões declaradas nos dois escopos Composer.
+     *
+     * A constraint PHP considerada é somente a de `require`, pois `require-dev`
+     * não representa o contrato runtime da aplicação. Extensões preservam flag
+     * `dev` para permitir interpretação posterior de cobertura.
+     *
+     * @param array<string,mixed> $composer composer.json decodificado.
+     * @return array{php:?string,extensions:list<array{name:string,constraint:string,dev:bool}>} Plataforma declarada.
      */
     private static function platformRequirements(array $composer): array
     {
         $php = null;
+        /** @var list<array{name:string,constraint:string,dev:bool}> $extensions */
         $extensions = [];
         foreach ([['key' => 'require', 'dev' => false], ['key' => 'require-dev', 'dev' => true]] as $scope) {
             $requirements = $composer[$scope['key']] ?? [];
@@ -188,20 +245,32 @@ final class SecurityInventory implements JsonSerializable
     }
 
     /**
-     * @param array<string,string> $directRuntime
-     * @param array<string,string> $directDev
-     * @return array{0:string,1:list<array<string,mixed>>,2:array<string,mixed>,3:array<string,mixed>}
+     * Resolve packages instalados aplicando precedência lock > installed.json > nenhum.
+     *
+     * Metadata registra presença dos dois arquivos e se `installed.json` foi
+     * efetivamente usado como fallback. O lock mantém separação natural entre
+     * `packages` runtime e `packages-dev`; installed.json pode deixar escopo
+     * transitive como `unknown` quando não há declaração direta suficiente.
+     *
+     * @param string $root Raiz do projeto consumidor.
+     * @param array<string,string> $directRuntime Dependências runtime diretas declaradas.
+     * @param array<string,string> $directDev Dependências dev diretas declaradas.
+     * @return array{0:string,1:list<array<string,mixed>>,2:array<string,mixed>,3:array<string,mixed>} Fonte, packages e metadata dos arquivos.
      */
     private static function packages(string $root, array $directRuntime, array $directDev): array
     {
         $lockFile = $root . '/composer.lock';
         $installedFile = $root . '/vendor/composer/installed.json';
+        /** @var array<string,mixed> $lockMetadata */
         $lockMetadata = ['present' => is_file($lockFile), 'content_hash' => null];
+        /** @var array<string,mixed> $installedMetadata */
         $installedMetadata = ['present' => is_file($installedFile), 'used_as_fallback' => false];
 
+        // composer.lock é a fonte reproduzível preferida de versões resolvidas.
         if (is_file($lockFile)) {
             $lock = self::readJson($lockFile, 'composer.lock');
             $lockMetadata['content_hash'] = is_string($lock['content-hash'] ?? null) ? $lock['content-hash'] : null;
+            /** @var list<array<string,mixed>> $packages */
             $packages = [
                 ...self::normalizePackages($lock['packages'] ?? [], false, $directRuntime, $directDev),
                 ...self::normalizePackages($lock['packages-dev'] ?? [], true, $directRuntime, $directDev),
@@ -210,9 +279,11 @@ final class SecurityInventory implements JsonSerializable
             return ['composer.lock', $packages, $lockMetadata, $installedMetadata];
         }
 
+        // installed.json só entra quando não existe lock; não deve sobrepor resolução reproduzível.
         if (is_file($installedFile)) {
             $installed = self::readJson($installedFile, 'vendor/composer/installed.json');
             $rawPackages = array_is_list($installed) ? $installed : ($installed['packages'] ?? []);
+            /** @var list<array<string,mixed>> $packages */
             $packages = self::normalizePackages($rawPackages, null, $directRuntime, $directDev);
             self::sortPackages($packages);
             $installedMetadata['used_as_fallback'] = true;
@@ -223,11 +294,18 @@ final class SecurityInventory implements JsonSerializable
     }
 
     /**
-     * @param mixed $rawPackages
-     * @param bool|null $devScope
-     * @param array<string,string> $directRuntime
-     * @param array<string,string> $directDev
-     * @return list<array<string,mixed>>
+     * Converte registros Composer em componentes com relação e escopo normalizados.
+     *
+     * Nome e versão são obrigatórios para um componente útil ao SCA. Directness
+     * vem exclusivamente das declarações do composer.json; escopo usa a seção do
+     * lock quando conhecida e, no fallback installed.json, usa declaração direta
+     * ou `unknown` sem inferir transitividade de runtime/dev.
+     *
+     * @param mixed $rawPackages Lista bruta de packages do lock/installed.json.
+     * @param bool|null $devScope false=runtime, true=dev, null=escopo não fornecido pela fonte.
+     * @param array<string,string> $directRuntime Dependências runtime diretas.
+     * @param array<string,string> $directDev Dependências dev diretas.
+     * @return list<array<string,mixed>> Componentes válidos normalizados.
      */
     private static function normalizePackages(
         mixed $rawPackages,
@@ -239,6 +317,7 @@ final class SecurityInventory implements JsonSerializable
             return [];
         }
 
+        /** @var list<array<string,mixed>> $packages */
         $packages = [];
         foreach ($rawPackages as $package) {
             if (!is_array($package)) {
@@ -274,16 +353,28 @@ final class SecurityInventory implements JsonSerializable
         return $packages;
     }
 
-    /** @param list<array<string,mixed>> $packages */
+    /**
+     * Ordena componentes por nome e escopo para manter inventário determinístico.
+     *
+     * @param list<array<string,mixed>> $packages Lista mutável de componentes normalizados.
+     */
     private static function sortPackages(array &$packages): void
     {
         usort($packages, static fn (array $a, array $b): int => [$a['name'], $a['scope']] <=> [$b['name'], $b['scope']]);
     }
 
-    /** @return array<string,mixed>|list<mixed> */
+    /**
+     * Lê um arquivo JSON estrutural do Composer e converte erro de sintaxe em contexto legível.
+     *
+     * @param string $file Caminho absoluto do arquivo a ler.
+     * @param string $label Rótulo usado na mensagem de erro.
+     * @return array<string,mixed>|list<mixed> Estrutura JSON decodificada como array.
+     * @throws RuntimeException Quando o JSON é inválido ou não decodifica para array.
+     */
     private static function readJson(string $file, string $label): array
     {
         try {
+            /** @var mixed $decoded Conteúdo JSON decodificado. */
             $decoded = json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $error) {
             throw new RuntimeException($label . ' inválido: ' . $error->getMessage(), 0, $error);

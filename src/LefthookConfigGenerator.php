@@ -12,11 +12,22 @@ declare(strict_types=1);
  */
 final class LefthookConfigGenerator
 {
+    /**
+     * Materializa `lefthook.yml` no workspace do contexto informado.
+     *
+     * Os comandos são construídos com caminhos absolutos e argumentos de shell
+     * escapados antes de entrarem no YAML. O método escreve somente no workspace
+     * externo e retorna o caminho do arquivo gerado.
+     *
+     * @param ProjectContext $context Contexto do projeto que fornece raiz e workspace.
+     * @return string Caminho absoluto do `lefthook.yml` gerado.
+     */
     public function generate(ProjectContext $context): string
     {
         $config = $context->workspace()->file('lefthook.yml');
         $ninfa = str_replace('\\', '/', dirname(__DIR__) . '/bin/ninfa');
 
+        // Cada hook chama o CLI externo contra a raiz explícita do consumidor.
         $fixCommand = $this->yamlSingleQuoted(
             'php ' . escapeshellarg($ninfa) . ' fix ' . escapeshellarg($context->root()),
         );
@@ -39,6 +50,15 @@ final class LefthookConfigGenerator
         return $config;
     }
 
+    /**
+     * Escapa uma string para o formato YAML single-quoted.
+     *
+     * Em YAML, aspas simples internas são representadas por duas aspas simples;
+     * essa transformação evita que paths/argumentos quebrem o valor `run`.
+     *
+     * @param string $value Valor já montado para o comando do hook.
+     * @return string Valor seguro delimitado por aspas simples YAML.
+     */
     private function yamlSingleQuoted(string $value): string
     {
         return "'" . str_replace("'", "''", $value) . "'";
