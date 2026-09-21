@@ -261,6 +261,25 @@ make setup
 
 O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos consumidores.
 
+## Acompanhamento da evolução
+
+Este checklist é o quadro rápido de avanço do MVP. Ele deve ser revisado a cada commit relevante; itens só são marcados como concluídos quando a implementação e os testes correspondentes estiverem presentes.
+
+- [x] Consolidar `Finding`, `ToolResult` e `RunResult` como contratos estruturados e serializáveis.
+- [x] Gerar inventário de segurança externo com runtime PHP, extensões e inventário Composer.
+- [x] Estruturar Composer Audit em JSON e normalizar advisories como `Finding` SCA.
+- [ ] Integrar OSV em batch e deduplicar aliases CVE/GHSA/PKSA/OSV.
+- [ ] Normalizar Psalm Taint em `Finding` SAST.
+- [ ] Normalizar Semgrep em `Finding` SAST.
+- [ ] Distinguir explicitamente finding, erro de ferramenta, indisponibilidade, não aplicabilidade e cobertura parcial.
+- [ ] Executar fixtures SAST reais positivas e negativas em CI.
+- [ ] Registrar cobertura efetiva de paths e arquivos analisados.
+- [ ] Formalizar os contratos SAST comuns do Ninfa.
+- [ ] Implementar capabilities + `SecurityContract` para Yii3.
+- [ ] Implementar especializações de segurança para GLPI Plugin 11.
+- [ ] Estabilizar semântica de resultados antes de introduzir quality gates de segurança.
+- [ ] Só então avaliar DAG, scheduler, baseline/new-code e automações mais avançadas.
+
 ## Evolução prevista
 
 A prioridade atual é estabilizar os quatro profiles em projetos reais e amadurecer o **SAST orientado a profile**, com especialização ativa somente para Yii3 e GLPI Plugin 11.
