@@ -343,4 +343,4 @@ A Etapa 2.5 está concluída com os seguintes critérios atendidos:
 8. a allowlist de dívida documental foi eliminada;
 9. a documentação continua sendo atualizada no mesmo commit quando a responsabilidade de um componente muda.
 
-Com essa fundação encerrada, o roadmap volta para a Etapa 3 — SAST estruturado.
+Com a Etapa 3 encerrada, o roadmap avança para contratos SAST e especializações de profile.

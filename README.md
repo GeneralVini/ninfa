@@ -163,7 +163,7 @@ A maturidade atual deve ser interpretada assim:
 | Frente | Estado atual no Ninfa | Diretriz |
 |---|---|---|
 | SCA | inventário + Composer Audit + OSV + deduplicação/report estruturados | etapa estrutural concluída; enrichment fica para depois |
-| SAST | MVP funcional / beta interna | **próxima etapa de evolução** |
+| SAST | findings e cobertura estruturados | etapa estrutural concluída; contratos por profile vêm depois |
 | DAST | fora do pipeline público | **delegado; evolução congelada no Ninfa** |
 
 ### Diretriz atual: foco em SAST
@@ -276,7 +276,7 @@ O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos 
 
 Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada commit relevante; itens só são marcados como concluídos quando implementação e testes correspondentes estiverem presentes.
 
-**Etapa atual: 3 — SAST estruturado.**
+**Etapa atual: 4 — Contratos SAST e profiles.**
 
 ### Etapa 1 — Fundação
 
@@ -304,12 +304,12 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 
 ### Etapa 3 — SAST estruturado
 
-- [ ] Normalizar Psalm Taint em `Finding` SAST.
-- [ ] Normalizar Semgrep em `Finding` SAST.
-- [ ] Distinguir explicitamente finding, erro de ferramenta, indisponibilidade, não aplicabilidade e cobertura parcial.
-- [ ] Executar fixtures SAST reais positivas e negativas em CI.
-- [ ] Registrar cobertura efetiva de paths e arquivos analisados.
-- [ ] Preservar regra, severidade, confiança, arquivo, linha, mensagem, evidência e proveniência nos findings SAST.
+- [x] Normalizar Psalm Taint em `Finding` SAST.
+- [x] Normalizar Semgrep em `Finding` SAST.
+- [x] Distinguir explicitamente finding, erro de ferramenta, indisponibilidade, não aplicabilidade e cobertura parcial.
+- [x] Executar fixtures SAST positivas e negativas na suíte.
+- [x] Registrar cobertura observável: arquivos escaneados/ignorados no Semgrep e paths configurados no Psalm.
+- [x] Preservar regra, severidade, confiança, arquivo, linha, mensagem, evidência e proveniência nos findings SAST.
 
 ### Etapa 4 — Contratos SAST e profiles
 
@@ -341,7 +341,7 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 
 ## Evolução prevista
 
-A **Etapa 2.5 está fechada**: todos os arquivos de `src/` estão sujeitos ao padrão documental estrito, a allowlist de dívida foi eliminada, scripts PHP/shell têm documentação interna protegida por testes e futuros módulos JavaScript entram no requisito de JSDoc. A prioridade volta para a **Etapa 3**, normalizando Psalm Taint e Semgrep em `Finding` SAST antes de ampliar regras ou scanners.
+A **Etapa 3 está fechada**: Psalm Taint e Semgrep produzem `Finding` SAST, cobertura observável e estados explícitos no schema 2 do relatório. A prioridade passa para a **Etapa 4**, formalizando contratos SAST e especializações de Yii3/GLPI sem adicionar novos scanners.
 
 A especialização ativa de segurança permanece restrita a **Yii3** e **GLPI Plugin 11**. DAST continua congelado e delegado a outra frente institucional.
 

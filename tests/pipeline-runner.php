@@ -85,8 +85,19 @@ try {
     ], JSON_THROW_ON_ERROR);
 
     createFakeComposerAudit($projectRoot . '/vendor/bin/composer', $log, $auditJson, 3);
-    createFakeTool($projectRoot . '/vendor/bin/psalm', $log, ['psalm-taint'], 0);
-    createFakeTool($projectRoot . '/vendor/bin/semgrep', $log, ['semgrep'], 4);
+    createFakeTool($projectRoot . '/vendor/bin/psalm', $log, ['psalm-taint'], 0, '[]');
+    $semgrepJson = json_encode([
+        'results' => [[
+            'check_id' => 'ninfa.php.unsafe-unserialize',
+            'path' => $projectRoot . '/src/Example.php',
+            'start' => ['line' => 1],
+            'end' => ['line' => 1],
+            'extra' => ['message' => 'Unsafe unserialize', 'severity' => 'ERROR', 'metadata' => []],
+        ]],
+        'errors' => [],
+        'paths' => ['scanned' => [$projectRoot . '/src/Example.php'], 'skipped' => []],
+    ], JSON_THROW_ON_ERROR);
+    createFakeTool($projectRoot . '/vendor/bin/semgrep', $log, ['semgrep'], 4, $semgrepJson);
 
     $osvFixture = $root . '/osv.json';
     file_put_contents($osvFixture, json_encode([
@@ -134,6 +145,9 @@ try {
     assert(count($report['sca']['vulnerabilities'] ?? []) === 1);
     assert(($report['sca']['vulnerabilities'][0]['canonical_id'] ?? null) === 'CVE-2026-3000');
     assert(count($report['sca']['policies'] ?? []) === 1);
+    assert(($report['schema_version'] ?? null) === 2);
+    assert(count($report['sast']['findings'] ?? []) === 1);
+    assert(($report['sast']['sources'][1]['coverage']['scanned_files'] ?? null) === 1);
 
     unlink($projectRoot . '/composer.lock');
     unlink($projectRoot . '/vendor/bin/psalm');
@@ -148,9 +162,9 @@ try {
 
     assert($partial->exitCode === 1);
     assert((string) file_get_contents($log) === "semgrep\n");
-    assert(str_contains($partial->stdout, 'composer-audit: skipped (nao aplicavel)'));
-    assert(str_contains($partial->stdout, 'osv: skipped (sem packages Composer resolvidos)'));
-    assert(str_contains($partial->stdout, 'psalm-taint: error (codigo 1)'));
+    assert(str_contains($partial->stdout, 'composer-audit: not_applicable (nao aplicavel)'));
+    assert(str_contains($partial->stdout, 'osv: not_applicable (sem packages Composer resolvidos)'));
+    assert(str_contains($partial->stdout, 'psalm-taint: unavailable'));
     assert(str_contains($partial->stdout, 'semgrep: failed (codigo 4)'));
     assert(!str_contains($partial->stdout, 'dast:'));
     assert(str_contains($partial->stderr, 'Ferramenta "psalm" não encontrada'));

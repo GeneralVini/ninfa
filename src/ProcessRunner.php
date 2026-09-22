@@ -88,7 +88,7 @@ final class FindingRenderer
      *
      * Suporta tanto a lista direta de issues quanto payload com chave `issues`.
      * O método preserva type/shortcode como regra e não interpreta categorias de
-     * taint; Psalm Taint será normalizado por contrato SAST próprio na Etapa 3.
+     * taint; Psalm Taint é normalizado pelo parser SAST dedicado.
      *
      * @param string $json Saída JSON integral produzida pelo Psalm.
      * @param string $root Raiz do consumidor usada para relativizar paths.

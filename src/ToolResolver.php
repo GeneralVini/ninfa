@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+/** Indica que uma capability planejada não possui executável disponível. */
+final class ToolUnavailableException extends RuntimeException
+{
+}
+
 /**
  * Localiza o executável usado por cada etapa sem instalar nada no consumidor.
  *
@@ -35,7 +40,7 @@ final class ToolResolver
      * @param string $name Nome do executável sem diretório.
      * @param string $projectRoot Raiz do projeto consumidor usada nos candidatos locais.
      * @return string Caminho executável resolvido.
-     * @throws RuntimeException Quando nenhum candidato ou entrada de PATH é executável.
+     * @throws ToolUnavailableException Quando nenhum candidato ou entrada de PATH é executável.
      */
     public function resolve(string $name, string $projectRoot): string
     {
@@ -69,7 +74,7 @@ final class ToolResolver
             $message .= ' Execute "make security-tools" em ' . $this->ninfaRoot . '.';
         }
 
-        throw new RuntimeException($message);
+        throw new ToolUnavailableException($message);
     }
 
     /**

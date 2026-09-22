@@ -20,11 +20,15 @@ $finding = new Finding(
 
 $ok = ToolResult::completed('phpstan', 0, [$finding], 15);
 $skipped = ToolResult::skipped('test', 'nao aplicavel');
+$notApplicable = ToolResult::notApplicable('composer-audit', 'sem lock');
+$unavailable = ToolResult::unavailable('semgrep', 'binario ausente');
 $run = new RunResult('check', [$ok, $skipped]);
 
 assert($ok->state === ToolResult::OK);
 assert($ok->findings === [$finding]);
 assert($run->findings() === [$finding]);
+assert($notApplicable->exitCode === null);
+assert($unavailable->isFailure());
 
 $data = json_decode(json_encode($run, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
 assert(($data['operation'] ?? null) === 'check');

@@ -9,7 +9,7 @@ require_once __DIR__ . '/ScaFindingDeduplicator.php';
 /**
  * Monta o relatório canônico atual da operação `security`.
  *
- * O schema 1 incorpora o SecurityInventory, registra o estado das fontes SCA,
+ * O schema 2 incorpora o SecurityInventory, registra fontes SCA e SAST,
  * separa findings de advisory e de policy e deduplica vulnerabilidades SCA por
  * meio de ScaFindingDeduplicator. Nesta versão somente `composer-audit` e
  * `osv` são tratados como fontes SCA do relatório.
@@ -36,11 +36,9 @@ final class SecurityReport implements JsonSerializable
     }
 
     /**
-     * Materializa o schema 1 do relatório sem executar novas consultas/scanners.
+     * Materializa o schema 2 do relatório sem executar novas consultas/scanners.
      *
-     * Apenas resultados de `composer-audit` e `osv` alimentam a seção SCA nesta
-     * versão. Advisories são separados de policy findings e deduplicados depois
-     * de toda a coleta para preservar source findings auditáveis.
+     * Composer Audit/OSV alimentam SCA; Psalm Taint/Semgrep alimentam SAST.
      *
      * @return array<string,mixed> Relatório canônico serializável da execução security.
      */
@@ -54,9 +52,29 @@ final class SecurityReport implements JsonSerializable
         $scaFindings = [];
         /** @var list<Finding> $policies Findings de política separados de vulnerabilidades. */
         $policies = [];
+        /** @var list<array<string,mixed>> $sastSources Estado e cobertura dos scanners SAST. */
+        $sastSources = [];
+        /** @var list<Finding> $sastFindings Evidências SAST preservadas sem deduplicação. */
+        $sastFindings = [];
 
         foreach ($this->runResult->toolResults as $result) {
-            // Ferramentas SAST/auxiliares continuam no RunResult, mas não pertencem à seção SCA schema 1.
+            // SAST possui seção própria e nunca é reclassificado como advisory SCA.
+            if (in_array($result->id, ['psalm-taint', 'semgrep'], true)) {
+                $sastSources[] = [
+                    'id' => $result->id,
+                    'state' => $result->state,
+                    'exit_code' => $result->exitCode,
+                    'detail' => $result->detail,
+                    'duration_ms' => $result->durationMs,
+                    'coverage' => $result->coverage,
+                ];
+                foreach ($result->findings as $finding) {
+                    if (is_string($finding->evidenceType) && str_starts_with($finding->evidenceType, 'sast-')) {
+                        $sastFindings[] = $finding;
+                    }
+                }
+                continue;
+            }
             if (!in_array($result->id, $scaToolIds, true)) {
                 continue;
             }
@@ -80,7 +98,7 @@ final class SecurityReport implements JsonSerializable
         }
 
         return [
-            'schema_version' => 1,
+            'schema_version' => 2,
             'generated_at' => gmdate(DATE_ATOM),
             'operation' => 'security',
             'profile' => $this->inventory->toArray()['profile'] ?? null,
@@ -90,6 +108,10 @@ final class SecurityReport implements JsonSerializable
                 'vulnerabilities' => ScaFindingDeduplicator::canonicalize($scaFindings),
                 'policies' => $policies,
                 'source_findings' => $scaFindings,
+            ],
+            'sast' => [
+                'sources' => $sastSources,
+                'findings' => $sastFindings,
             ],
             'run' => [
                 'final_exit_code' => $this->runResult->finalExitCode,

@@ -7,10 +7,10 @@ require_once __DIR__ . '/Finding.php';
 /**
  * Registra o resultado observável de uma única etapa do pipeline.
  *
- * O estado distingue conclusão sem erro (`ok`), conclusão com exit code não
- * zero (`failed`), erro de execução/orquestração (`error`) e etapa não
- * executada (`skipped`). O objeto também preserva duração, detalhe e findings
- * produzidos pela etapa.
+ * O estado distingue conclusão sem erro (`ok`), falha da ferramenta (`failed`),
+ * erro de orquestração (`error`), etapa ignorada (`skipped`), não aplicável,
+ * indisponível e cobertura parcial. O objeto também preserva duração, detalhe,
+ * findings e evidências de cobertura produzidos pela etapa.
  *
  * `completed()` deriva `ok`/`failed` exclusivamente do exit code recebido;
  * políticas de bloqueio ou cobertura ficam fora deste contrato.
@@ -25,14 +25,20 @@ final class ToolResult implements JsonSerializable
     public const ERROR = 'error';
     /** Estado de etapa deliberadamente não executada. */
     public const SKIPPED = 'skipped';
+    /** Etapa conhecida que não se aplica ao contexto. */
+    public const NOT_APPLICABLE = 'not_applicable';
+    /** Capability aplicável cujo executável/recurso não está disponível. */
+    public const UNAVAILABLE = 'unavailable';
+    /** Etapa executada com cobertura explicitamente incompleta. */
+    public const PARTIAL = 'partial';
 
     /**
      * Cria o resultado imutável de uma etapa e valida seu estado/coleção de findings.
      *
-     * `exitCode` é null somente para `skipped`; `ok` exige zero e estados de
-     * falha exigem código diferente de zero. O construtor não infere o estado,
-     * mas rejeita combinações contraditórias. Duração, quando presente, nunca
-     * pode ser negativa.
+     * `exitCode` é null para `skipped` e `not_applicable`; `ok` exige zero e
+     * estados de falha exigem código diferente de zero. O construtor não infere
+     * o estado, mas rejeita combinações contraditórias. Duração, quando presente,
+     * nunca pode ser negativa.
      *
      * @param string $id Identificador da etapa no PipelinePlan.
      * @param string $state Um dos estados públicos definidos nesta classe.
@@ -40,6 +46,7 @@ final class ToolResult implements JsonSerializable
      * @param string|null $detail Contexto adicional para skipped/error.
      * @param list<Finding> $findings Achados normalizados produzidos pela etapa.
      * @param int|null $durationMs Duração observada em milissegundos quando medida.
+     * @param array<string,mixed> $coverage Evidências estruturadas da cobertura observada.
      * @throws InvalidArgumentException Quando id/estado/coleção são inválidos.
      */
     public function __construct(
@@ -49,23 +56,25 @@ final class ToolResult implements JsonSerializable
         public readonly ?string $detail = null,
         public readonly array $findings = [],
         public readonly ?int $durationMs = null,
+        /** @var array<string,mixed> */
+        public readonly array $coverage = [],
     ) {
         if ($this->id === '') {
             throw new InvalidArgumentException('ToolResult exige id.');
         }
-        if (!in_array($this->state, [self::OK, self::FAILED, self::ERROR, self::SKIPPED], true)) {
+        if (!in_array($this->state, [self::OK, self::FAILED, self::ERROR, self::SKIPPED, self::NOT_APPLICABLE, self::UNAVAILABLE, self::PARTIAL], true)) {
             throw new InvalidArgumentException('Estado de ToolResult inválido: ' . $this->state);
         }
-        if ($this->state === self::SKIPPED && $this->exitCode !== null) {
-            throw new InvalidArgumentException('ToolResult skipped não possui exit code.');
+        if (in_array($this->state, [self::SKIPPED, self::NOT_APPLICABLE], true) && $this->exitCode !== null) {
+            throw new InvalidArgumentException('ToolResult não executado não possui exit code.');
         }
-        if ($this->state !== self::SKIPPED && $this->exitCode === null) {
+        if (!in_array($this->state, [self::SKIPPED, self::NOT_APPLICABLE], true) && $this->exitCode === null) {
             throw new InvalidArgumentException('ToolResult executado exige exit code.');
         }
         if ($this->state === self::OK && $this->exitCode !== 0) {
             throw new InvalidArgumentException('ToolResult ok exige exit code 0.');
         }
-        if (in_array($this->state, [self::FAILED, self::ERROR], true) && $this->exitCode === 0) {
+        if (in_array($this->state, [self::FAILED, self::ERROR, self::UNAVAILABLE, self::PARTIAL], true) && $this->exitCode === 0) {
             throw new InvalidArgumentException('ToolResult de falha exige exit code diferente de 0.');
         }
         if ($this->durationMs !== null && $this->durationMs < 0) {
@@ -91,6 +100,32 @@ final class ToolResult implements JsonSerializable
         return new self($id, self::SKIPPED, null, $detail);
     }
 
+    /** Representa uma etapa conhecida que não se aplica ao contexto. */
+    public static function notApplicable(string $id, string $detail): self
+    {
+        return new self($id, self::NOT_APPLICABLE, null, $detail);
+    }
+
+    /** Representa uma capability aplicável sem recurso executável disponível. */
+    public static function unavailable(string $id, string $detail, ?int $durationMs = null): self
+    {
+        return new self($id, self::UNAVAILABLE, 1, $detail, [], $durationMs);
+    }
+
+    /**
+     * Representa scanner concluído sem comprovação de cobertura integral.
+     *
+     * @param string $id Identificador da etapa.
+     * @param string $detail Motivo observável da cobertura parcial.
+     * @param list<Finding> $findings Achados ainda válidos na parte analisada.
+     * @param array<string,mixed> $coverage Evidência de paths/erros do scanner.
+     * @param int|null $durationMs Duração observada.
+     */
+    public static function partial(string $id, string $detail, array $findings, array $coverage, ?int $durationMs = null): self
+    {
+        return new self($id, self::PARTIAL, 1, $detail, $findings, $durationMs, $coverage);
+    }
+
     /**
      * Representa falha de execução/orquestração que impediu conclusão normal da etapa.
      *
@@ -113,8 +148,9 @@ final class ToolResult implements JsonSerializable
      * @param int $exitCode Código retornado pela ferramenta/adapter.
      * @param list<Finding> $findings Achados normalizados preservados com o resultado.
      * @param int|null $durationMs Duração total observada em milissegundos.
+     * @param array<string,mixed> $coverage Evidências estruturadas da cobertura observada.
      */
-    public static function completed(string $id, int $exitCode, array $findings = [], ?int $durationMs = null): self
+    public static function completed(string $id, int $exitCode, array $findings = [], ?int $durationMs = null, array $coverage = []): self
     {
         return new self(
             $id,
@@ -123,6 +159,7 @@ final class ToolResult implements JsonSerializable
             null,
             $findings,
             $durationMs,
+            $coverage,
         );
     }
 
@@ -134,7 +171,7 @@ final class ToolResult implements JsonSerializable
      */
     public function isFailure(): bool
     {
-        return $this->state === self::FAILED || $this->state === self::ERROR;
+        return in_array($this->state, [self::FAILED, self::ERROR, self::UNAVAILABLE, self::PARTIAL], true);
     }
 
     /**
@@ -151,6 +188,7 @@ final class ToolResult implements JsonSerializable
             'detail' => $this->detail,
             'duration_ms' => $this->durationMs,
             'findings' => $this->findings,
+            'coverage' => $this->coverage,
         ];
     }
 }

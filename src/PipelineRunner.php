@@ -11,6 +11,8 @@ require_once __DIR__ . '/SecurityInventory.php';
 require_once __DIR__ . '/ComposerAuditParser.php';
 require_once __DIR__ . '/OsvClient.php';
 require_once __DIR__ . '/SecurityReport.php';
+require_once __DIR__ . '/PsalmTaintParser.php';
+require_once __DIR__ . '/SemgrepParser.php';
 
 /**
  * Orquestra as operações `check`, `fix` e `security` sobre um ProjectContext.
@@ -126,7 +128,7 @@ final class PipelineRunner
                 $packages = $securityInventory->toArray()['composer']['packages'] ?? [];
                 if (!is_array($packages) || $packages === []) {
                     echo CliStyle::warning('! osv: sem packages Composer resolvidos para consulta.') . PHP_EOL;
-                    $results[] = ToolResult::skipped('osv', 'sem packages Composer resolvidos');
+                    $results[] = ToolResult::notApplicable('osv', 'sem packages Composer resolvidos');
                     continue;
                 }
 
@@ -146,6 +148,10 @@ final class PipelineRunner
             // Falha ao resolver/montar comando é erro de etapa, não motivo para abortar o restante do plano.
             try {
                 $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
+            } catch (ToolUnavailableException $error) {
+                fwrite(STDERR, CliStyle::warning('! ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
+                $results[] = ToolResult::unavailable($hook['id'], $error->getMessage(), $this->elapsedMs($started));
+                continue;
             } catch (Throwable $error) {
                 fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
                 $results[] = ToolResult::error($hook['id'], $error->getMessage(), $this->elapsedMs($started));
@@ -154,18 +160,23 @@ final class PipelineRunner
 
             // null significa etapa conhecida mas não aplicável (por exemplo composer-audit sem lock/test sem runner).
             if ($command === null) {
-                $results[] = ToolResult::skipped($hook['id'], 'nao aplicavel');
+                $results[] = ToolResult::notApplicable($hook['id'], 'nao aplicavel');
                 continue;
             }
 
             echo CliStyle::info('[NINFA] ' . $hook['id']) . ' (' . $hook['mode'] . ')' . PHP_EOL;
             $structured = ($operation === 'check' && in_array($hook['id'], ['phpstan', 'psalm'], true))
-                || ($operation === 'security' && $hook['id'] === 'composer-audit');
+                || ($operation === 'security' && in_array($hook['id'], ['composer-audit', 'psalm-taint', 'semgrep'], true));
             /** @var list<Finding> $findings Findings produzidos pela etapa atual quando estruturada. */
             $findings = [];
 
             try {
-                if ($operation === 'security' && $hook['id'] === 'composer-audit') {
+                $toolResult = null;
+                if ($operation === 'security' && in_array($hook['id'], ['psalm-taint', 'semgrep'], true)) {
+                    $toolResult = $this->runSast($hook['id'], $command, $context, $started);
+                    $status = $toolResult->exitCode ?? 1;
+                    $findings = $toolResult->findings;
+                } elseif ($operation === 'security' && $hook['id'] === 'composer-audit') {
                     if (!$securityInventory instanceof SecurityInventory) {
                         throw new LogicException('Inventário de segurança ausente para Composer Audit.');
                     }
@@ -190,11 +201,8 @@ final class PipelineRunner
                     : CliStyle::error('✗ ' . $hook['id'] . ': falhou (codigo ' . $status . ').') . PHP_EOL;
             }
 
-            $results[] = ToolResult::completed(
-                $hook['id'],
-                $status,
-                $findings,
-                $this->elapsedMs($started),
+            $results[] = $toolResult ?? ToolResult::completed(
+                $hook['id'], $status, $findings, $this->elapsedMs($started),
             );
         }
 
@@ -239,6 +247,15 @@ final class PipelineRunner
                 ToolResult::SKIPPED => CliStyle::warning(
                     '! ' . $result->id . ': skipped (' . $result->detail . ')',
                 ),
+                ToolResult::NOT_APPLICABLE => CliStyle::warning(
+                    '! ' . $result->id . ': not_applicable (' . $result->detail . ')',
+                ),
+                ToolResult::UNAVAILABLE => CliStyle::warning(
+                    '! ' . $result->id . ': unavailable (' . $result->detail . ')',
+                ),
+                ToolResult::PARTIAL => CliStyle::warning(
+                    '! ' . $result->id . ': partial (' . $result->detail . ')',
+                ),
                 default => throw new LogicException('Estado de etapa invalido: ' . $result->state),
             };
             echo $line . PHP_EOL;
@@ -265,7 +282,7 @@ final class PipelineRunner
             'rector' => [$this->tool('rector', $context), 'process', '--config', $configs['rector'], '--no-progress-bar', ...($mode === 'dry-run' ? ['--dry-run'] : [])],
             'phpstan' => [$this->tool('phpstan', $context), 'analyse', '--configuration', $configs['phpstan'], '--error-format=json', '--no-progress'],
             'psalm' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--output-format=json', '--no-progress'],
-            'psalm-taint' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--taint-analysis', '--no-progress'],
+            'psalm-taint' => [$this->tool('psalm', $context), '--config=' . $configs['psalm'], '--taint-analysis', '--output-format=json', '--no-progress'],
             'eslint' => [$this->tool('eslint', $context), '.', ...($mode === 'fix' ? ['--fix'] : [])],
             'prettier' => [$this->tool('prettier', $context), $mode === 'fix' ? '--write' : '--check', '.'],
             'test' => $this->testCommand($context),
@@ -400,6 +417,69 @@ final class PipelineRunner
         ) . PHP_EOL;
 
         return [$result->exitCode === 0 ? 1 : $result->exitCode, $findings];
+    }
+
+    /**
+     * Executa um scanner SAST estruturado e preserva findings e cobertura observada.
+     *
+     * @param string $tool `psalm-taint` ou `semgrep`.
+     * @param list<string> $command Comando com saída JSON já configurada.
+     * @param ProjectContext $context Contexto que fornece cwd, paths e raiz.
+     * @param int $started Marca monotônica usada para duração.
+     * @return ToolResult Resultado completo do scanner.
+     */
+    private function runSast(string $tool, array $command, ProjectContext $context, int $started): ToolResult
+    {
+        $process = $this->processRunner->runCaptured($command, $context->root());
+        try {
+            if ($tool === 'psalm-taint') {
+                $findings = PsalmTaintParser::parse($process->stdout, $context->root());
+                $coverage = [
+                    'status' => 'declared',
+                    'requested_paths' => $context->paths(),
+                    'scanned_files' => null,
+                ];
+                /** @var list<mixed> $errors Psalm não fornece coleção separada de erros neste formato. */
+                $errors = [];
+            } else {
+                $parsed = SemgrepParser::parse($process->stdout, $context->root());
+                $findings = $parsed['findings'];
+                $coverage = $parsed['coverage'];
+                $errors = $parsed['errors'];
+            }
+        } catch (JsonException|UnexpectedValueException $error) {
+            if (trim($process->stderr) !== '') {
+                fwrite(STDERR, $process->stderr . PHP_EOL);
+            }
+            throw new RuntimeException($tool . ' não retornou JSON SAST válido: ' . $error->getMessage(), 0, $error);
+        }
+
+        if ($errors !== [] || ($coverage['status'] ?? null) === 'partial') {
+            FindingRenderer::render($findings, false);
+            return ToolResult::partial(
+                $tool,
+                'cobertura parcial ou erros reportados pelo scanner',
+                $findings,
+                $coverage,
+                $this->elapsedMs($started),
+            );
+        }
+        if ($findings === [] && $process->exitCode !== 0) {
+            throw new RuntimeException($tool . ' terminou com código ' . $process->exitCode . ' sem finding estruturado.');
+        }
+        if ($findings === []) {
+            echo CliStyle::success('✓ ' . $tool . ': nenhum finding SAST.') . PHP_EOL;
+        } else {
+            FindingRenderer::render($findings, false);
+            echo CliStyle::error('✗ ' . $tool . ': ' . count($findings) . ' finding(s) SAST.') . PHP_EOL;
+        }
+        return ToolResult::completed(
+            $tool,
+            $findings === [] ? 0 : ($process->exitCode === 0 ? 1 : $process->exitCode),
+            $findings,
+            $this->elapsedMs($started),
+            $coverage,
+        );
     }
 
     /**
@@ -608,6 +688,7 @@ final class PipelineRunner
             $binary,
             '--config', dirname(__DIR__) . '/security/semgrep.yml',
             '--error',
+            '--json',
             '--metrics=off',
             '--exclude', 'vendor',
             '--exclude', 'runtime',

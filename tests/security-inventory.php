@@ -82,11 +82,12 @@ try {
     );
     chmod($composer, 0755);
 
-    foreach (['psalm', 'semgrep'] as $tool) {
-        $path = $projectRoot . '/vendor/bin/' . $tool;
-        file_put_contents($path, "#!/bin/sh\nexit 0\n");
-        chmod($path, 0755);
-    }
+    $psalm = $projectRoot . '/vendor/bin/psalm';
+    file_put_contents($psalm, "#!/bin/sh\nprintf '[]'\nexit 0\n");
+    chmod($psalm, 0755);
+    $semgrep = $projectRoot . '/vendor/bin/semgrep';
+    file_put_contents($semgrep, "#!/bin/sh\nprintf '{\"results\":[],\"errors\":[],\"paths\":{\"scanned\":[],\"skipped\":[]}}'\nexit 0\n");
+    chmod($semgrep, 0755);
 
     $osvFixture = $root . '/osv.json';
     file_put_contents($osvFixture, json_encode([
@@ -122,12 +123,14 @@ try {
     assert(($writtenInventory['composer']['package_source'] ?? null) === 'composer.lock');
 
     $report = json_decode((string) file_get_contents($reportFile), true, 512, JSON_THROW_ON_ERROR);
-    assert(($report['schema_version'] ?? null) === 1);
+    assert(($report['schema_version'] ?? null) === 2);
     assert(($report['profile'] ?? null) === 'php-generic');
     assert(count($report['sca']['sources'] ?? []) === 2);
     assert(($report['sca']['sources'][0]['id'] ?? null) === 'composer-audit');
     assert(($report['sca']['sources'][1]['id'] ?? null) === 'osv');
     assert(($report['sca']['vulnerabilities'] ?? null) === []);
+    assert(count($report['sast']['sources'] ?? []) === 2);
+    assert(($report['sast']['findings'] ?? null) === []);
 
     echo "[OK] SecurityInventory integra Composer Audit, OSV e security-report sem tocar o consumidor.\n";
 } finally {

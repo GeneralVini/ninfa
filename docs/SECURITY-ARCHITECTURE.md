@@ -41,7 +41,7 @@ SecurityReport
 security-report.json
 ```
 
-A próxima etapa é estruturar os resultados SAST antes de ampliar regras ou adicionar scanners.
+Os resultados SAST estão estruturados; a próxima etapa formaliza contratos por profile sem ampliar scanners.
 
 ## Princípio arquitetural SAST
 
@@ -392,16 +392,16 @@ Indisponibilidade de fonte externa não equivale a ausência de vulnerabilidade.
 - deduplicação canônica por aliases.
 - `security-report.json`.
 
-### Etapa 3 — SAST estruturado — atual
+### Etapa 3 — SAST estruturado — concluída
 
-- Psalm Taint → `Finding` SAST.
-- Semgrep → `Finding` SAST.
+- Psalm Taint → `Finding` SAST de dataflow.
+- Semgrep → `Finding` SAST de pattern.
 - estados explícitos de finding/erro/indisponibilidade/não aplicabilidade/cobertura parcial.
-- fixtures reais positivas/negativas em CI.
-- cobertura efetiva de paths/arquivos.
+- fixtures positivas/negativas na suíte.
+- cobertura observável por scanner no `security-report.json` schema 2.
 - regra, severity, confidence, localização, evidência e provenance preservadas.
 
-### Etapa 4 — Contratos SAST e profiles
+### Etapa 4 — Contratos SAST e profiles — atual
 
 - formalizar os doze contratos comuns.
 - capabilities + `SecurityContract` de Yii3.

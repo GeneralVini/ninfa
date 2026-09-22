@@ -38,7 +38,7 @@ As etapas independentes continuam mesmo quando uma delas encontra um bloqueio ou
 | Frente | Estado | Diretriz |
 |---|---|---|
 | SCA | inventário + Composer Audit + OSV + deduplicação/report estruturados | estrutura base concluída; enrichment fica para depois |
-| SAST | MVP funcional / beta interna | próxima prioridade de evolução |
+| SAST | findings e cobertura estruturados | etapa estrutural concluída |
 | DAST | fora do pipeline | delegado; evolução congelada |
 
 O foco do Ninfa passa agora a amadurecer SAST por profile sem transformar o projeto em um agregador indiscriminado de scanners.
@@ -223,14 +223,14 @@ Nesta fase, não será adicionado um terceiro scanner SAST.
 
 ## Prioridades SAST
 
-A Etapa 3 passa a ser a prioridade imediata:
+A Etapa 3 foi concluída com:
 
-1. normalizar Psalm Taint em `Finding`;
-2. normalizar Semgrep em `Finding`;
-3. distinguir finding, erro de ferramenta, indisponibilidade, não aplicabilidade e cobertura parcial;
-4. executar fixtures reais positivas e negativas no CI;
-5. registrar cobertura efetiva de paths/arquivos;
-6. preservar regra, severidade, confiança, arquivo, linha, mensagem, proveniência e tipo de evidência.
+1. Psalm Taint normalizado em `Finding` de dataflow;
+2. Semgrep normalizado em `Finding` de pattern;
+3. finding, erro, indisponibilidade, não aplicabilidade e cobertura parcial distintos;
+4. fixtures positivas e negativas executadas na suíte;
+5. arquivos escaneados/ignorados do Semgrep e paths configurados do Psalm registrados;
+6. regra, severidade, confiança, arquivo, linha, mensagem, proveniência e tipo de evidência preservados.
 
 Depois disso entram os contratos SAST comuns, capabilities/`SecurityContract` de Yii3 e especializações de GLPI Plugin 11.
 
