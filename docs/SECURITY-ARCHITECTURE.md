@@ -398,7 +398,7 @@ Indisponibilidade de fonte externa não equivale a ausência de vulnerabilidade.
 - Semgrep → `Finding` SAST de pattern.
 - estados explícitos de finding/erro/indisponibilidade/não aplicabilidade/cobertura parcial.
 - fixtures positivas/negativas na suíte.
-- cobertura observável por scanner no `security-report.json` schema 2.
+- cobertura observável por scanner e intelligence no `security-report.json` schema 3.
 - regra, severity, confidence, localização, evidência e provenance preservadas.
 
 ### Etapa 4 — Contratos SAST e profiles — concluída
@@ -407,7 +407,7 @@ Indisponibilidade de fonte externa não equivale a ausência de vulnerabilidade.
 - capabilities + `SecurityContract` de Yii3.
 - especializações de GLPI Plugin 11.
 
-### Etapa 5 — Intelligence
+### Etapa 5 — Intelligence — concluída
 
 - EPSS e CISA KEV sobre CVEs canônicos.
 - NVD/exploit evidence somente quando agregarem evidência confiável.

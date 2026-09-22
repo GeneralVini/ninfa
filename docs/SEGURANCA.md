@@ -157,7 +157,7 @@ O relatório canônico SCA contém:
 
 O terminal continua sendo um renderer/feedback operacional; o artefato JSON é a representação estruturada para automação e evolução posterior.
 
-A Etapa 2 da evolução está concluída com inventário, Composer Audit estruturado, OSV batch, deduplicação e `security-report.json`. EPSS, CISA KEV, NVD e evidência de exploit público ficam para a fase de intelligence e não devem ser adicionados como scanners primários agora.
+A Etapa 2 da evolução está concluída com inventário, Composer Audit estruturado, OSV batch, deduplicação e `security-report.json`. EPSS e CISA KEV agora enriquecem CVEs canônicos sem atuar como scanners primários; NVD e evidência de exploit público permanecem posteriores.
 
 GitHub Advisory também não deve entrar como terceiro detector primário apenas para repetir advisories já representados por Composer/OSV. ExploitDB/SearchSploit não é detector primário e só pode enriquecer vulnerabilidades já identificadas.
 

@@ -123,7 +123,7 @@ try {
     assert(($writtenInventory['composer']['package_source'] ?? null) === 'composer.lock');
 
     $report = json_decode((string) file_get_contents($reportFile), true, 512, JSON_THROW_ON_ERROR);
-    assert(($report['schema_version'] ?? null) === 2);
+    assert(($report['schema_version'] ?? null) === 3);
     assert(($report['profile'] ?? null) === 'php-generic');
     assert(count($report['sca']['sources'] ?? []) === 2);
     assert(($report['sca']['sources'][0]['id'] ?? null) === 'composer-audit');

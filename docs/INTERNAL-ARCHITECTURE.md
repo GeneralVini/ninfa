@@ -270,7 +270,7 @@ Agrupa findings SCA que compartilham identificadores. A implementação normaliz
 
 ### `src/SecurityReport.php`
 
-Aceita somente `RunResult` da operação `security`. No schema atual (`schema_version = 1`), inclui inventário, estado das fontes SCA, vulnerabilities deduplicadas, policy findings, source findings e exit code final. Somente `composer-audit` e `osv` são tratados como fontes SCA nessa versão do relatório.
+Aceita somente `RunResult` da operação `security`. No schema atual (`schema_version = 3`), inclui inventário, estado das fontes SCA/SAST/intelligence, vulnerabilities deduplicadas, policy findings, source findings e exit code final.
 
 ## Scripts executáveis
 

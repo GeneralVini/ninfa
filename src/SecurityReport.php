@@ -6,11 +6,12 @@ require_once __DIR__ . '/RunResult.php';
 require_once __DIR__ . '/SecurityInventory.php';
 require_once __DIR__ . '/ScaFindingDeduplicator.php';
 require_once __DIR__ . '/SecurityContract.php';
+require_once __DIR__ . '/VulnerabilityIntelligence.php';
 
 /**
  * Monta o relatório canônico atual da operação `security`.
  *
- * O schema 2 incorpora o SecurityInventory, registra fontes SCA e SAST,
+ * O schema 3 incorpora o SecurityInventory, registra fontes SCA, SAST e intelligence,
  * separa findings de advisory e de policy e deduplica vulnerabilidades SCA por
  * meio de ScaFindingDeduplicator. Nesta versão somente `composer-audit` e
  * `osv` são tratados como fontes SCA do relatório.
@@ -30,6 +31,7 @@ final class SecurityReport implements JsonSerializable
     public function __construct(
         private readonly SecurityInventory $inventory,
         private readonly RunResult $runResult,
+        private readonly VulnerabilityIntelligence $intelligence = new VulnerabilityIntelligence(),
     ) {
         if ($this->runResult->operation !== 'security') {
             throw new InvalidArgumentException('SecurityReport exige RunResult da operação security.');
@@ -37,7 +39,7 @@ final class SecurityReport implements JsonSerializable
     }
 
     /**
-     * Materializa o schema 2 do relatório sem executar novas consultas/scanners.
+     * Materializa o schema 3 do relatório sem executar novas consultas/scanners.
      *
      * Composer Audit/OSV alimentam SCA; Psalm Taint/Semgrep alimentam SAST.
      *
@@ -98,15 +100,16 @@ final class SecurityReport implements JsonSerializable
             }
         }
 
+        $canonical = ScaFindingDeduplicator::canonicalize($scaFindings);
         return [
-            'schema_version' => 2,
+            'schema_version' => 3,
             'generated_at' => gmdate(DATE_ATOM),
             'operation' => 'security',
             'profile' => $this->inventory->toArray()['profile'] ?? null,
             'inventory' => $this->inventory,
             'sca' => [
                 'sources' => $sourceResults,
-                'vulnerabilities' => ScaFindingDeduplicator::canonicalize($scaFindings),
+                'vulnerabilities' => $canonical,
                 'policies' => $policies,
                 'source_findings' => $scaFindings,
             ],
@@ -115,6 +118,7 @@ final class SecurityReport implements JsonSerializable
                 'sources' => $sastSources,
                 'findings' => $sastFindings,
             ],
+            'intelligence' => $this->intelligence->enrich($canonical),
             'run' => [
                 'final_exit_code' => $this->runResult->finalExitCode,
             ],

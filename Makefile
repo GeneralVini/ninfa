@@ -12,6 +12,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/project-context.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/result-contracts.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/security-contract.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/intelligence.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/internal-docs.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/shell-docs.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/security-inventory.php

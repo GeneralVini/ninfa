@@ -164,7 +164,7 @@ try {
         JSON_THROW_ON_ERROR,
     );
 
-    assert(($report['schema_version'] ?? null) === 2);
+    assert(($report['schema_version'] ?? null) === 3);
     assert(count($report['sca']['sources'] ?? []) === 2);
     assert(count($report['sca']['source_findings'] ?? []) === 3);
     assert(count($report['sca']['vulnerabilities'] ?? []) === 2);

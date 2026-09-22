@@ -319,10 +319,10 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 - [x] Implementar especializações de segurança para GLPI Plugin 11.
 - [x] Manter Yii2 e `php-generic` fora de especializações adicionais nesta fase; `php-generic` usa apenas o baseline comum.
 
-### Etapa 5 — Intelligence
+### Etapa 5 — Intelligence — concluída
 
-- [ ] Enriquecer CVEs canônicos com EPSS.
-- [ ] Correlacionar CISA KEV sem transformar KEV em scanner primário.
+- [x] Enriquecer CVEs canônicos com EPSS.
+- [x] Correlacionar CISA KEV sem transformar KEV em scanner primário.
 - [ ] Avaliar NVD e evidência de exploit público somente como enrichment posterior.
 
 ### Etapa 6 — Exposure, prioridade e gates
@@ -341,7 +341,7 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 
 ## Evolução prevista
 
-A **Etapa 3 está fechada**: Psalm Taint e Semgrep produzem `Finding` SAST, cobertura observável e estados explícitos no schema 2 do relatório. A prioridade passa para a **Etapa 4**, formalizando contratos SAST e especializações de Yii3/GLPI sem adicionar novos scanners.
+A **Etapa 5 está fechada**: Psalm Taint e Semgrep produzem `Finding` SAST, contratos por profile estão formalizados e CVEs canônicos recebem enrichment informativo de EPSS/CISA KEV no schema 3. A próxima prioridade é exposição e gates.
 
 A especialização ativa de segurança permanece restrita a **Yii3** e **GLPI Plugin 11**. DAST continua congelado e delegado a outra frente institucional.
 

@@ -145,7 +145,7 @@ try {
     assert(count($report['sca']['vulnerabilities'] ?? []) === 1);
     assert(($report['sca']['vulnerabilities'][0]['canonical_id'] ?? null) === 'CVE-2026-3000');
     assert(count($report['sca']['policies'] ?? []) === 1);
-    assert(($report['schema_version'] ?? null) === 2);
+    assert(($report['schema_version'] ?? null) === 3);
     assert(count($report['sast']['findings'] ?? []) === 1);
     assert(($report['sast']['sources'][1]['coverage']['scanned_files'] ?? null) === 1);
 
