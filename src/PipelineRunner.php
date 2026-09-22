@@ -13,6 +13,7 @@ require_once __DIR__ . '/OsvClient.php';
 require_once __DIR__ . '/SecurityReport.php';
 require_once __DIR__ . '/PsalmTaintParser.php';
 require_once __DIR__ . '/SemgrepParser.php';
+require_once __DIR__ . '/SecurityContract.php';
 
 /**
  * Orquestra as operações `check`, `fix` e `security` sobre um ProjectContext.
@@ -686,7 +687,7 @@ final class PipelineRunner
         /** @var list<string> $command Argumentos Semgrep em ordem de execução. */
         $command = [
             $binary,
-            '--config', dirname(__DIR__) . '/security/semgrep.yml',
+            '--config', dirname(__DIR__) . '/security/semgrep/common.yml',
             '--error',
             '--json',
             '--metrics=off',
@@ -696,6 +697,15 @@ final class PipelineRunner
 
         foreach ($context->paths() as $path) {
             $command[] = $context->root() . '/' . $path;
+        }
+
+        $contract = SecurityContract::forProfile($context->profile());
+        foreach ($contract->semgrepConfigs as $config) {
+            if ($config === 'security/semgrep/common.yml') {
+                continue;
+            }
+            $command[] = '--config';
+            $command[] = dirname(__DIR__) . '/' . $config;
         }
 
         return $command;

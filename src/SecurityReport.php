@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/RunResult.php';
 require_once __DIR__ . '/SecurityInventory.php';
 require_once __DIR__ . '/ScaFindingDeduplicator.php';
+require_once __DIR__ . '/SecurityContract.php';
 
 /**
  * Monta o relatório canônico atual da operação `security`.
@@ -110,6 +111,7 @@ final class SecurityReport implements JsonSerializable
                 'source_findings' => $scaFindings,
             ],
             'sast' => [
+                'contract' => SecurityContract::forProfile((string) ($this->inventory->toArray()['profile'] ?? 'php-generic')),
                 'sources' => $sastSources,
                 'findings' => $sastFindings,
             ],

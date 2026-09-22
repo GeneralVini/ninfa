@@ -313,11 +313,11 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 
 ### Etapa 4 — Contratos SAST e profiles
 
-- [ ] Formalizar os 12 contratos SAST comuns: command injection, SQL injection, XSS, path traversal, file access, SSRF, unsafe redirect, header injection, dynamic include/require, unsafe deserialization, dangerous eval/assert e cryptographic misuse.
-- [ ] Implementar capabilities de segurança para Yii3.
-- [ ] Implementar `SecurityContract` do Yii3 sobre os contratos comuns.
-- [ ] Implementar especializações de segurança para GLPI Plugin 11.
-- [ ] Manter Yii2 e `php-generic` fora de especializações adicionais nesta fase; `php-generic` usa apenas o baseline comum.
+- [x] Formalizar os 12 contratos SAST comuns: command injection, SQL injection, XSS, path traversal, file access, SSRF, unsafe redirect, header injection, dynamic include/require, unsafe deserialization, dangerous eval/assert e cryptographic misuse.
+- [x] Implementar capabilities de segurança para Yii3.
+- [x] Implementar `SecurityContract` do Yii3 sobre os contratos comuns.
+- [x] Implementar especializações de segurança para GLPI Plugin 11.
+- [x] Manter Yii2 e `php-generic` fora de especializações adicionais nesta fase; `php-generic` usa apenas o baseline comum.
 
 ### Etapa 5 — Intelligence
 

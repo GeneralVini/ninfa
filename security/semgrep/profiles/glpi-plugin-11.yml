@@ -1,0 +1,14 @@
+rules:
+  - id: ninfa.glpi11.sql-injection.concatenated-query
+    languages: [php]
+    severity: ERROR
+    message: GLPI DB queries built by concatenation require criteria APIs or quoted values.
+    metadata: {contract: sql-injection, profile: glpi-plugin-11, evidence: MISUSE, confidence: HIGH}
+    pattern: $DB->query($A . $B)
+
+  - id: ninfa.glpi11.unsafe-redirect.dynamic-target
+    languages: [php]
+    severity: WARNING
+    message: GLPI redirects require a trusted local target.
+    metadata: {contract: unsafe-redirect, profile: glpi-plugin-11, evidence: MISUSE, confidence: MEDIUM}
+    pattern: 'Html::redirect($TARGET)'

@@ -401,7 +401,7 @@ Indisponibilidade de fonte externa não equivale a ausência de vulnerabilidade.
 - cobertura observável por scanner no `security-report.json` schema 2.
 - regra, severity, confidence, localização, evidência e provenance preservadas.
 
-### Etapa 4 — Contratos SAST e profiles — atual
+### Etapa 4 — Contratos SAST e profiles — concluída
 
 - formalizar os doze contratos comuns.
 - capabilities + `SecurityContract` de Yii3.

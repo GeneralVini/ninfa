@@ -1,0 +1,14 @@
+rules:
+  - id: ninfa.yii3.sql-injection.concatenated-command
+    languages: [php]
+    severity: ERROR
+    message: Yii DB commands built by concatenation require parameters or bindings.
+    metadata: {contract: sql-injection, profile: yii3, evidence: MISUSE, confidence: HIGH}
+    pattern: $DB->createCommand($A . $B)
+
+  - id: ninfa.yii3.header-injection.dynamic-with-header
+    languages: [php]
+    severity: WARNING
+    message: Dynamic PSR-7 header values require validation against CRLF injection.
+    metadata: {contract: header-injection, profile: yii3, evidence: MISUSE, confidence: MEDIUM}
+    pattern: $RESPONSE->withHeader($NAME, $VALUE)

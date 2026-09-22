@@ -1,0 +1,106 @@
+rules:
+  - id: ninfa.php.command-injection.dangerous-primitive
+    languages: [php]
+    severity: WARNING
+    message: Shell execution is a dangerous primitive; require controlled arguments and escaping.
+    metadata: {contract: command-injection, evidence: DANGEROUS_PRIMITIVE, confidence: MEDIUM}
+    pattern-either:
+      - pattern: exec(...)
+      - pattern: shell_exec(...)
+      - pattern: system(...)
+      - pattern: passthru(...)
+      - pattern: proc_open(...)
+      - pattern: popen(...)
+
+  - id: ninfa.php.sql-injection.concatenated-query
+    languages: [php]
+    severity: WARNING
+    message: SQL assembled by concatenation requires binding or an identifier allowlist.
+    metadata: {contract: sql-injection, evidence: MISUSE, confidence: MEDIUM}
+    pattern-either:
+      - pattern: $DB->query($A . $B)
+      - pattern: $PDO->query($A . $B)
+      - pattern: $PDO->exec($A . $B)
+
+  - id: ninfa.php.xss.unescaped-request-output
+    languages: [php]
+    severity: ERROR
+    message: Direct output of request input can produce cross-site scripting.
+    metadata: {contract: xss, evidence: DATAFLOW, confidence: HIGH}
+    pattern-either:
+      - pattern: echo $_GET[$K];
+      - pattern: echo $_POST[$K];
+      - pattern: print $_REQUEST[$K];
+
+  - id: ninfa.php.path-traversal.request-path
+    languages: [php]
+    severity: ERROR
+    message: A request value is used directly as a filesystem path.
+    metadata: {contract: path-traversal, evidence: DATAFLOW, confidence: HIGH}
+    pattern-either:
+      - pattern: file_get_contents($_GET[$K])
+      - pattern: fopen($_POST[$K], ...)
+
+  - id: ninfa.php.file-access.dynamic-delete
+    languages: [php]
+    severity: WARNING
+    message: Dynamic file deletion requires containment and authorization checks.
+    metadata: {contract: file-access, evidence: DANGEROUS_PRIMITIVE, confidence: MEDIUM}
+    pattern: unlink($PATH)
+
+  - id: ninfa.php.ssrf.request-url
+    languages: [php]
+    severity: ERROR
+    message: A request-controlled URL reaches a network-capable API.
+    metadata: {contract: ssrf, evidence: DATAFLOW, confidence: HIGH}
+    pattern-either:
+      - pattern: curl_init($_GET[$K])
+      - pattern: file_get_contents($_POST[$K])
+
+  - id: ninfa.php.unsafe-redirect.request-location
+    languages: [php]
+    severity: ERROR
+    message: A request-controlled redirect target can enable open redirects.
+    metadata: {contract: unsafe-redirect, evidence: DATAFLOW, confidence: HIGH}
+    pattern: 'header("Location: " . $_GET[$K])'
+
+  - id: ninfa.php.header-injection.dynamic-header
+    languages: [php]
+    severity: WARNING
+    message: Dynamic response headers require CRLF rejection.
+    metadata: {contract: header-injection, evidence: MISUSE, confidence: MEDIUM}
+    pattern: header($VALUE)
+
+  - id: ninfa.php.dynamic-include-require
+    languages: [php]
+    severity: ERROR
+    message: Dynamic include or require requires an explicit allowlist.
+    metadata: {contract: dynamic-include-require, evidence: DANGEROUS_PRIMITIVE, confidence: MEDIUM}
+    pattern-either:
+      - pattern: include $PATH
+      - pattern: include_once $PATH
+      - pattern: require $PATH
+      - pattern: require_once $PATH
+
+  - id: ninfa.php.unsafe-deserialization.unserialize
+    languages: [php]
+    severity: ERROR
+    message: unserialize requires controlled data and restrictive allowed_classes.
+    metadata: {contract: unsafe-deserialization, evidence: DANGEROUS_PRIMITIVE, confidence: MEDIUM}
+    pattern: unserialize(...)
+
+  - id: ninfa.php.dangerous-eval-assert.eval
+    languages: [php]
+    severity: ERROR
+    message: eval executes dynamic PHP and must not process external data.
+    metadata: {contract: dangerous-eval-assert, evidence: DANGEROUS_PRIMITIVE, confidence: HIGH}
+    pattern: eval(...)
+
+  - id: ninfa.php.cryptographic-misuse.weak-password-hash
+    languages: [php]
+    severity: WARNING
+    message: MD5 or SHA-1 must not be used for password hashing.
+    metadata: {contract: cryptographic-misuse, evidence: MISUSE, confidence: MEDIUM}
+    pattern-either:
+      - pattern: md5($PASSWORD)
+      - pattern: sha1($PASSWORD)
