@@ -46,6 +46,29 @@ try {
         assert(str_contains($error->getMessage(), 'não encontrada'));
     }
 
+    $nonExecutable = $projectRoot . '/vendor/bin/ecs';
+    file_put_contents($nonExecutable, "#!/bin/sh\nexit 0\n");
+    chmod($nonExecutable, 0644);
+
+    try {
+        $resolver->resolve('ecs', $projectRoot);
+        assert(false, 'Ferramenta presente sem +x deve falhar com diagnóstico específico.');
+    } catch (ToolUnavailableException $error) {
+        assert(str_contains($error->getMessage(), 'sem permissão de execução'));
+        assert(str_contains($error->getMessage(), 'chmod +x'));
+        assert(str_contains($error->getMessage(), $nonExecutable));
+    }
+
+    chmod($semgrep, 0644);
+    try {
+        $resolver->resolve('semgrep', $projectRoot);
+        assert(false, 'Semgrep local sem +x deve orientar reparo gerenciado.');
+    } catch (ToolUnavailableException $error) {
+        assert(str_contains($error->getMessage(), 'sem permissão de execução'));
+        assert(str_contains($error->getMessage(), 'make security-tools'));
+    }
+    chmod($semgrep, 0755);
+
     try {
         (new ProcessRunner())->run([$root . '/missing-binary'], $projectRoot);
         assert(false, 'Processo inexistente deve falhar sem warning bruto.');
@@ -108,7 +131,7 @@ try {
     assert(is_file($context->workspace()->file('assist/phpstan.json')));
     assert(is_file($context->workspace()->file('assist/psalm.json')));
 
-    echo "[OK] ToolResolver, captura de processo, assist auditável e Lefthook externo integrados.\n";
+    echo "[OK] ToolResolver, diagnóstico de permissão, captura de processo, assist auditável e Lefthook externo integrados.\n";
 } finally {
     if (is_dir($root)) {
         $iterator = new RecursiveIteratorIterator(
