@@ -237,7 +237,7 @@ DAST está **desabilitado no pipeline do Ninfa**. `ninfa security` não executa 
 
 A decisão é de escopo: análise dinâmica é tratada por uma frente especializada externa. O Ninfa mantém o código legado do wrapper apenas como artefato congelado, sem otimização, expansão funcional ou suporte como security gate.
 
-`make security-tools` passa a preparar apenas a ferramenta SAST gerenciada pelo Ninfa (Semgrep). `NINFA_INSTALL_ZAP=1` é ignorado com aviso explícito.
+`make security-tools` passa a preparar apenas a ferramenta SAST gerenciada pelo Ninfa (Semgrep). A preparação valida presença, permissões, execução real e versão homologada; se o launcher ou os binários internos estiverem quebrados, o script informa o comando de reparo e não considera a ferramenta saudável apenas porque o arquivo existe. `NINFA_INSTALL_ZAP=1` continua ignorado com aviso explícito.
 
 ### Interpretação dos resultados de segurança
 
@@ -265,12 +265,14 @@ O configurador existe para diagnóstico e inspeção. Os comandos públicos não
 ## Desenvolvimento do próprio Ninfa
 
 ```bash
+make environment-check
+make security-tools
 make syntax
 make profile-test
 make setup
 ```
 
-O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos consumidores.
+`make environment-check` valida o ambiente do próprio Ninfa — PHP, Git, Python, arquivos internos e permissões dos entrypoints — sem instalar ou alterar ferramentas no projeto consumidor. Quando encontra uma falha conhecida, informa o comando de correção; montagens `noexec` são diagnosticadas separadamente. `make setup` executa esse diagnóstico antes de preparar o Semgrep e rodar a suíte. O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos consumidores.
 
 ## Acompanhamento da evolução
 
