@@ -1,6 +1,9 @@
-.PHONY: setup syntax profile-test security-tools
+.PHONY: setup environment-check syntax profile-test security-tools
 
-setup: security-tools syntax profile-test
+setup: environment-check security-tools syntax profile-test
+
+environment-check:
+	bash scripts/check-environment.sh
 
 security-tools:
 	bash scripts/install-security-tools.sh
