@@ -108,6 +108,7 @@ final class SemgrepParser
             }
         }
 
+        /** @var list<string> $reasonParts Fragmentos textuais usados para classificar o motivo do skip. */
         $reasonParts = [];
         foreach (['reason', 'details'] as $key) {
             $value = $skip[$key] ?? null;
