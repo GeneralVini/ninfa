@@ -1,14 +1,67 @@
 rules:
+  - id: ninfa.glpi11.sql-injection.request-to-query
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Entrada HTTP alcança consulta direta do DB GLPI; use criteria APIs ou quoting/binding apropriado.
+    metadata: {contract: sql-injection, profile: glpi-plugin-11, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sinks:
+      - pattern: $DB->query($SQL)
+      - pattern: $DB->request($SQL)
+
   - id: ninfa.glpi11.sql-injection.concatenated-query
     languages: [php]
-    severity: ERROR
-    message: GLPI DB queries built by concatenation require criteria APIs or quoted values.
-    metadata: {contract: sql-injection, profile: glpi-plugin-11, evidence: MISUSE, confidence: HIGH}
+    severity: WARNING
+    message: Consulta GLPI construída por concatenação exige criteria API, quoteValue ou binding equivalente.
+    metadata: {contract: sql-injection, profile: glpi-plugin-11, evidence: MISUSE, confidence: MEDIUM}
     pattern: $DB->query($A . $B)
+
+  - id: ninfa.glpi11.unsafe-redirect.request-target
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Destino de Html::redirect controlado pela requisição deve ser local ou validado por política explícita.
+    metadata: {contract: unsafe-redirect, profile: glpi-plugin-11, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sinks:
+      - pattern: Html::redirect($TARGET)
 
   - id: ninfa.glpi11.unsafe-redirect.dynamic-target
     languages: [php]
     severity: WARNING
-    message: GLPI redirects require a trusted local target.
+    message: Redirect GLPI dinâmico exige revisão do destino mesmo sem fluxo externo comprovado.
     metadata: {contract: unsafe-redirect, profile: glpi-plugin-11, evidence: MISUSE, confidence: MEDIUM}
-    pattern: 'Html::redirect($TARGET)'
+    pattern: Html::redirect($TARGET)
+
+  - id: ninfa.glpi11.ssrf.request-to-url-content
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: URL controlada pela requisição alcança Toolbox::getURLContent; aplique política explícita de esquema, host e destino.
+    metadata: {contract: ssrf, profile: glpi-plugin-11, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sinks:
+      - pattern: Toolbox::getURLContent($URL, ...)
+
+  - id: ninfa.glpi11.file-access.request-to-file-content
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Caminho controlado pela requisição alcança Toolbox::getFileContent; valide origem, base e containment.
+    metadata: {contract: file-access, profile: glpi-plugin-11, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sinks:
+      - pattern: Toolbox::getFileContent($PATH, ...)
