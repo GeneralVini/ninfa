@@ -1,8 +1,29 @@
 rules:
+  - id: ninfa.php.command-injection.request-to-shell
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Entrada HTTP alcança execução de shell; remova o shell ou restrinja a operação e os argumentos.
+    metadata: {contract: command-injection, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sanitizers:
+      - pattern: escapeshellarg(...)
+      - pattern: escapeshellcmd(...)
+    pattern-sinks:
+      - pattern: exec($CMD)
+      - pattern: shell_exec($CMD)
+      - pattern: system($CMD)
+      - pattern: passthru($CMD)
+      - pattern: proc_open($CMD, ...)
+      - pattern: popen($CMD, ...)
+
   - id: ninfa.php.command-injection.dangerous-primitive
     languages: [php]
     severity: WARNING
-    message: Shell execution is a dangerous primitive; require controlled arguments and escaping.
+    message: Execução de shell exige revisão mesmo sem fluxo externo comprovado.
     metadata: {contract: command-injection, evidence: DANGEROUS_PRIMITIVE, confidence: MEDIUM}
     pattern-either:
       - pattern: exec(...)
@@ -12,94 +33,138 @@ rules:
       - pattern: proc_open(...)
       - pattern: popen(...)
 
-  - id: ninfa.php.sql-injection.concatenated-query
+  - id: ninfa.php.sql-injection.request-to-query
     languages: [php]
-    severity: WARNING
-    message: SQL assembled by concatenation requires binding or an identifier allowlist.
-    metadata: {contract: sql-injection, evidence: MISUSE, confidence: MEDIUM}
-    pattern-either:
-      - pattern: $DB->query($A . $B)
-      - pattern: $PDO->query($A . $B)
-      - pattern: $PDO->exec($A . $B)
-
-  - id: ninfa.php.xss.unescaped-request-output
-    languages: [php]
+    mode: taint
     severity: ERROR
-    message: Direct output of request input can produce cross-site scripting.
+    message: Entrada HTTP alcança SQL executado diretamente; use prepared statements e parâmetros vinculados.
+    metadata: {contract: sql-injection, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sinks:
+      - pattern: $PDO->query($SQL)
+      - pattern: $PDO->exec($SQL)
+      - pattern: mysqli_query($CONNECTION, $SQL)
+
+  - id: ninfa.php.xss.request-to-output
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Entrada HTTP alcança saída HTML sem encoding contextual comprovado.
     metadata: {contract: xss, evidence: DATAFLOW, confidence: HIGH}
-    pattern-either:
-      - pattern: echo $_GET[$K];
-      - pattern: echo $_POST[$K];
-      - pattern: print $_REQUEST[$K];
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sanitizers:
+      - pattern: htmlspecialchars(...)
+      - pattern: htmlentities(...)
+    pattern-sinks:
+      - pattern: echo $VALUE;
+      - pattern: print $VALUE;
 
-  - id: ninfa.php.path-traversal.request-path
+  - id: ninfa.php.path-traversal.request-to-filesystem
     languages: [php]
+    mode: taint
     severity: ERROR
-    message: A request value is used directly as a filesystem path.
+    message: Entrada HTTP alcança operação de filesystem; valide base, normalização e containment do caminho.
     metadata: {contract: path-traversal, evidence: DATAFLOW, confidence: HIGH}
-    pattern-either:
-      - pattern: file_get_contents($_GET[$K])
-      - pattern: fopen($_POST[$K], ...)
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+      - pattern: $_FILES[$K]["name"]
+    pattern-sinks:
+      - pattern: file_get_contents($PATH)
+      - pattern: file_put_contents($PATH, ...)
+      - pattern: fopen($PATH, ...)
+      - pattern: unlink($PATH)
+      - pattern: rename($PATH, ...)
+      - pattern: copy($PATH, ...)
 
   - id: ninfa.php.file-access.dynamic-delete
     languages: [php]
     severity: WARNING
-    message: Dynamic file deletion requires containment and authorization checks.
+    message: Exclusão dinâmica de arquivo exige containment e autorização explícitos.
     metadata: {contract: file-access, evidence: DANGEROUS_PRIMITIVE, confidence: MEDIUM}
     pattern: unlink($PATH)
 
-  - id: ninfa.php.ssrf.request-url
+  - id: ninfa.php.ssrf.request-to-curl
     languages: [php]
+    mode: taint
     severity: ERROR
-    message: A request-controlled URL reaches a network-capable API.
+    message: URL controlada pela requisição alcança cURL; aplique allowlist de esquema, host e destino.
     metadata: {contract: ssrf, evidence: DATAFLOW, confidence: HIGH}
-    pattern-either:
-      - pattern: curl_init($_GET[$K])
-      - pattern: file_get_contents($_POST[$K])
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sinks:
+      - pattern: curl_init($URL)
+      - pattern: curl_setopt($CURL, CURLOPT_URL, $URL)
 
   - id: ninfa.php.unsafe-redirect.request-location
     languages: [php]
+    mode: taint
     severity: ERROR
-    message: A request-controlled redirect target can enable open redirects.
+    message: Destino de redirect controlado pela requisição pode permitir open redirect.
     metadata: {contract: unsafe-redirect, evidence: DATAFLOW, confidence: HIGH}
-    pattern: 'header("Location: " . $_GET[$K])'
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sinks:
+      - pattern: header("Location: " . $TARGET)
 
-  - id: ninfa.php.header-injection.dynamic-header
+  - id: ninfa.php.header-injection.request-to-header
     languages: [php]
-    severity: WARNING
-    message: Dynamic response headers require CRLF rejection.
-    metadata: {contract: header-injection, evidence: MISUSE, confidence: MEDIUM}
-    pattern: header($VALUE)
-
-  - id: ninfa.php.dynamic-include-require
-    languages: [php]
+    mode: taint
     severity: ERROR
-    message: Dynamic include or require requires an explicit allowlist.
-    metadata: {contract: dynamic-include-require, evidence: DANGEROUS_PRIMITIVE, confidence: MEDIUM}
-    pattern-either:
-      - pattern: include $PATH
-      - pattern: include_once $PATH
-      - pattern: require $PATH
-      - pattern: require_once $PATH
+    message: Entrada HTTP alcança header de resposta; rejeite CR/LF e valide o valor conforme o header.
+    metadata: {contract: header-injection, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sinks:
+      - pattern: header($VALUE)
+
+  - id: ninfa.php.dynamic-include-require.request-path
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Caminho controlado pela requisição alcança include/require; use caminho fixo ou allowlist estrita.
+    metadata: {contract: dynamic-include-require, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $_GET[$K]
+      - pattern: $_POST[$K]
+      - pattern: $_REQUEST[$K]
+    pattern-sinks:
+      - pattern: include $PATH;
+      - pattern: include_once $PATH;
+      - pattern: require $PATH;
+      - pattern: require_once $PATH;
 
   - id: ninfa.php.unsafe-deserialization.unserialize
     languages: [php]
-    severity: ERROR
-    message: unserialize requires controlled data and restrictive allowed_classes.
+    severity: WARNING
+    message: unserialize exige origem controlada e allowed_classes restritivo; prefira formatos sem execução de objetos.
     metadata: {contract: unsafe-deserialization, evidence: DANGEROUS_PRIMITIVE, confidence: MEDIUM}
     pattern: unserialize(...)
 
   - id: ninfa.php.dangerous-eval-assert.eval
     languages: [php]
     severity: ERROR
-    message: eval executes dynamic PHP and must not process external data.
+    message: eval executa PHP dinâmico e não deve ser usado em código de aplicação.
     metadata: {contract: dangerous-eval-assert, evidence: DANGEROUS_PRIMITIVE, confidence: HIGH}
     pattern: eval(...)
 
   - id: ninfa.php.cryptographic-misuse.weak-password-hash
     languages: [php]
     severity: WARNING
-    message: MD5 or SHA-1 must not be used for password hashing.
+    message: MD5 ou SHA-1 não devem ser usados para hash de senha; use password_hash/password_verify.
     metadata: {contract: cryptographic-misuse, evidence: MISUSE, confidence: MEDIUM}
     pattern-either:
       - pattern: md5($PASSWORD)
