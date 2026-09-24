@@ -23,9 +23,9 @@ require_once __DIR__ . '/SecurityContract.php';
  * primeiro exit code não zero observado é preservado como exit code final.
  *
  * Em `security`, cria e grava SecurityInventory antes dos scanners, executa
- * OSV pelo cliente interno e, ao final, grava `security-report.json`. Composer
- * Audit já é capturado em JSON; Psalm Taint e Semgrep ainda seguem o caminho
- * de processo não estruturado nesta etapa do projeto.
+ * OSV pelo cliente interno, normaliza Psalm Taint/Semgrep e, ao final, grava
+ * `security-report.json`. Findings Semgrep `ERROR` bloqueiam o gate; `WARNING`
+ * permanece hotspot para revisão sem reprovar uma execução íntegra.
  *
  * A variável NINFA_DAST apenas gera aviso: esta classe não executa ZAP. O
  * runner também não aplica o recheck posterior ao `fix`; essa política fica em
@@ -57,9 +57,6 @@ final class PipelineRunner
     /**
      * Executa uma operação e devolve somente seu exit code consolidado.
      *
-     * O método é a interface simples usada pelo CLI/RecheckingPipelineRunner;
-     * todos os detalhes estruturados permanecem disponíveis em `runResult()`.
-     *
      * @param string $operation Operação pública `check`, `fix` ou `security`.
      * @param ProjectContext $context Contexto validado do consumidor.
      * @return int Primeiro exit code não zero observado, ou 0.
@@ -72,12 +69,6 @@ final class PipelineRunner
     /**
      * Executa o plano completo e retorna resultados estruturados por etapa.
      *
-     * A execução é deliberadamente não fail-fast: erros/falhas são registrados
-     * e as etapas seguintes continuam quando possível. Em `security`, inventário
-     * é criado antes dos scanners; OSV roda via cliente interno; o relatório é
-     * escrito depois de todas as etapas. Erro na gravação do relatório vira um
-     * ToolResult adicional e altera o exit code consolidado.
-     *
      * @param string $operation Operação pública a executar.
      * @param ProjectContext $context Contexto imutável que delimita raiz/profile/workspace.
      * @return RunResult Snapshot final da execução, incluindo erros e findings observados.
@@ -87,7 +78,6 @@ final class PipelineRunner
     {
         $this->showLegend();
 
-        // DAST é explicitamente delegado: variável legada gera aviso, nunca scan.
         if ($operation === 'security' && $this->dastRequested()) {
             fwrite(
                 STDERR,
@@ -119,7 +109,6 @@ final class PipelineRunner
         foreach ($hooks as $hook) {
             $started = hrtime(true);
 
-            // OSV é um adapter HTTP interno e portanto não passa por commandFor/ProcessRunner.
             if ($operation === 'security' && $hook['id'] === 'osv') {
                 if (!$securityInventory instanceof SecurityInventory) {
                     $results[] = ToolResult::error('osv', 'Inventário de segurança ausente.', $this->elapsedMs($started));
@@ -146,7 +135,6 @@ final class PipelineRunner
                 continue;
             }
 
-            // Falha ao resolver/montar comando é erro de etapa, não motivo para abortar o restante do plano.
             try {
                 $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
             } catch (ToolUnavailableException $error) {
@@ -159,7 +147,6 @@ final class PipelineRunner
                 continue;
             }
 
-            // null significa etapa conhecida mas não aplicável (por exemplo composer-audit sem lock/test sem runner).
             if ($command === null) {
                 $results[] = ToolResult::notApplicable($hook['id'], 'nao aplicavel');
                 continue;
@@ -195,7 +182,6 @@ final class PipelineRunner
                 continue;
             }
 
-            // Etapas estruturadas renderizam seu próprio diagnóstico com contagem de findings.
             if (!$structured) {
                 echo $status === 0
                     ? CliStyle::success('✓ ' . $hook['id'] . ': concluido.') . PHP_EOL
@@ -209,7 +195,6 @@ final class PipelineRunner
 
         $runResult = new RunResult($operation, $results);
 
-        // O relatório SCA é efeito final do security e sua falha precisa ficar explícita no próprio RunResult.
         if ($operation === 'security' && $securityInventory instanceof SecurityInventory) {
             try {
                 $reportFile = $this->writeSecurityReport($context, $securityInventory, $runResult);
@@ -266,10 +251,6 @@ final class PipelineRunner
     /**
      * Traduz um hook do plano para o comando externo concreto da ferramenta.
      *
-     * null representa etapa não aplicável. A função apenas monta argumentos e
-     * resolve binários; não inicia processos. Composer Audit é endurecido com
-     * `--no-plugins --no-scripts --no-interaction` e JSON estruturado.
-     *
      * @param string $id Identificador da etapa no plano.
      * @param string $mode Modo declarativo (`check`, `fix` ou `dry-run`).
      * @param ProjectContext $context Contexto usado para paths/binários/profile.
@@ -306,10 +287,6 @@ final class PipelineRunner
     /**
      * Executa PHPStan/Psalm em modo capturado e normaliza findings estruturados.
      *
-     * JSON inválido não é tratado como ausência de findings: imprime evidência
-     * bruta e converte sucesso aparente em código 1. Quando existem findings e
-     * a ferramenta retornou 0, o código também vira 1 para preservar bloqueio.
-     *
      * @param string $tool `phpstan` ou `psalm`.
      * @param list<string> $command Comando já resolvido para execução capturada.
      * @param ProjectContext $context Contexto que fornece cwd e raiz para relativização.
@@ -336,7 +313,6 @@ final class PipelineRunner
             return [$result->exitCode === 0 ? 1 : $result->exitCode, []];
         }
 
-        // Exit não zero sem finding é tratado como falha da ferramenta; não como finding inventado.
         if ($findings === []) {
             if ($result->exitCode !== 0) {
                 if (trim($result->stderr) !== '') {
@@ -361,11 +337,6 @@ final class PipelineRunner
 
     /**
      * Executa Composer Audit estruturado e converte seu JSON em findings SCA/policy.
-     *
-     * JSON inválido ou saída não normalizável é erro de execução. Exit não zero
-     * sem finding também vira RuntimeException para não produzir falsa impressão
-     * de “sem vulnerabilidades”. Findings válidos preservam o exit code da fonte,
-     * usando 1 quando a ferramenta retornar 0 apesar de findings.
      *
      * @param list<string> $command Comando defensivo de Composer Audit.
      * @param ProjectContext $context Contexto que fornece cwd.
@@ -423,6 +394,10 @@ final class PipelineRunner
     /**
      * Executa um scanner SAST estruturado e preserva findings e cobertura observada.
      *
+     * Psalm Taint mantém qualquer finding como bloqueante. No Semgrep, `ERROR`
+     * bloqueia e `WARNING` é hotspot não bloqueante; falha do mecanismo ou
+     * cobertura parcial continua sendo erro operacional independentemente da severidade.
+     *
      * @param string $tool `psalm-taint` ou `semgrep`.
      * @param list<string> $command Comando com saída JSON já configurada.
      * @param ProjectContext $context Contexto que fornece cwd, paths e raiz.
@@ -457,6 +432,9 @@ final class PipelineRunner
 
         if ($errors !== [] || ($coverage['status'] ?? null) === 'partial') {
             FindingRenderer::render($findings, false);
+            if ($tool === 'semgrep') {
+                $this->renderSemgrepCoverage($coverage, count($errors));
+            }
             return ToolResult::partial(
                 $tool,
                 'cobertura parcial ou erros reportados pelo scanner',
@@ -465,18 +443,64 @@ final class PipelineRunner
                 $this->elapsedMs($started),
             );
         }
-        if ($findings === [] && $process->exitCode !== 0) {
-            throw new RuntimeException($tool . ' terminou com código ' . $process->exitCode . ' sem finding estruturado.');
+
+        if ($process->exitCode !== 0) {
+            throw new RuntimeException($tool . ' terminou com código ' . $process->exitCode . ' sem erro estruturado do scanner.');
         }
+
+        if ($tool === 'semgrep') {
+            /** @var list<Finding> $blocking Findings Semgrep de severidade ERROR. */
+            $blocking = array_values(array_filter(
+                $findings,
+                static fn (Finding $finding): bool => strtolower((string) $finding->severity) === 'error',
+            ));
+            /** @var list<Finding> $hotspots Findings Semgrep WARNING/INFO não bloqueantes. */
+            $hotspots = array_values(array_filter(
+                $findings,
+                static fn (Finding $finding): bool => strtolower((string) $finding->severity) !== 'error',
+            ));
+
+            if ($findings !== []) {
+                FindingRenderer::render($findings, false);
+            }
+            $this->renderSemgrepCoverage($coverage, 0);
+
+            if ($blocking !== []) {
+                echo CliStyle::error('✗ semgrep: ' . count($blocking) . ' bloqueante(s) e ' . count($hotspots) . ' hotspot(s).') . PHP_EOL;
+                return ToolResult::completed(
+                    $tool,
+                    1,
+                    $findings,
+                    $this->elapsedMs($started),
+                    $coverage,
+                );
+            }
+
+            if ($hotspots !== []) {
+                echo CliStyle::warning('! semgrep: ' . count($hotspots) . ' hotspot(s) para revisão; gate não bloqueado.') . PHP_EOL;
+            } else {
+                echo CliStyle::success('✓ semgrep: nenhum finding SAST.') . PHP_EOL;
+            }
+
+            return ToolResult::completed(
+                $tool,
+                0,
+                $findings,
+                $this->elapsedMs($started),
+                $coverage,
+            );
+        }
+
         if ($findings === []) {
             echo CliStyle::success('✓ ' . $tool . ': nenhum finding SAST.') . PHP_EOL;
         } else {
             FindingRenderer::render($findings, false);
             echo CliStyle::error('✗ ' . $tool . ': ' . count($findings) . ' finding(s) SAST.') . PHP_EOL;
         }
+
         return ToolResult::completed(
             $tool,
-            $findings === [] ? 0 : ($process->exitCode === 0 ? 1 : $process->exitCode),
+            $findings === [] ? 0 : 1,
             $findings,
             $this->elapsedMs($started),
             $coverage,
@@ -484,10 +508,36 @@ final class PipelineRunner
     }
 
     /**
-     * Executa a consulta OSV a partir do inventário já resolvido.
+     * Renderiza cobertura Semgrep com a mesma política visual global do CLI.
      *
-     * O cliente é responsável por rede/normalização. Este método apenas renderiza
-     * o resultado e converte presença de findings em exit code 1.
+     * `NINFA_COLOR`/`NO_COLOR` continuam sendo a única fonte de decisão de cor;
+     * esta função apenas escolhe rótulos semânticos e não altera o resultado.
+     *
+     * @param array<string,mixed> $coverage Cobertura normalizada pelo SemgrepParser.
+     * @param int $engineErrors Quantidade de erros reportados pelo motor.
+     */
+    private function renderSemgrepCoverage(array $coverage, int $engineErrors): void
+    {
+        $scanned = (int) ($coverage['scanned_files'] ?? 0);
+        $excluded = is_array($coverage['excluded_by_policy'] ?? null)
+            ? count($coverage['excluded_by_policy'])
+            : 0;
+        $unexpected = is_array($coverage['unexpected_skips'] ?? null)
+            ? count($coverage['unexpected_skips'])
+            : 0;
+
+        echo CliStyle::info('i Semgrep — arquivos analisados: ' . $scanned) . PHP_EOL;
+        echo CliStyle::info('i Semgrep — exclusões por política: ' . $excluded) . PHP_EOL;
+        echo ($unexpected === 0
+            ? CliStyle::success('✓ Semgrep — skips inesperados: 0')
+            : CliStyle::warning('! Semgrep — skips inesperados: ' . $unexpected)) . PHP_EOL;
+        echo ($engineErrors === 0
+            ? CliStyle::success('✓ Semgrep — erros do mecanismo: 0')
+            : CliStyle::error('✗ Semgrep — erros do mecanismo: ' . $engineErrors)) . PHP_EOL;
+    }
+
+    /**
+     * Executa a consulta OSV a partir do inventário já resolvido.
      *
      * @param SecurityInventory $inventory Inventário Composer que será consultado no OSV.
      * @return array{0:int,1:list<Finding>} 0 sem findings ou 1 acompanhado dos findings encontrados.
@@ -509,10 +559,6 @@ final class PipelineRunner
     /**
      * Executa a suíte de testes capturando saída para detectar falso sucesso sem testes.
      *
-     * stdout/stderr são reproduzidos para o usuário. Mesmo com exit code 0,
-     * mensagens “no tests executed/found” são convertidas em falha 1 porque uma
-     * etapa vazia não comprova qualidade.
-     *
      * @param list<string> $command Comando de teste resolvido.
      * @param ProjectContext $context Contexto que fornece o cwd do consumidor.
      * @return int Exit code do teste, ou 1 para suíte vazia detectada.
@@ -527,7 +573,6 @@ final class PipelineRunner
             fwrite(STDERR, $result->stderr);
         }
 
-        // Exit 0 acompanhado de “no tests” é cobertura ausente, não sucesso confiável.
         if (
             $result->exitCode === 0
             && preg_match('/\b(?:no tests executed|no tests found)\b/i', $result->stdout . "\n" . $result->stderr) === 1
@@ -542,10 +587,6 @@ final class PipelineRunner
 
     /**
      * Resolve o comando de testes preferindo script Composer explícito a PHPUnit local.
-     *
-     * O script Composer roda com plugins desabilitados e sem interação. Na ausência
-     * de script, `vendor/bin/phpunit` só é usado quando o arquivo existe; caso
-     * contrário a etapa retorna null e será marcada como não aplicável.
      *
      * @param ProjectContext $context Contexto do consumidor.
      * @return list<string>|null Comando de teste ou null quando não há suíte detectável.
@@ -567,9 +608,7 @@ final class PipelineRunner
             : null;
     }
 
-    /**
-     * Exibe a legenda de cores/símbolos apenas uma vez por processo PHP.
-     */
+    /** Exibe a legenda de cores/símbolos apenas uma vez por processo PHP. */
     private function showLegend(): void
     {
         if (self::$legendShown) {
@@ -668,11 +707,12 @@ final class PipelineRunner
     }
 
     /**
-     * Monta o comando Semgrep com regra Ninfa, métricas desligadas e paths do contexto.
+     * Monta o comando Semgrep com regras do profile, métricas desligadas e paths do contexto.
      *
-     * `NINFA_SEMGREP_BIN` tem precedência quando aponta texto não vazio; caso
-     * contrário ToolResolver encontra o executável. `vendor` e `runtime` são
-     * excluídos, e cada path detectado vira alvo absoluto explícito.
+     * O scan inclui arquivos novos ainda não rastreados pelo Git dentro dos paths
+     * autorizados por ProjectContext. Dependências, runtime e assets gerados são
+     * excluídos explicitamente. O runner, e não `--error`, decide quais severidades
+     * bloqueiam o gate.
      *
      * @param ProjectContext $context Contexto que fornece raiz e paths analisáveis.
      * @return list<string> Comando completo do Semgrep sem shell intermediário.
@@ -688,11 +728,13 @@ final class PipelineRunner
         $command = [
             $binary,
             '--config', dirname(__DIR__) . '/security/semgrep/common.yml',
-            '--error',
             '--json',
             '--metrics=off',
-            '--exclude', 'vendor',
-            '--exclude', 'runtime',
+            '--no-git-ignore',
+            '--exclude', '**/vendor/**',
+            '--exclude', '**/runtime/**',
+            '--exclude', '**/public/assets/**',
+            '--exclude', '**/web/assets/**',
         ];
 
         foreach ($context->paths() as $path) {
