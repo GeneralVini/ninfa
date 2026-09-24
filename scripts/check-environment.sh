@@ -12,6 +12,7 @@ cd "$ROOT"
 
 PLATFORM="unknown"
 OS_LABEL="Linux"
+PYTHON_BIN=""
 
 # @function ok — registra uma validação concluída com sucesso.
 ok() {
@@ -86,6 +87,36 @@ package_install_hint() {
             printf 'instale os pacotes necessários para %s e execute novamente: make setup' "$OS_LABEL"
             ;;
     esac
+}
+
+# @function python_install_hint — orienta instalação sem substituir o Python do sistema.
+python_install_hint() {
+    case "$PLATFORM" in
+        deb)
+            printf 'sudo apt-get install -y python3 python3-venv'
+            ;;
+        rpm)
+            printf 'sudo dnf install -y python3.12 python3.12-pip\n  # fallback: sudo dnf install -y python3.11 python3.11-pip'
+            ;;
+        *)
+            printf 'instale Python 3.10+ com suporte a venv e execute novamente: make setup'
+            ;;
+    esac
+}
+
+# @function find_supported_python — seleciona o melhor Python >= 3.10 disponível.
+find_supported_python() {
+    local candidate
+
+    for candidate in python3.12 python3.11 python3.10 python3; do
+        if command -v "$candidate" >/dev/null 2>&1 \
+            && "$candidate" -c 'import sys; raise SystemExit(sys.version_info < (3, 10))' >/dev/null 2>&1; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
 }
 
 # @function show_noexec_hint — diagnostica montagem noexec quando findmnt estiver disponível.
@@ -182,7 +213,25 @@ fi
 ok 'Versão do PHP compatível (8.2+)'
 
 require_command git Git "$(package_install_hint 'git' 'git')"
-require_command python3 Python "$(package_install_hint 'python3 python3-venv' 'python3 python3-pip')"
+
+if ! PYTHON_BIN="$(find_supported_python)"; then
+    error 'Python 3.10+ é necessário para Semgrep.'
+    if command -v python3 >/dev/null 2>&1; then
+        printf 'Python padrão encontrado: %s\n' "$(python3 --version 2>&1)" >&2
+    fi
+    repair "$(python_install_hint)"
+    exit 1
+fi
+
+PYTHON_VERSION="$($PYTHON_BIN --version 2>&1)"
+ok "Python para ferramentas de segurança: $PYTHON_BIN ($PYTHON_VERSION)"
+
+if ! "$PYTHON_BIN" -m venv --help >/dev/null 2>&1; then
+    error "O módulo venv não está disponível para $PYTHON_BIN."
+    repair "$(python_install_hint)"
+    exit 1
+fi
+ok "Módulo venv disponível em $PYTHON_BIN"
 
 require_executable bin/ninfa 'CLI bin/ninfa'
 require_executable scripts/install-security-tools.sh 'Instalador de ferramentas de segurança'
