@@ -116,7 +116,7 @@ rules:
       - pattern: $_POST[$K]
       - pattern: $_REQUEST[$K]
     pattern-sinks:
-      - pattern: header("Location: " . $TARGET)
+      - pattern: 'header("Location: " . $TARGET)'
 
   - id: ninfa.php.header-injection.request-to-header
     languages: [php]
