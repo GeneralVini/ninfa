@@ -7,9 +7,9 @@ require_once __DIR__ . '/SastContract.php';
 /**
  * Resolve capabilities e os doze contratos SAST efetivos de um profile.
  *
- * O baseline PHP é sempre aplicado. Yii3 e GLPI Plugin 11 adicionam somente
- * APIs cuja semântica pertence ao ecossistema, mantendo adapters independentes
- * do nome do profile e tornando a resolução inspecionável em JSON.
+ * O baseline PHP é sempre aplicado. Yii2, Yii3 e GLPI Plugin 11 adicionam
+ * somente APIs cuja semântica pertence ao ecossistema, mantendo adapters
+ * independentes do nome do profile e tornando a resolução inspecionável em JSON.
  */
 final class SecurityContract implements JsonSerializable
 {
@@ -41,10 +41,12 @@ final class SecurityContract implements JsonSerializable
     }
 
     /**
-     * Resolve baseline e overlay suportado sem espalhar condicionais pelos scanners.
+     * Resolve baseline e overlays suportados sem espalhar condicionais pelos scanners.
      *
-     * Yii2 e PHP genérico recebem apenas o baseline comum; somente Yii3 e GLPI
-     * Plugin 11 possuem especializações nesta etapa.
+     * PHP genérico recebe apenas o baseline. Yii2, Yii3 e GLPI Plugin 11 agregam
+     * capabilities e semântica próprias, mas continuam compartilhando os mesmos
+     * doze contratos canônicos. Yii 22 permanece parte da família Yii2 e só deve
+     * ganhar distinção de geração quando alguma regra concreta exigir isso.
      */
     public static function forProfile(string $profile): self
     {
@@ -53,7 +55,11 @@ final class SecurityContract implements JsonSerializable
         $configs = ['security/semgrep/common.yml'];
 
         // Profiles especializados agregam APIs e capabilities próprias ao baseline PHP.
-        if ($profile === 'yii3') {
+        if ($profile === 'yii2') {
+            $capabilities = [...$capabilities, 'web-request', 'database', 'view-html', 'http-client', 'redirect-response'];
+            $contracts = self::mergeOverlays($contracts, self::yii2Overlays());
+            $configs[] = 'security/semgrep/profiles/yii2.yml';
+        } elseif ($profile === 'yii3') {
             $capabilities = [...$capabilities, 'web-request', 'database', 'view-html', 'http-client', 'redirect-response'];
             $contracts = self::mergeOverlays($contracts, self::yii3Overlays());
             $configs[] = 'security/semgrep/profiles/yii3.yml';
@@ -95,6 +101,26 @@ final class SecurityContract implements JsonSerializable
             $contracts[$id] = new SastContract($id, $sources, $sinks, $sanitizers, $primitives, $safe, ['DATAFLOW', 'DANGEROUS_PRIMITIVE', 'MISUSE'], ['ninfa:common']);
         }
         return $contracts;
+    }
+
+    /**
+     * Retorna as APIs Yii2 que complementam o baseline sem transformá-lo em regra de arquitetura.
+     *
+     * O contrato descreve semântica de Request/Response, DB e helpers. Ele não
+     * exige ActiveRecord, Repository, DTO, DDD ou outro estilo arquitetural.
+     *
+     * @return array<string,SastContract> Overlays semânticos próprios da família Yii2.
+     */
+    private static function yii2Overlays(): array
+    {
+        return self::overlays('yii2', [
+            'sql-injection' => [['yii\\web\\Request::get/post'], ['yii\\db\\Connection::createCommand', 'yii\\db\\Command'], ['bindValue', 'bindValues', 'query builder parameters']],
+            'xss' => [['yii\\web\\Request::get/post'], ['view output', 'echo', 'print'], ['yii\\helpers\\Html::encode']],
+            'path-traversal' => [['request path', 'UploadedFile name'], ['yii\\web\\Response::sendFile', 'filesystem operations'], ['base path containment']],
+            'ssrf' => [['request URL'], ['yii\\httpclient\\Client request'], ['trusted URI policy']],
+            'unsafe-redirect' => [['request URL'], ['yii\\web\\Response::redirect'], ['Url::to local route']],
+            'header-injection' => [['request input'], ['yii\\web\\HeaderCollection::set'], ['header value validation']],
+        ]);
     }
 
     /**
