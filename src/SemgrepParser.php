@@ -8,7 +8,11 @@ require_once __DIR__ . '/Finding.php';
 final class SemgrepParser
 {
     /**
-     * Converte resultados em Finding e mantém paths/erros como evidência de cobertura.
+     * Converte resultados em Finding e separa exclusões deliberadas de perda real de cobertura.
+     *
+     * Entradas ignoradas por política (`--exclude`, `.semgrepignore` ou `.gitignore` quando aplicável)
+     * permanecem auditáveis, mas não tornam o scan parcial. Skips inesperados e erros do motor
+     * representam cobertura incompleta e precisam permanecer visíveis ao pipeline.
      *
      * @param string $json Saída de `semgrep --json`.
      * @param string $root Raiz usada para relativizar paths.
@@ -57,16 +61,65 @@ final class SemgrepParser
         $scanned = is_array($paths['scanned'] ?? null) ? array_values($paths['scanned']) : [];
         $skipped = is_array($paths['skipped'] ?? null) ? array_values($paths['skipped']) : [];
         $errors = is_array($data['errors'] ?? null) ? array_values($data['errors']) : [];
+
+        /** @var list<mixed> $excludedByPolicy Skips explicados por política de targeting/ignore. */
+        $excludedByPolicy = [];
+        /** @var list<mixed> $unexpectedSkips Skips sem justificativa operacional conhecida. */
+        $unexpectedSkips = [];
+        foreach ($skipped as $skip) {
+            if (self::isPolicySkip($skip)) {
+                $excludedByPolicy[] = $skip;
+            } else {
+                $unexpectedSkips[] = $skip;
+            }
+        }
+
         return [
             'findings' => $findings,
             'coverage' => [
-                'status' => ($skipped === [] && $errors === []) ? 'complete' : 'partial',
+                'status' => ($unexpectedSkips === [] && $errors === []) ? 'complete' : 'partial',
                 'scanned_files' => count($scanned),
                 'scanned' => $scanned,
                 'skipped' => $skipped,
+                'excluded_by_policy' => $excludedByPolicy,
+                'unexpected_skips' => $unexpectedSkips,
             ],
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * Decide se um item de `paths.skipped` representa exclusão deliberada e auditável.
+     *
+     * A classificação combina razão reportada pelo Semgrep com diretórios que o
+     * runner exclui explicitamente. O método não trata parse error, timeout ou
+     * motivo desconhecido como exclusão segura.
+     */
+    private static function isPolicySkip(mixed $skip): bool
+    {
+        if (!is_array($skip)) {
+            return false;
+        }
+
+        $path = strtolower(str_replace('\\', '/', self::text($skip['path'] ?? null) ?? ''));
+        foreach (['/vendor/', '/runtime/', '/public/assets/', '/web/assets/'] as $segment) {
+            if (str_contains('/' . ltrim($path, '/'), $segment)) {
+                return true;
+            }
+        }
+
+        $reasonParts = [];
+        foreach (['reason', 'details'] as $key) {
+            $value = $skip[$key] ?? null;
+            if (is_string($value)) {
+                $reasonParts[] = strtolower($value);
+            } elseif (is_array($value)) {
+                $reasonParts[] = strtolower((string) json_encode($value));
+            }
+        }
+        $reason = implode(' ', $reasonParts);
+
+        return str_contains($reason, 'ignore') || str_contains($reason, 'exclude');
     }
 
     /**
