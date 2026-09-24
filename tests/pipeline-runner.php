@@ -8,8 +8,8 @@ declare(strict_types=1);
  * O cenário protege comportamentos que não são evidentes por testes unitários:
  * execução security não fail-fast, preservação do primeiro exit code, Composer
  * Audit estruturado + OSV + security-report, aviso de DAST sem execução, etapas
- * não aplicáveis/indisponíveis, preferência por `composer test` e falha quando
- * PHPUnit termina sem executar testes.
+ * não aplicáveis/indisponíveis, gate Semgrep por severidade, preferência por
+ * `composer test` e falha quando PHPUnit termina sem executar testes.
  */
 
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
@@ -88,7 +88,7 @@ try {
     createFakeTool($projectRoot . '/vendor/bin/psalm', $log, ['psalm-taint'], 0, '[]');
     $semgrepJson = json_encode([
         'results' => [[
-            'check_id' => 'ninfa.php.unsafe-unserialize',
+            'check_id' => 'ninfa.php.unsafe-deserialization.unserialize',
             'path' => $projectRoot . '/src/Example.php',
             'start' => ['line' => 1],
             'end' => ['line' => 1],
@@ -97,7 +97,7 @@ try {
         'errors' => [],
         'paths' => ['scanned' => [$projectRoot . '/src/Example.php'], 'skipped' => []],
     ], JSON_THROW_ON_ERROR);
-    createFakeTool($projectRoot . '/vendor/bin/semgrep', $log, ['semgrep'], 4, $semgrepJson);
+    createFakeTool($projectRoot . '/vendor/bin/semgrep', $log, ['semgrep'], 0, $semgrepJson);
 
     $osvFixture = $root . '/osv.json';
     file_put_contents($osvFixture, json_encode([
@@ -135,7 +135,8 @@ try {
     assert(str_contains($result->stdout, 'PKSA-runner-test'));
     assert(str_contains($result->stdout, 'example/dependency 1.2.3 (runtime, direct)'));
     assert(str_contains($result->stdout, 'psalm-taint: ok (codigo 0)'));
-    assert(str_contains($result->stdout, 'semgrep: failed (codigo 4)'));
+    assert(str_contains($result->stdout, 'semgrep: failed (codigo 1)'));
+    assert(str_contains($result->stdout, 'Semgrep — arquivos analisados: 1'));
     assert(!str_contains($result->stdout, 'dast:'));
     assert(str_contains($result->stderr, 'DAST está desabilitado no Ninfa'));
 
@@ -165,7 +166,7 @@ try {
     assert(str_contains($partial->stdout, 'composer-audit: not_applicable (nao aplicavel)'));
     assert(str_contains($partial->stdout, 'osv: not_applicable (sem packages Composer resolvidos)'));
     assert(str_contains($partial->stdout, 'psalm-taint: unavailable'));
-    assert(str_contains($partial->stdout, 'semgrep: failed (codigo 4)'));
+    assert(str_contains($partial->stdout, 'semgrep: failed (codigo 1)'));
     assert(!str_contains($partial->stdout, 'dast:'));
     assert(str_contains($partial->stderr, 'Ferramenta "psalm" não encontrada'));
 
@@ -216,7 +217,7 @@ try {
     assert(str_contains($emptyTests->stderr, 'nenhuma verificacao foi executada'));
     assert(str_contains($emptyTests->stdout, 'test: failed (codigo 1)'));
 
-    echo "[OK] Runner consolida Composer Audit + OSV, gera security report, desabilita DAST e preserva check/testes.\n";
+    echo "[OK] Runner consolida SCA/SAST, aplica gate Semgrep por severidade, desabilita DAST e preserva check/testes.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
     putenv('NINFA_OSV_FIXTURE');
