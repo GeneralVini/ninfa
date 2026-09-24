@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-/** Verifica normalização SAST positiva, negativa e cobertura parcial sem scanners reais. */
+/** Verifica normalização SAST positiva, negativa e cobertura Semgrep sem scanners reais. */
 
 require_once dirname(__DIR__) . '/src/PsalmTaintParser.php';
 require_once dirname(__DIR__) . '/src/SemgrepParser.php';
@@ -30,7 +30,7 @@ assert(PsalmTaintParser::parse('[]', $root) === []);
 
 $semgrep = json_encode([
     'results' => [[
-        'check_id' => 'ninfa.php.dangerous-shell-execution',
+        'check_id' => 'ninfa.php.command-injection.dangerous-primitive',
         'path' => '/project/src/Action.php',
         'start' => ['line' => 18],
         'end' => ['line' => 18],
@@ -55,8 +55,23 @@ $negative = SemgrepParser::parse('{"results":[],"errors":[],"paths":{"scanned":[
 assert($negative['findings'] === []);
 assert(($negative['coverage']['status'] ?? null) === 'complete');
 
+$policySkip = SemgrepParser::parse(
+    '{"results":[],"errors":[],"paths":{"scanned":["src/App.php"],"skipped":[{"path":"vendor/pkg/File.php","reason":"cli_include_flags_do_not_match"},{"path":"public/assets/app.php","reason":"excluded by --exclude"}]}}',
+    $root,
+);
+assert(($policySkip['coverage']['status'] ?? null) === 'complete');
+assert(count($policySkip['coverage']['excluded_by_policy'] ?? []) === 2);
+assert(($policySkip['coverage']['unexpected_skips'] ?? []) === []);
+
+$unexpectedSkip = SemgrepParser::parse(
+    '{"results":[],"errors":[],"paths":{"scanned":[],"skipped":[{"path":"src/Broken.php","reason":"analysis timeout"}]}}',
+    $root,
+);
+assert(($unexpectedSkip['coverage']['status'] ?? null) === 'partial');
+assert(count($unexpectedSkip['coverage']['unexpected_skips'] ?? []) === 1);
+
 $partial = SemgrepParser::parse('{"results":[],"errors":[{"type":"Parse error"}],"paths":{"scanned":[],"skipped":[{"path":"broken.php"}]}}', $root);
 assert(($partial['coverage']['status'] ?? null) === 'partial');
 assert(count($partial['errors']) === 1);
 
-echo "[OK] Psalm Taint e Semgrep normalizam findings SAST e cobertura.\n";
+echo "[OK] Psalm Taint e Semgrep normalizam findings e distinguem exclusões de cobertura parcial.\n";
