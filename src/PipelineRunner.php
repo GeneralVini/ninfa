@@ -78,6 +78,7 @@ final class PipelineRunner
     {
         $this->showLegend();
 
+        // DAST é deliberadamente delegado: a variável legada gera aviso, nunca um scan silencioso.
         if ($operation === 'security' && $this->dastRequested()) {
             fwrite(
                 STDERR,
@@ -88,6 +89,7 @@ final class PipelineRunner
         }
 
         $securityInventory = null;
+        // O inventário nasce antes das fontes para que SCA e relatório compartilhem o mesmo snapshot do consumidor.
         if ($operation === 'security') {
             $securityInventory = SecurityInventory::fromContext($context);
             $inventoryFile = $this->writeSecurityInventory($context, $securityInventory);
@@ -106,9 +108,11 @@ final class PipelineRunner
 
         /** @var list<ToolResult> $results Resultados acumulados sem fail-fast. */
         $results = [];
+        // A execução não é fail-fast: cada fonte independente deve produzir sua própria evidência sempre que possível.
         foreach ($hooks as $hook) {
             $started = hrtime(true);
 
+            // OSV é adapter HTTP interno e não deve passar pelo ProcessRunner nem por resolução de executável.
             if ($operation === 'security' && $hook['id'] === 'osv') {
                 if (!$securityInventory instanceof SecurityInventory) {
                     $results[] = ToolResult::error('osv', 'Inventário de segurança ausente.', $this->elapsedMs($started));
@@ -135,6 +139,7 @@ final class PipelineRunner
                 continue;
             }
 
+            // Falha ao resolver/montar um comando é registrada na etapa sem impedir ferramentas independentes posteriores.
             try {
                 $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
             } catch (ToolUnavailableException $error) {
@@ -147,6 +152,7 @@ final class PipelineRunner
                 continue;
             }
 
+            // null representa etapa conhecida porém não aplicável; não deve ser confundida com ferramenta indisponível.
             if ($command === null) {
                 $results[] = ToolResult::notApplicable($hook['id'], 'nao aplicavel');
                 continue;
@@ -182,6 +188,7 @@ final class PipelineRunner
                 continue;
             }
 
+            // Etapas estruturadas renderizam diagnóstico próprio; as demais recebem feedback genérico de conclusão.
             if (!$structured) {
                 echo $status === 0
                     ? CliStyle::success('✓ ' . $hook['id'] . ': concluido.') . PHP_EOL
@@ -195,6 +202,7 @@ final class PipelineRunner
 
         $runResult = new RunResult($operation, $results);
 
+        // O relatório é efeito final de security e uma falha de gravação precisa alterar o RunResult consolidado.
         if ($operation === 'security' && $securityInventory instanceof SecurityInventory) {
             try {
                 $reportFile = $this->writeSecurityReport($context, $securityInventory, $runResult);
@@ -430,6 +438,7 @@ final class PipelineRunner
             throw new RuntimeException($tool . ' não retornou JSON SAST válido: ' . $error->getMessage(), 0, $error);
         }
 
+        // Integridade do scanner tem precedência sobre a triagem de severidade; cobertura incompleta nunca é “aprovada”.
         if ($errors !== [] || ($coverage['status'] ?? null) === 'partial') {
             FindingRenderer::render($findings, false);
             if ($tool === 'semgrep') {
@@ -444,6 +453,7 @@ final class PipelineRunner
             );
         }
 
+        // Sem erro estruturado, exit não zero indica falha do mecanismo/CLI e não deve ser interpretado como finding limpo.
         if ($process->exitCode !== 0) {
             throw new RuntimeException($tool . ' terminou com código ' . $process->exitCode . ' sem erro estruturado do scanner.');
         }
@@ -465,6 +475,7 @@ final class PipelineRunner
             }
             $this->renderSemgrepCoverage($coverage, 0);
 
+            // A política local separa vulnerabilidade/higher-signal ERROR de hotspot WARNING sem esconder nenhum finding.
             if ($blocking !== []) {
                 echo CliStyle::error('✗ semgrep: ' . count($blocking) . ' bloqueante(s) e ' . count($hotspots) . ' hotspot(s).') . PHP_EOL;
                 return ToolResult::completed(
@@ -573,6 +584,7 @@ final class PipelineRunner
             fwrite(STDERR, $result->stderr);
         }
 
+        // Exit 0 acompanhado de “no tests” não comprova qualidade e é convertido em falha do hook.
         if (
             $result->exitCode === 0
             && preg_match('/\b(?:no tests executed|no tests found)\b/i', $result->stdout . "\n" . $result->stderr) === 1
@@ -593,6 +605,7 @@ final class PipelineRunner
      */
     private function testCommand(ProjectContext $context): ?array
     {
+        // Um script Composer explícito pertence ao consumidor e tem precedência sobre a convenção de PHPUnit local.
         if ($context->hasComposerScript('test')) {
             return [
                 $this->tool('composer', $context),
@@ -737,11 +750,13 @@ final class PipelineRunner
             '--exclude', '**/web/assets/**',
         ];
 
+        // Cada path vem do profile; o runner não amplia o alvo para a raiz inteira do consumidor.
         foreach ($context->paths() as $path) {
             $command[] = $context->root() . '/' . $path;
         }
 
         $contract = SecurityContract::forProfile($context->profile());
+        // Overlays são carregados pelo contrato para impedir condicionais de framework espalhadas pelo scanner.
         foreach ($contract->semgrepConfigs as $config) {
             if ($config === 'security/semgrep/common.yml') {
                 continue;
