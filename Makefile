@@ -1,12 +1,19 @@
-.PHONY: setup environment-check syntax profile-test security-tools
+SEMGREP_BIN ?= .tools/semgrep/bin/semgrep
 
-setup: environment-check security-tools syntax profile-test
+.PHONY: setup environment-check syntax profile-test security-tools semgrep-rules
+
+setup: environment-check security-tools syntax semgrep-rules profile-test
 
 environment-check:
 	bash scripts/check-environment.sh
 
 security-tools:
 	bash scripts/install-security-tools.sh
+
+semgrep-rules: security-tools
+	@test -x "$(SEMGREP_BIN)" || { printf '[ERRO] Semgrep gerenciado não encontrado: %s\n' "$(SEMGREP_BIN)" >&2; exit 1; }
+	$(SEMGREP_BIN) --validate --config security/semgrep --metrics=off
+	$(SEMGREP_BIN) --test --config security/semgrep --metrics=off security/semgrep-tests
 
 syntax:
 	find src scripts tests bin -type f \( -name '*.php' -o -path 'bin/ninfa' \) -print0 | xargs -0 -n1 php -l
