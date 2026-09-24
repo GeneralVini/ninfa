@@ -4,14 +4,16 @@
 
 ## Profiles ativos
 
-O MVP possui quatro profiles:
+O MVP possui quatro profiles PHP oficiais:
 
-- **Yii2** — detectado por `yiisoft/yii2`;
+- **Yii2** — detectado por `yiisoft/yii2` e agora com overlay SAST próprio;
 - **Yii3** — detectado por sinais consistentes de aplicação/runner e infraestrutura Yii;
 - **GLPI Plugin 11** — profile `glpi-plugin`, com contexto do host GLPI 11 e PHPStan/Psalm em nível 8;
 - **PHP genérico** — profile `php-generic`, para aplicações, bibliotecas e CLIs PHP sem framework reconhecido.
 
-Profiles especializados têm precedência sobre `php-generic`. Um diretório sem evidência real de código PHP não é aceito como projeto genérico. Laravel e Symfony permanecem em **stand by**.
+Profiles especializados têm precedência sobre `php-generic`. Um diretório sem evidência real de código PHP não é aceito como projeto genérico.
+
+A linha **Yii 22** é acompanhada como evolução da família Yii2 e não recebe profile separado enquanto não houver necessidade técnica concreta de diferenciar regras/capabilities. **Laravel** é o próximo candidato de profile PHP no roadmap. **Python** permanece feature futura de outro ecossistema (`python-generic`, Django e Flask) e não participa da implementação atual.
 
 ## Execução rápida
 
@@ -47,7 +49,9 @@ Quando `root` é omitido, o Ninfa usa o diretório atual. Não existe etapa obri
 ninfa check /path/to/yii2-app
 ```
 
-O contexto considera estruturas Yii2 simples e Advanced, incluindo `common`, `frontend`, `backend` e `console` quando existentes.
+O contexto considera estruturas Yii2 simples e Advanced, incluindo `common`, `frontend`, `backend` e `console` quando existentes. O profile de segurança combina o baseline PHP com semântica de Request/Response, DB/Command, HTML, redirects, headers e filesystem do ecossistema Yii2.
+
+Yii 22 permanece dentro dessa família. O Ninfa não presume que Yii2 exija Repository, DTO, DDD, Clean Architecture ou Vertical Slice; essas decisões pertencem ao projeto consumidor, não ao scanner.
 
 ### Yii3
 
@@ -55,7 +59,7 @@ O contexto considera estruturas Yii2 simples e Advanced, incluindo `common`, `fr
 ninfa check /path/to/yii3-app
 ```
 
-Uma dependência `yiisoft/*` isolada não é suficiente para classificar um projeto como Yii3.
+Uma dependência `yiisoft/*` isolada não é suficiente para classificar um projeto como Yii3. O overlay SAST considera APIs e convenções específicas de Yii DB, PSR-7/HTTP e saída HTML sem impor um estilo arquitetural ao consumidor.
 
 ### GLPI Plugin 11
 
@@ -66,7 +70,7 @@ NINFA_GLPI_ROOT=/opt/glpi \
 ninfa check /path/to/myplugin
 ```
 
-Somente GLPI 11 é aceito e a versão do host precisa ser identificável.
+Somente GLPI 11 é aceito e a versão do host precisa ser identificável. O overlay SAST incorpora APIs específicas de banco, redirect, URL e filesystem do host/plugin.
 
 ### PHP genérico
 
@@ -149,64 +153,79 @@ O comando não modifica o projeto. PHPStan e Psalm são executados em formato es
 
 ## Segurança
 
-`security` permanece separado do pipeline comum de qualidade e, no escopo atual do Ninfa, executa duas frentes:
+`security` permanece separado do pipeline comum de qualidade e executa:
 
 ```text
 SCA   Composer Audit + OSV
 SAST  Psalm Taint + Semgrep
 ```
 
-DAST não faz mais parte do pipeline público do Ninfa. Essa capacidade é atendida por outra frente institucional, portanto o projeto evita duplicar operação e especialização em análise dinâmica.
+DAST não faz parte do pipeline público do Ninfa. Essa capacidade é atendida por outra frente institucional, portanto o projeto evita duplicar operação e especialização em análise dinâmica.
 
-A maturidade atual deve ser interpretada assim:
-
-| Frente | Estado atual no Ninfa | Diretriz |
-|---|---|---|
-| SCA | inventário + Composer Audit + OSV + deduplicação/report estruturados | etapa estrutural concluída; enrichment fica para depois |
-| SAST | findings e cobertura estruturados | etapa estrutural concluída; contratos por profile vêm depois |
-| DAST | fora do pipeline público | **delegado; evolução congelada no Ninfa** |
-
-### Diretriz atual: foco em SAST
-
-A prioridade de segurança do Ninfa é **SAST orientado a profile**. Nesta fase, o baseline comum continua PHP e a evolução específica de `SecurityContract` fica restrita a **Yii3** e **GLPI Plugin 11**.
-
-Yii2 continua suportado pelo pipeline geral, mas não recebe agora evolução SAST específica. O profile `php-generic` utiliza o baseline comum sem contrato especializado adicional. Outros frameworks permanecem fora do escopo ativo.
-
-DAST permanece deliberadamente fora do `ninfa security`. Se `NINFA_DAST=1` for informado, o Ninfa apenas avisa que a capacidade está desabilitada/delegada e **não executa OWASP ZAP**.
-
-O utilitário `scripts/zap-scan.sh` permanece no repositório como artefato congelado para referência ou uso manual controlado, mas não integra a interface pública nem o roadmap ativo.
-
-### SAST atual
-
-O baseline SAST usa:
+A especialização SAST atual é:
 
 ```text
-Psalm Taint Analysis
-Semgrep
+PHP common
+├── php-generic        # baseline somente
+├── yii2               # baseline + overlay Yii2
+├── yii3               # baseline + overlay Yii3
+└── glpi-plugin        # baseline + overlay GLPI Plugin 11
 ```
 
-O Semgrep atualmente possui regras próprias do Ninfa para casos básicos como:
+Os doze contratos canônicos permanecem independentes de framework: command injection, SQL injection, XSS, path traversal, file access, SSRF, unsafe redirect, header injection, dynamic include/require, unsafe deserialization, dangerous eval/assert e cryptographic misuse.
 
-- execução direta de shell;
-- `unserialize()`;
-- SQL construído por concatenação em padrões conhecidos.
+### Semgrep
 
-Essas regras já foram validadas com controles positivos e negativos em teste de campo. Isso comprova o encadeamento básico `Ninfa -> ferramenta -> finding -> falha`, mas **não representa cobertura SAST abrangente**.
+As regras do Ninfa ficam em:
 
-O próximo estágio de maturidade SAST deve priorizar:
+```text
+security/semgrep/
+├── common.yml
+└── profiles/
+    ├── yii2.yml
+    ├── yii3.yml
+    └── glpi-plugin-11.yml
+```
 
-1. normalizar resultados de Semgrep e Psalm Taint em um modelo único de `Finding`;
-2. distinguir finding, erro de ferramenta, indisponibilidade e etapa não aplicável;
-3. criar fixtures reais de segurança com casos positivos e negativos em CI;
-4. medir cobertura efetiva dos paths e arquivos analisados;
-5. formalizar contratos SAST para command injection, SQL injection, XSS, path traversal, file access, SSRF, unsafe redirect, header injection, dynamic include/require, unsafe deserialization, dangerous eval/assert e cryptographic misuse;
-6. especializar esses contratos, quando necessário, apenas para `yii3` e `glpi-plugin-11` nesta fase;
-7. preservar proveniência de regra, severidade, confiança, arquivo, linha, mensagem e tipo de evidência;
-8. só depois aplicar políticas/quality gates de segurança mais sofisticados.
+As fixtures usam árvore paralela:
 
-Não é objetivo imediato adicionar vários scanners diferentes. Primeiro, o Ninfa deve extrair resultados confiáveis, estruturados e auditáveis das ferramentas que já utiliza.
+```text
+security/semgrep-tests/
+├── common.php
+└── profiles/
+    ├── yii2.php
+    ├── yii3.php
+    └── glpi-plugin-11.php
+```
 
-A separação arquitetural pretendida é: contrato SAST define **o que** caracteriza a vulnerabilidade, `Profile SecurityContract` define **o que** as APIs daquele ecossistema significam e o adapter define **como** Psalm/Semgrep executam essa semântica.
+O próprio Ninfa valida parsing e comportamento das regras com:
+
+```bash
+make semgrep-rules
+```
+
+Esse target executa `semgrep --validate` e `semgrep --test`. Casos de fluxo usam `mode: taint` quando source → sink é a evidência relevante; primitives/misuse permanecem pattern rules quando isso produz sinal melhor.
+
+No gate:
+
+```text
+ERROR    bloqueante
+WARNING  hotspot para revisão; não bloqueia sozinho
+```
+
+Erro do motor ou cobertura parcial inesperada continua bloqueante. Exclusões deliberadas são registradas separadamente e não equivalem a perda de cobertura.
+
+O scan usa os paths detectados pelo `ProjectContext`, inclui arquivos novos ainda não rastreados pelo Git e exclui explicitamente dependências, runtime e assets gerados.
+
+### Saída humana
+
+Toda saída reutiliza `CliStyle`. O padrão permanece:
+
+```bash
+NINFA_COLOR=auto
+```
+
+Também são suportados `NINFA_COLOR=always`, `NINFA_COLOR=never` e `NO_COLOR`. Não existe configuração de cor específica para segurança ou Semgrep.
 
 ### SCA / Composer Audit + OSV
 
@@ -218,65 +237,43 @@ composer --no-plugins --no-scripts --no-interaction audit --locked --format=json
 
 Advisories são normalizados em `Finding` com package, versão resolvida, relação direta/transitiva, escopo runtime/dev, severidade, aliases e proveniência. Pacotes abandonados permanecem identificados separadamente como `dependency-policy`, sem serem apresentados como vulnerabilidade.
 
-OSV consulta o inventário resolvido em `querybatch` usando package + versão do ecossistema Packagist. Os IDs retornados são enriquecidos com o registro OSV correspondente, normalizados em `Finding` e correlacionados com o mesmo componente do inventário. A deduplicação usa aliases CVE/GHSA/PKSA/OSV e preserva as fontes que confirmaram a vulnerabilidade.
+OSV consulta o inventário resolvido em `querybatch` usando package + versão do ecossistema Packagist. Os IDs retornados são normalizados e correlacionados com o mesmo componente do inventário. A deduplicação usa aliases CVE/GHSA/PKSA/OSV e preserva as fontes que confirmaram a vulnerabilidade.
 
-`ninfa security` grava dois artefatos estruturados no workspace externo:
+`ninfa security` grava no workspace externo:
 
 ```text
 security-inventory.json
 security-report.json
 ```
 
-O relatório SCA consolida estado das fontes, findings de origem, policy findings e vulnerabilidades canônicas deduplicadas. Falha de rede ou saída inválida de uma fonte é tratada como erro de execução, não como evidência de ausência de vulnerabilidades.
-
-EPSS, KEV, NVD e evidência de exploit público permanecem fora desta etapa; quando entrarem, serão enrichment sobre vulnerabilidades já normalizadas e deduplicadas.
+Falha de rede ou saída inválida de uma fonte é tratada como erro de execução, não como evidência de ausência de vulnerabilidades.
 
 ### DAST / OWASP ZAP
 
 DAST está **desabilitado no pipeline do Ninfa**. `ninfa security` não executa ZAP, mesmo quando `NINFA_DAST` está definido.
 
-A decisão é de escopo: análise dinâmica é tratada por uma frente especializada externa. O Ninfa mantém o código legado do wrapper apenas como artefato congelado, sem otimização, expansão funcional ou suporte como security gate.
+O utilitário `scripts/zap-scan.sh` permanece como artefato congelado para referência/uso manual controlado, sem integrar o roadmap ativo.
 
-`make security-tools` passa a preparar apenas a ferramenta SAST gerenciada pelo Ninfa (Semgrep). A preparação valida presença, permissões, execução real e versão homologada; se o launcher ou os binários internos estiverem quebrados, o script informa o comando de reparo e não considera a ferramenta saudável apenas porque o arquivo existe. `NINFA_INSTALL_ZAP=1` continua ignorado com aviso explícito.
+### Interpretação
 
-### Interpretação dos resultados de segurança
+Um `ninfa security` com exit code 0 significa que as fontes SCA/SAST consultadas não produziram bloqueios e que não houve perda inesperada de cobertura no escopo observado. Não significa “sistema seguro” ou “sem vulnerabilidades”.
 
-Um `ninfa security` com exit code 0 significa apenas que as fontes SCA/SAST consultadas não produziram bloqueios no escopo executado. Não significa:
-
-```text
-"sistema seguro"
-"sem vulnerabilidades"
-"cobertura completa"
-"aprovado por todos os controles de segurança"
-```
-
-Testes de campo mostraram que cobertura, conectividade, cache, inventário e escopo influenciam diretamente a interpretação do resultado. O objetivo da evolução SAST/SCA é tornar essas condições explícitas e auditáveis.
-
-A arquitetura detalhada e a ordem de implementação estão em [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md).
-
-## Diagnóstico manual
-
-```bash
-php /opt/ninfa/scripts/ninfa-configure.php /caminho/do/projeto
-```
-
-O configurador existe para diagnóstico e inspeção. Os comandos públicos não dependem de uma etapa manual de preparação.
+A arquitetura detalhada está em [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md).
 
 ## Desenvolvimento do próprio Ninfa
 
 ```bash
 make environment-check
 make security-tools
+make semgrep-rules
 make syntax
 make profile-test
 make setup
 ```
 
-`make environment-check` valida o ambiente do próprio Ninfa — PHP, Git, Python, arquivos internos e permissões dos entrypoints — sem instalar ou alterar ferramentas no projeto consumidor. Quando encontra uma falha conhecida, informa o comando de correção; montagens `noexec` são diagnosticadas separadamente. `make setup` executa esse diagnóstico antes de preparar o Semgrep e rodar a suíte. O `Makefile` é interno ao repositório Ninfa e não é requisito para projetos consumidores.
+`make environment-check` valida o ambiente do próprio Ninfa sem instalar ou alterar ferramentas no projeto consumidor. `make security-tools` prepara a versão homologada do Semgrep. `make semgrep-rules` valida e testa as regras. `make setup` executa a cadeia completa.
 
 ## Acompanhamento da evolução
-
-Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada commit relevante; itens só são marcados como concluídos quando implementação e testes correspondentes estiverem presentes.
 
 **Etapa atual: 4 — Contratos SAST e profiles.**
 
@@ -292,62 +289,32 @@ Este checklist é o painel de progresso do MVP. Ele deve ser revisado a cada com
 - [x] Deduplicar aliases CVE/GHSA/PKSA/OSV em vulnerabilidades canônicas.
 - [x] Gerar `security-report.json` consolidado para os resultados SCA.
 
-### Etapa 2.5 — Documentação interna e mapa de fluxo
-
-- [x] Criar mapa interno baseado nas responsabilidades observadas no código atual, sem duplicar o README.
-- [x] Tornar documentação de símbolo/bloco uma premissa de implementação, e não apenas cabeçalho de arquivo.
-- [x] Migrar `src/OsvClient.php` como referência inicial do padrão estrito, incluindo métodos privados, exceções e tipos/shapes de estruturas locais.
-- [x] Documentar blocos semânticos dos scripts PHP/shell atuais, além dos cabeçalhos.
-- [x] Endurecer a suíte para que arquivos novos e arquivos já migrados cumpram o padrão estrito.
-- [x] Definir e proteger o mesmo princípio para JavaScript próprio quando existir; atualmente não há arquivo `.js` versionado no Ninfa.
-- [x] Migrar todos os arquivos de `src/` para PHPDoc em classes, métodos/funções e tipos compostos relevantes.
-- [x] Eliminar a allowlist temporária de dívida documental usada pelo guard.
-- [x] Revisar o mapa interno e os comentários após a migração completa, removendo divergências restantes.
-
 ### Etapa 3 — SAST estruturado
 
-- [x] Normalizar Psalm Taint em `Finding` SAST.
-- [x] Normalizar Semgrep em `Finding` SAST.
-- [x] Distinguir explicitamente finding, erro de ferramenta, indisponibilidade, não aplicabilidade e cobertura parcial.
-- [x] Executar fixtures SAST positivas e negativas na suíte.
-- [x] Registrar cobertura observável: arquivos escaneados/ignorados no Semgrep e paths configurados no Psalm.
-- [x] Preservar regra, severidade, confiança, arquivo, linha, mensagem, evidência e proveniência nos findings SAST.
+- [x] Normalizar Psalm Taint e Semgrep em `Finding` SAST.
+- [x] Distinguir finding, erro, indisponibilidade, não aplicabilidade e cobertura parcial.
+- [x] Registrar cobertura observável.
+- [x] Preservar regra, severidade, confiança, arquivo, linha, mensagem, evidência e proveniência.
+- [x] Separar exclusões deliberadas de skips inesperados no Semgrep.
+- [x] Validar e testar as regras Semgrep com fixtures positivas/negativas.
 
 ### Etapa 4 — Contratos SAST e profiles
 
-- [x] Formalizar os 12 contratos SAST comuns: command injection, SQL injection, XSS, path traversal, file access, SSRF, unsafe redirect, header injection, dynamic include/require, unsafe deserialization, dangerous eval/assert e cryptographic misuse.
-- [x] Implementar capabilities de segurança para Yii3.
-- [x] Implementar `SecurityContract` do Yii3 sobre os contratos comuns.
-- [x] Implementar especializações de segurança para GLPI Plugin 11.
-- [x] Manter Yii2 e `php-generic` fora de especializações adicionais nesta fase; `php-generic` usa apenas o baseline comum.
+- [x] Formalizar os 12 contratos SAST comuns.
+- [x] Implementar baseline PHP comum.
+- [x] Implementar `SecurityContract`/overlay do Yii2.
+- [x] Implementar `SecurityContract`/overlay do Yii3.
+- [x] Implementar especializações do GLPI Plugin 11.
+- [x] Manter `php-generic` no baseline comum sem semântica fictícia de framework.
+- [x] Tratar `WARNING` Semgrep como hotspot não bloqueante e `ERROR` como bloqueante.
 
-### Etapa 5 — Intelligence — concluída
+### Roadmap
 
-- [x] Enriquecer CVEs canônicos com EPSS.
-- [x] Correlacionar CISA KEV sem transformar KEV em scanner primário.
-- [ ] Avaliar NVD e evidência de exploit público somente como enrichment posterior.
-
-### Etapa 6 — Exposure, prioridade e gates
-
-- [ ] Criar índice de código apropriado para correlação de símbolos/calls; não reutilizar o `semantic-index.json` documental como prova de uso real.
-- [ ] Correlacionar SCA com código somente quando houver evidência demonstrável de exposição/reachability.
-- [ ] Modelar Exposure separadamente de direct/transitive dependency.
-- [ ] Calibrar `Ninfa Priority` sem substituir a severidade oficial do advisory.
-- [ ] Introduzir quality gates de segurança somente após estabilizar findings, coverage e prioridade.
-
-### Etapa 7 — Evolução posterior
-
-- [ ] Avaliar baseline/new-code e análise diff-aware.
-- [ ] Avaliar DAG, scheduler e paralelismo após estabilização dos contratos de execução.
-- [ ] Avaliar automações avançadas e dashboard/histórico sem acoplar essas camadas ao core prematuramente.
-
-## Evolução prevista
-
-A **Etapa 5 está fechada**: Psalm Taint e Semgrep produzem `Finding` SAST, contratos por profile estão formalizados e CVEs canônicos recebem enrichment informativo de EPSS/CISA KEV no schema 3. A próxima prioridade é exposição e gates.
-
-A especialização ativa de segurança permanece restrita a **Yii3** e **GLPI Plugin 11**. DAST continua congelado e delegado a outra frente institucional.
-
-A arquitetura detalhada, os limites de escopo e a ordem das decisões estão em [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md). O fluxo interno implementado e o padrão de documentação de código estão em [Arquitetura interna](docs/INTERNAL-ARCHITECTURE.md).
+- [ ] Acompanhar Yii 22 dentro da família Yii2 e especializar somente quando diferenças concretas exigirem.
+- [ ] Avaliar Laravel como próximo profile PHP após estabilização dos quatro atuais.
+- [ ] Avaliar Python como futuro ecossistema, começando por `python-generic`; Django/Flask somente depois.
+- [ ] Avaliar NVD/exploit evidence como enrichment posterior.
+- [ ] Evoluir exposure/reachability e gates apenas com evidência demonstrável.
 
 ## Documentação
 
@@ -357,6 +324,7 @@ A arquitetura detalhada, os limites de escopo e a ordem das decisões estão em 
 - [Comandos](docs/COMANDOS.md)
 - [Profile GLPI](docs/GLPI_PLUGIN.md)
 - [Customização](docs/CUSTOMIZACAO.md)
+- [Cores](docs/CORES.md)
 - [Segurança](docs/SEGURANCA.md)
 - [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md)
 - [Arquitetura interna e documentação de código](docs/INTERNAL-ARCHITECTURE.md)
