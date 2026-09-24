@@ -51,21 +51,7 @@ Ao terminar, executa `check` novamente. Achados sem correção mecânica permane
 ninfa assist /caminho/do/projeto
 ```
 
-É a camada separada para achados semânticos de PHPStan/Psalm. Não altera o projeto consumidor. Usa o mesmo renderer visual do `check` e acrescenta a orientação de correção:
-
-```text
-╭─ PHPStan ─────────────────────────────────────────────────────
-│ Arquivo: src/Web/Shared/Layout/Main/layout.php:27
-│ Regra: argument.type
-│
-│ Corrigir:
-│   Parameter #1 $path of function dirname expects string, mixed given
-│
-│ Correção:
-│   Valide/refine o valor como string na origem antes do uso; evite cast
-│   cego de mixed.
-╰────────────────────────────────────────────────────────────────────────
-```
+É a camada separada para achados semânticos de PHPStan/Psalm. Não altera o projeto consumidor. Usa o mesmo renderer visual do `check` e acrescenta a orientação de correção.
 
 A auditoria completa fica no workspace externo:
 
@@ -89,13 +75,27 @@ Executa o escopo ativo de segurança do Ninfa:
 
 ```text
 Composer Audit        # SCA, quando houver composer.lock
-Psalm Taint Analysis  # SAST
-Semgrep               # SAST
+OSV                   # SCA sobre packages resolvidos
+Psalm Taint Analysis  # SAST/dataflow
+Semgrep               # SAST/regras common + overlay do profile
 ```
 
-DAST não integra mais o comando. A análise dinâmica foi delegada a uma frente especializada externa. Se `NINFA_DAST=1` for informado, o Ninfa emite aviso e continua sem executar OWASP ZAP.
+Os profiles PHP oficiais são `php-generic`, `yii2`, `yii3` e `glpi-plugin`. `php-generic` usa o baseline comum. Yii2, Yii3 e GLPI Plugin 11 recebem overlays de segurança próprios.
 
-A prioridade do comando `security` é amadurecer SAST orientado a profile e normalizar findings de Psalm Taint e Semgrep antes de ampliar o conjunto de scanners.
+No Semgrep:
+
+```text
+ERROR    finding bloqueante
+WARNING  hotspot para revisão, não bloqueia sozinho
+```
+
+Falha do mecanismo ou cobertura parcial inesperada continua sendo erro do gate. Exclusões deliberadas de `vendor`, `runtime` e assets gerados são registradas como política e não são confundidas com perda de cobertura.
+
+O scan inclui arquivos ainda não rastreados pelo Git dentro dos paths permitidos pelo profile. Isso evita que um arquivo PHP recém-criado fique fora da análise apenas porque ainda não passou por `git add`.
+
+DAST não integra o comando. A análise dinâmica foi delegada a uma frente especializada externa. Se `NINFA_DAST=1` for informado, o Ninfa emite aviso e continua sem executar OWASP ZAP.
+
+A saída humana segue `NINFA_COLOR=auto` por padrão. Consulte [CORES.md](CORES.md) para `always`, `never` e `NO_COLOR`.
 
 ## Configuração e diagnóstico
 
@@ -111,10 +111,29 @@ O comando informa profile, paths, workspace, configs externas, índice semântic
 
 ## Testes do próprio Ninfa
 
-Dentro do repositório Ninfa:
+Validação estrutural dos profiles e runners:
 
 ```bash
 make profile-test
 ```
 
-Esse target executa os testes de profiles, configs externas, pipelines, semântica, tooling, `assist` e fixture GLPI.
+Validação das regras Semgrep do próprio Ninfa:
+
+```bash
+make semgrep-rules
+```
+
+Esse target garante a instalação gerenciada do Semgrep e executa, nesta ordem:
+
+```text
+semgrep --validate --config security/semgrep
+semgrep --test --config security/semgrep security/semgrep-tests
+```
+
+O setup completo executa ambos:
+
+```bash
+make setup
+```
+
+As fixtures Semgrep usam árvores paralelas entre `security/semgrep/` e `security/semgrep-tests/`, com casos positivos (`ruleid`) e negativos (`ok`).
