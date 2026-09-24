@@ -42,11 +42,44 @@ Exemplos de equivalência:
 Debian/Ubuntu                 Oracle Linux/RHEL-like
 php-cli                       php-cli
 git                           git
-python3 + python3-venv        python3 + python3-pip
+python3 + python3-venv        python3.12 + python3.12-pip
 apt-get                       dnf
 ```
 
-O requisito efetivo para o Semgrep é Python 3.10+ com `python3 -m venv` funcional. Os nomes dos pacotes servem como orientação operacional e podem variar entre versões da distribuição.
+O requisito efetivo para o Semgrep é Python 3.10+ com módulo `venv` funcional. O Ninfa não exige que o comando `python3` do sistema seja alterado para atender esse requisito.
+
+No Oracle Linux 9, o `python3` padrão pode permanecer em uma versão anterior à exigida pelo Semgrep. Os scripts procuram, nesta ordem:
+
+```text
+python3.12
+python3.11
+python3.10
+python3
+```
+
+O primeiro interpretador encontrado com versão 3.10 ou superior é usado para criar o virtualenv privado do Semgrep.
+
+Para Oracle Linux/RHEL-like, a orientação preferencial é instalar Python 3.12 em paralelo:
+
+```bash
+sudo dnf install -y python3.12 python3.12-pip
+```
+
+Se 3.12 não estiver disponível na versão da distribuição, use 3.11:
+
+```bash
+sudo dnf install -y python3.11 python3.11-pip
+```
+
+Não remapeie nem substitua o `python3` do sistema apenas para executar o Ninfa.
+
+Em Debian/Ubuntu, a orientação usual permanece:
+
+```bash
+sudo apt-get install -y python3 python3-venv
+```
+
+Os nomes dos pacotes servem como orientação operacional e podem variar entre versões da distribuição.
 
 ## Diretórios
 
@@ -72,7 +105,7 @@ Para validar o ambiente do próprio Ninfa:
 bash /opt/ninfa/scripts/check-environment.sh
 ```
 
-Esse script verifica PHP 8.2+, Git, Python, arquivos obrigatórios e permissões dos entrypoints, emitindo instruções de reparo compatíveis com Debian-like ou RHEL/Oracle-like.
+Esse script verifica PHP 8.2+, Git, arquivos obrigatórios, permissões dos entrypoints e um Python 3.10+ adequado às ferramentas de segurança. Quando mais de um Python compatível existir, ele informa qual interpretador foi selecionado.
 
 ## Dependências
 
@@ -80,7 +113,7 @@ O Ninfa resolve ferramentas preferencialmente no projeto consumidor, depois no a
 
 Projetos `php-generic` podem ter `composer.json` ou ser aplicações PHP simples sem Composer. Ferramentas dependentes de Composer só são executadas quando o contexto necessário existe.
 
-O Semgrep CE gerenciado pelo próprio Ninfa é preparado por `scripts/install-security-tools.sh` em `.tools/semgrep`, sem Docker e sem instalação global. O script também detecta a família Linux para orientar a correção de pré-requisitos ausentes, mas não instala pacotes do sistema automaticamente.
+O Semgrep CE gerenciado pelo próprio Ninfa é preparado por `scripts/install-security-tools.sh` em `.tools/semgrep`, sem Docker e sem instalação global. O script seleciona explicitamente um Python 3.10+ entre `python3.12`, `python3.11`, `python3.10` e `python3`, valida `venv` e usa esse interpretador para criar o ambiente privado. Ele também detecta a família Linux para orientar a correção de pré-requisitos ausentes, mas não instala pacotes do sistema automaticamente.
 
 ## GLPI
 
