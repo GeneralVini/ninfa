@@ -10,8 +10,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# @var PLATFORM platform-id — família de distribuição detectada: deb, rpm ou unknown.
 PLATFORM="unknown"
+# @var OS_LABEL text — nome legível do sistema operacional usado em diagnóstico.
 OS_LABEL="Linux"
+# @var PYTHON_BIN command-name — interpretador Python >=3.10 selecionado para ferramentas de segurança.
 PYTHON_BIN=""
 
 # @function ok — registra uma validação concluída com sucesso.
@@ -39,6 +42,7 @@ detect_platform() {
     local os_id=""
     local os_like=""
 
+    # /etc/os-release é a fonte primária por ser estável entre as famílias suportadas.
     if [[ -r /etc/os-release ]]; then
         # shellcheck disable=SC1091
         . /etc/os-release
@@ -47,6 +51,7 @@ detect_platform() {
         OS_LABEL="${PRETTY_NAME:-Linux}"
     fi
 
+    # IDs explícitos têm precedência sobre heurísticas de gerenciador de pacotes.
     case "$os_id" in
         ubuntu|debian)
             PLATFORM="deb"
@@ -55,6 +60,7 @@ detect_platform() {
             PLATFORM="rpm"
             ;;
         *)
+            # ID_LIKE cobre derivados que não expõem um ID listado diretamente.
             case "$os_like" in
                 *debian*|*ubuntu*) PLATFORM="deb" ;;
                 *rhel*|*fedora*|*centos*) PLATFORM="rpm" ;;
@@ -62,7 +68,9 @@ detect_platform() {
             ;;
     esac
 
+    # Somente quando metadata não resolveu a plataforma, usa a presença do package manager como fallback.
     if [[ "$PLATFORM" == "unknown" ]]; then
+        # apt-get identifica operacionalmente uma família Debian-like suficiente para os hints.
         if command -v apt-get >/dev/null 2>&1; then
             PLATFORM="deb"
         elif command -v dnf >/dev/null 2>&1; then
@@ -76,6 +84,7 @@ package_install_hint() {
     local deb_packages="$1"
     local rpm_packages="$2"
 
+    # O hint deve corresponder à família detectada sem instalar nada automaticamente.
     case "$PLATFORM" in
         deb)
             printf 'sudo apt-get install -y %s' "$deb_packages"
@@ -91,6 +100,7 @@ package_install_hint() {
 
 # @function python_install_hint — orienta instalação sem substituir o Python do sistema.
 python_install_hint() {
+    # A recomendação mantém Python paralelo em RPM-like e evita remapear o runtime do sistema.
     case "$PLATFORM" in
         deb)
             printf 'sudo apt-get install -y python3 python3-venv'
@@ -108,7 +118,9 @@ python_install_hint() {
 find_supported_python() {
     local candidate
 
+    # A ordem prioriza runtimes novos sem substituir o python3 que o sistema operacional já utiliza.
     for candidate in python3.12 python3.11 python3.10 python3; do
+        # Um candidato só é aceito quando existe e confirma em runtime a versão mínima suportada.
         if command -v "$candidate" >/dev/null 2>&1 \
             && "$candidate" -c 'import sys; raise SystemExit(sys.version_info < (3, 10))' >/dev/null 2>&1; then
             printf '%s\n' "$candidate"
@@ -121,12 +133,14 @@ find_supported_python() {
 
 # @function show_noexec_hint — diagnostica montagem noexec quando findmnt estiver disponível.
 show_noexec_hint() {
+    # Sem findmnt não há diagnóstico de montagem confiável, então o reparo principal permanece suficiente.
     if ! command -v findmnt >/dev/null 2>&1; then
         return
     fi
 
     # @var MOUNT_OPTIONS mount-options — opções da montagem que contém a raiz do Ninfa.
     MOUNT_OPTIONS="$(findmnt -no OPTIONS --target "$ROOT" 2>/dev/null || true)"
+    # noexec explica binários presentes porém não executáveis e merece orientação específica.
     if [[ ",$MOUNT_OPTIONS," == *,noexec,* ]]; then
         printf '\n[DIAGNÓSTICO] O filesystem do Ninfa está montado com noexec.\n' >&2
         printf 'Confirme com:\n\n  findmnt -no OPTIONS --target "%s"\n' "$ROOT" >&2
@@ -140,12 +154,14 @@ require_command() {
     local label="$2"
     local repair_command="$3"
 
+    # Ausência do comando é diferente de binário presente mas impedido de iniciar.
     if ! command -v "$name" >/dev/null 2>&1; then
         error "$label não encontrado."
         repair "$repair_command"
         exit 1
     fi
 
+    # O health-check de versão detecta permissões/noexec antes que o setup falhe em ponto posterior.
     if ! "$name" --version >/dev/null 2>&1; then
         error "$label foi encontrado, mas não pôde ser executado."
         show_noexec_hint
@@ -161,11 +177,13 @@ require_file() {
     local path="$1"
     local label="$2"
 
+    # Arquivo obrigatório ausente significa checkout/instalação incompleta, não dependência opcional.
     if [[ ! -f "$path" ]]; then
         error "$label não encontrado: $path"
         exit 1
     fi
 
+    # Legibilidade é validada separadamente para produzir reparo de permissão específico.
     if [[ ! -r "$path" ]]; then
         error "$label existe, mas não está legível: $path"
         repair "chmod u+r '$path'"
@@ -180,11 +198,13 @@ require_executable() {
     local path="$1"
     local label="$2"
 
+    # Entry point ausente indica instalação incompleta e não deve ser mascarado como problema de permissão.
     if [[ ! -e "$path" ]]; then
         error "$label não encontrado: $path"
         exit 1
     fi
 
+    # O bit de execução é requisito do uso direto do CLI/script e pode também revelar filesystem noexec.
     if [[ ! -x "$path" ]]; then
         error "$label está sem permissão de execução: $path"
         show_noexec_hint
@@ -205,6 +225,7 @@ info "Sistema detectado: $OS_LABEL ($PLATFORM)"
 require_command php PHP "$(package_install_hint 'php-cli' 'php-cli')"
 # @var PHP_OK boolean-string — "1" quando o runtime atende ao mínimo PHP 8.2.
 PHP_OK="$(php -r 'echo PHP_VERSION_ID >= 80200 ? "1" : "0";')"
+# A versão mínima protege a base do próprio Ninfa, independentemente da constraint do consumidor analisado.
 if [[ "$PHP_OK" != "1" ]]; then
     error 'O Ninfa requer PHP 8.2+ para executar sua base atual.'
     php --version >&2 || true
@@ -214,8 +235,10 @@ ok 'Versão do PHP compatível (8.2+)'
 
 require_command git Git "$(package_install_hint 'git' 'git')"
 
+# Sem Python compatível o Semgrep gerenciado não pode ser criado de forma suportada.
 if ! PYTHON_BIN="$(find_supported_python)"; then
     error 'Python 3.10+ é necessário para Semgrep.'
+    # Mostrar o python3 existente ajuda a distinguir runtime antigo de comando ausente.
     if command -v python3 >/dev/null 2>&1; then
         printf 'Python padrão encontrado: %s\n' "$(python3 --version 2>&1)" >&2
     fi
@@ -223,9 +246,11 @@ if ! PYTHON_BIN="$(find_supported_python)"; then
     exit 1
 fi
 
+# @var PYTHON_VERSION version-text — versão textual do interpretador selecionado para o virtualenv Semgrep.
 PYTHON_VERSION="$($PYTHON_BIN --version 2>&1)"
 ok "Python para ferramentas de segurança: $PYTHON_BIN ($PYTHON_VERSION)"
 
+# venv é requisito separado da versão do interpretador e pode faltar em pacotes mínimos da distribuição.
 if ! "$PYTHON_BIN" -m venv --help >/dev/null 2>&1; then
     error "O módulo venv não está disponível para $PYTHON_BIN."
     repair "$(python_install_hint)"
