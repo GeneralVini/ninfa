@@ -1,8 +1,8 @@
 <?php
 
-$sql = 'SELECT * FROM glpi_users WHERE id = ' . $_GET['id'];
+$id = $_GET['id'];
 // ruleid: ninfa.glpi11.sql-injection.request-to-query,ninfa.glpi11.sql-injection.concatenated-query
-$DB->query($sql);
+$DB->query('SELECT * FROM glpi_users WHERE id = ' . $id);
 
 $target = $_GET['next'];
 // ruleid: ninfa.glpi11.unsafe-redirect.request-target,ninfa.glpi11.unsafe-redirect.dynamic-target
