@@ -1,14 +1,70 @@
 rules:
+  - id: ninfa.yii3.sql-injection.request-to-create-command
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Dados do PSR-7 request alcançam createCommand sem binding comprovado.
+    metadata: {contract: sql-injection, profile: yii3, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $REQUEST->getQueryParams()
+      - pattern: $REQUEST->getParsedBody()
+    pattern-sinks:
+      - pattern: $DB->createCommand($SQL)
+      - pattern: $CONNECTION->createCommand($SQL)
+
   - id: ninfa.yii3.sql-injection.concatenated-command
     languages: [php]
-    severity: ERROR
-    message: Yii DB commands built by concatenation require parameters or bindings.
-    metadata: {contract: sql-injection, profile: yii3, evidence: MISUSE, confidence: HIGH}
+    severity: WARNING
+    message: Yii DB command construído por concatenação exige parâmetros/bindings ou allowlist para identificadores.
+    metadata: {contract: sql-injection, profile: yii3, evidence: MISUSE, confidence: MEDIUM}
     pattern: $DB->createCommand($A . $B)
 
-  - id: ninfa.yii3.header-injection.dynamic-with-header
+  - id: ninfa.yii3.xss.request-to-output
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Dados do PSR-7 request alcançam saída HTML sem encoding contextual comprovado.
+    metadata: {contract: xss, profile: yii3, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $REQUEST->getQueryParams()
+      - pattern: $REQUEST->getParsedBody()
+    pattern-sanitizers:
+      - pattern: Html::encode(...)
+    pattern-sinks:
+      - pattern: echo $VALUE;
+      - pattern: print $VALUE;
+
+  - id: ninfa.yii3.html.encoding-disabled
     languages: [php]
     severity: WARNING
-    message: Dynamic PSR-7 header values require validation against CRLF injection.
-    metadata: {contract: header-injection, profile: yii3, evidence: MISUSE, confidence: MEDIUM}
-    pattern: $RESPONSE->withHeader($NAME, $VALUE)
+    message: Encoding HTML desabilitado é hotspot; confirme que o conteúdo é confiável e o contexto de saída é seguro.
+    metadata: {contract: xss, profile: yii3, evidence: MISUSE, confidence: MEDIUM}
+    pattern-either:
+      - pattern: $ELEMENT->encode(false)
+      - pattern: NoEncode::string($VALUE)
+
+  - id: ninfa.yii3.header-injection.request-to-header
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Dados do PSR-7 request alcançam withHeader; rejeite CR/LF e valide o valor conforme o header.
+    metadata: {contract: header-injection, profile: yii3, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $REQUEST->getQueryParams()
+      - pattern: $REQUEST->getParsedBody()
+      - pattern: $REQUEST->getHeaderLine(...)
+    pattern-sinks:
+      - pattern: $RESPONSE->withHeader($NAME, $VALUE)
+
+  - id: ninfa.yii3.unsafe-redirect.request-to-location-header
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Destino de redirect derivado do request alcança Location; prefira rota/URL local gerada e validada.
+    metadata: {contract: unsafe-redirect, profile: yii3, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: $REQUEST->getQueryParams()
+      - pattern: $REQUEST->getParsedBody()
+    pattern-sinks:
+      - pattern: $RESPONSE->withHeader("Location", $TARGET)
+      - pattern: $RESPONSE->withHeader('Location', $TARGET)
