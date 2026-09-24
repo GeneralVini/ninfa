@@ -27,6 +27,7 @@ SEMGREP_PYTHON="$SEMGREP_DIR/bin/python"
 SEMGREP_BIN="$SEMGREP_DIR/bin/semgrep"
 PLATFORM="unknown"
 OS_LABEL="Linux"
+PYTHON_BIN=""
 
 # @function error — registra falha de preparação em stderr.
 error() {
@@ -93,6 +94,36 @@ package_install_hint() {
     esac
 }
 
+# @function python_install_hint — orienta instalação sem substituir o Python do sistema.
+python_install_hint() {
+    case "$PLATFORM" in
+        deb)
+            printf 'sudo apt-get install -y python3 python3-venv'
+            ;;
+        rpm)
+            printf 'sudo dnf install -y python3.12 python3.12-pip\n  # fallback: sudo dnf install -y python3.11 python3.11-pip'
+            ;;
+        *)
+            printf 'instale Python 3.10+ com suporte a venv e execute novamente: make security-tools'
+            ;;
+    esac
+}
+
+# @function find_supported_python — seleciona o melhor Python >= 3.10 disponível.
+find_supported_python() {
+    local candidate
+
+    for candidate in python3.12 python3.11 python3.10 python3; do
+        if command -v "$candidate" >/dev/null 2>&1 \
+            && "$candidate" -c 'import sys; raise SystemExit(sys.version_info < (3, 10))' >/dev/null 2>&1; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 # @function show_noexec_hint — diagnostica filesystem noexec quando findmnt estiver disponível.
 show_noexec_hint() {
     if ! command -v findmnt >/dev/null 2>&1; then
@@ -111,25 +142,21 @@ show_noexec_hint() {
 detect_platform
 mkdir -p "$TOOLS"
 
-# Python precisa existir antes de qualquer tentativa de criar ou reparar o virtualenv.
-if ! command -v python3 >/dev/null 2>&1; then
+if ! PYTHON_BIN="$(find_supported_python)"; then
     error 'Python 3.10+ é necessário para Semgrep.'
-    repair "$(package_install_hint 'python3 python3-venv' 'python3 python3-pip')"
+    if command -v python3 >/dev/null 2>&1; then
+        printf 'Python padrão encontrado: %s\n' "$(python3 --version 2>&1)" >&2
+    fi
+    repair "$(python_install_hint)"
     exit 1
 fi
 
-# @var PYTHON_OK boolean-string — "1" quando o interpretador atende ao mínimo 3.10.
-PYTHON_OK="$(python3 -c 'import sys; print(1 if sys.version_info >= (3, 10) else 0)')"
-if [[ "$PYTHON_OK" != "1" ]]; then
-    error 'Python 3.10+ é necessário para Semgrep.'
-    python3 --version >&2 || true
-    exit 1
-fi
+PYTHON_VERSION="$($PYTHON_BIN --version 2>&1)"
+printf '[INFO] Python selecionado para ferramentas de segurança: %s (%s)\n' "$PYTHON_BIN" "$PYTHON_VERSION"
 
-# O módulo venv precisa estar funcional antes de qualquer criação do ambiente privado.
-if ! python3 -m venv --help >/dev/null 2>&1; then
-    error 'O módulo venv do Python não está disponível.'
-    repair "$(package_install_hint 'python3-venv' 'python3 python3-pip')"
+if ! "$PYTHON_BIN" -m venv --help >/dev/null 2>&1; then
+    error "O módulo venv não está disponível para $PYTHON_BIN."
+    repair "$(python_install_hint)"
     exit 1
 fi
 
@@ -141,8 +168,8 @@ if [[ ! -e "$SEMGREP_PYTHON" ]]; then
         exit 1
     fi
 
-    printf '[NINFA] Criando ambiente virtual do Semgrep...\n'
-    python3 -m venv "$SEMGREP_DIR"
+    printf '[NINFA] Criando ambiente virtual do Semgrep com %s...\n' "$PYTHON_BIN"
+    "$PYTHON_BIN" -m venv "$SEMGREP_DIR"
 fi
 
 if [[ ! -x "$SEMGREP_PYTHON" ]]; then
