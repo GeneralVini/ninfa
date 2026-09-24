@@ -1,0 +1,78 @@
+rules:
+  - id: ninfa.yii2.sql-injection.request-to-create-command
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Entrada do Yii2 Request alcança createCommand sem binding comprovado.
+    metadata: {contract: sql-injection, profile: yii2, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: Yii::$app->request->get(...)
+      - pattern: Yii::$app->request->post(...)
+      - pattern: $REQUEST->get(...)
+      - pattern: $REQUEST->post(...)
+    pattern-sinks:
+      - pattern: $DB->createCommand($SQL)
+      - pattern: Yii::$app->db->createCommand($SQL)
+
+  - id: ninfa.yii2.xss.request-to-output
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Valor vindo do Yii2 Request alcança saída HTML sem encoding comprovado.
+    metadata: {contract: xss, profile: yii2, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: Yii::$app->request->get(...)
+      - pattern: Yii::$app->request->post(...)
+      - pattern: $REQUEST->get(...)
+      - pattern: $REQUEST->post(...)
+    pattern-sanitizers:
+      - pattern: Html::encode(...)
+      - pattern: yii\helpers\Html::encode(...)
+    pattern-sinks:
+      - pattern: echo $VALUE;
+      - pattern: print $VALUE;
+
+  - id: ninfa.yii2.unsafe-redirect.request-target
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Destino de redirect vindo do Yii2 Request deve ser local ou validado por política explícita.
+    metadata: {contract: unsafe-redirect, profile: yii2, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: Yii::$app->request->get(...)
+      - pattern: Yii::$app->request->post(...)
+      - pattern: $REQUEST->get(...)
+      - pattern: $REQUEST->post(...)
+    pattern-sinks:
+      - pattern: Yii::$app->response->redirect($TARGET)
+      - pattern: $RESPONSE->redirect($TARGET)
+
+  - id: ninfa.yii2.header-injection.request-to-header
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Valor vindo do Yii2 Request alcança header de resposta; valide CR/LF e semântica do header.
+    metadata: {contract: header-injection, profile: yii2, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: Yii::$app->request->get(...)
+      - pattern: Yii::$app->request->post(...)
+      - pattern: $REQUEST->get(...)
+      - pattern: $REQUEST->post(...)
+    pattern-sinks:
+      - pattern: Yii::$app->response->headers->set($NAME, $VALUE)
+      - pattern: $HEADERS->set($NAME, $VALUE)
+
+  - id: ninfa.yii2.path-traversal.request-to-send-file
+    languages: [php]
+    mode: taint
+    severity: ERROR
+    message: Caminho vindo do Yii2 Request alcança sendFile; valide base, normalização e containment.
+    metadata: {contract: path-traversal, profile: yii2, evidence: DATAFLOW, confidence: HIGH}
+    pattern-sources:
+      - pattern: Yii::$app->request->get(...)
+      - pattern: Yii::$app->request->post(...)
+      - pattern: $REQUEST->get(...)
+      - pattern: $REQUEST->post(...)
+    pattern-sinks:
+      - pattern: Yii::$app->response->sendFile($PATH, ...)
+      - pattern: $RESPONSE->sendFile($PATH, ...)
