@@ -13,9 +13,10 @@ jobs:
         with:
           php-version: '8.3'
       - name: PHP syntax
-        run: |
-          find src scripts tests bin -type f \( -name '*.php' -o -path 'bin/ninfa' \) -print0 | xargs -0 -n1 php -l
+        run: make syntax
       - name: CLI color test
         run: php -d zend.assertions=1 -d assert.exception=1 tests/cli-style.php
+      - name: Semgrep rules
+        run: make semgrep-rules
       - name: Profile tests
         run: make profile-test
