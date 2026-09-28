@@ -16,8 +16,8 @@ declare(strict_types=1);
  * No modo assist, executa PHPStan e Psalm em saída JSON, grava stdout/stderr e
  * `findings.json` em `<workspace>/assist`, renderiza os achados e retorna
  * código não zero quando há findings ou quando uma ferramenta falha sem
- * produzir finding estruturado. Em Yii2, a mesma auditoria preserva
- * `yii2-semantic.json` sem modificar o consumidor.
+ * produzir finding estruturado. Em Yii2, a auditoria também preserva o modelo
+ * semântico e os findings nativos do framework sem modificar o consumidor.
  *
  * Este entrypoint não altera arquivos do projeto consumidor. Seus efeitos de
  * escrita ficam restritos ao workspace externo resolvido por ProjectContext.
@@ -26,7 +26,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/ExternalConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/SemanticHints.php';
-require_once dirname(__DIR__) . '/src/Yii2SemanticModel.php';
+require_once dirname(__DIR__) . '/src/Yii2RuleEngine.php';
 require_once dirname(__DIR__) . '/src/LefthookConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';
 require_once dirname(__DIR__) . '/src/ToolResolver.php';
@@ -35,15 +35,16 @@ require_once dirname(__DIR__) . '/src/ToolResolver.php';
  * Executa PHPStan e Psalm para assistência auditável sem modificar o consumidor.
  *
  * O fluxo preserva stdout/stderr brutos das ferramentas antes de normalizar os
- * achados. Findings estruturados têm precedência sobre o exit code bruto: se
- * houver finding, o assist retorna 1. Se não houver finding, um exit code não
- * zero é tratado como falha de ferramenta e propagado.
+ * achados. No profile Yii2, os fatos do modelo semântico e seus findings nativos
+ * entram no mesmo contrato de auditoria. Findings estruturados têm precedência
+ * sobre o exit code bruto: se houver finding, o assist retorna 1. Se não houver
+ * finding, um exit code não zero é tratado como falha de ferramenta e propagado.
  *
  * Efeitos externos:
  * - cria `<workspace>/assist`;
  * - grava `phpstan.json`, `phpstan.stderr.log`, `psalm.json`,
  *   `psalm.stderr.log` e `findings.json`;
- * - em Yii2, grava `yii2-semantic.json` com fatos de framework observados;
+ * - em Yii2, grava `yii2-semantic.json` e `yii2-findings.json`;
  * - escreve findings renderizados em stdout e erros de ferramenta em stderr.
  *
  * @param ProjectContext $context Contexto imutável do projeto consumidor.
@@ -91,9 +92,12 @@ function runAssist(ProjectContext $context, array $configs): int
     file_put_contents($dir . '/psalm.json', $psalm->stdout);
     file_put_contents($dir . '/psalm.stderr.log', $psalm->stderr);
 
-    // Yii2 preserva também fatos de framework para correlacionar futuras regras e remediações.
+    /** @var list<Finding> $yii2Findings Findings nativos produzidos apenas no profile Yii2. */
+    $yii2Findings = [];
+    // Yii2 preserva fatos e findings próprios separados da saída das ferramentas externas.
     if ($context->profile() === 'yii2') {
         $yii2Semantic = Yii2SemanticModel::fromContext($context);
+        $yii2Findings = (new Yii2RuleEngine())->analyse($yii2Semantic);
         file_put_contents(
             $dir . '/yii2-semantic.json',
             json_encode(
@@ -101,12 +105,20 @@ function runAssist(ProjectContext $context, array $configs): int
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
             ) . PHP_EOL,
         );
+        file_put_contents(
+            $dir . '/yii2-findings.json',
+            json_encode(
+                $yii2Findings,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+            ) . PHP_EOL,
+        );
     }
 
-    /** @var list<Finding> $findings Achados normalizados das duas ferramentas. */
+    /** @var list<Finding> $findings Achados normalizados das ferramentas e do profile especializado. */
     $findings = [
         ...FindingRenderer::phpStan($phpstan->stdout, $context->root()),
         ...FindingRenderer::psalm($psalm->stdout, $context->root()),
+        ...$yii2Findings,
     ];
 
     // Consolida uma visão estável dos findings sem substituir os artefatos brutos.
