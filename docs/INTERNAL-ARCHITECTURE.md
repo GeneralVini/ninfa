@@ -50,6 +50,24 @@ PipelineRunner
 
 `fix` possui comportamento adicional: `RecheckingPipelineRunner` executa `fix` e, somente se ele terminar com código 0, executa um `check` completo. `assist` não passa por esse runner; o CLI delega ao configurador em modo `--assist`.
 
+O profile Yii2 possui ainda uma fundação semântica própria usada inicialmente por configuração/assistência:
+
+```text
+ProjectContext(profile=yii2)
+  ↓
+Yii2SemanticModel
+  ├─ capabilities Redis/MongoDB
+  ├─ controllers/actions
+  ├─ referências literais a views
+  └─ relações hasOne/hasMany
+  ↓
+Yii2RuleEngine
+  ↓
+Finding[]
+```
+
+Essa camada não substitui PHPStan/Psalm/SAST e não deve ser confundida com `SemanticHints`: o modelo Yii2 deriva fatos do código/Composer, enquanto `SemanticHints` continua documental.
+
 ## Entrada e contexto do projeto
 
 ### `bin/ninfa`
@@ -119,6 +137,8 @@ security
 
 O plano descreve; `PipelineRunner` executa.
 
+As regras nativas Yii2 ainda não foram promovidas ao plano público de `check`: nesta tranche elas entram em `assist` para calibração/field test antes de se tornarem gate.
+
 ### `src/PipelineRunner.php`
 
 Orquestra `check`, `fix` e `security`. Ele:
@@ -184,11 +204,35 @@ Gera `lefthook.yml` no workspace. `pre-commit` chama `ninfa fix`; `pre-push` cha
 
 Lê documentação do consumidor e extrai sinais documentais. Não percorre AST/call graph e não deve ser usado como prova de reachability.
 
+### `src/Yii2SemanticModel.php`
+
+Constrói um snapshot conservador somente quando `ProjectContext::profile()` é `yii2`. O modelo atualmente:
+
+- detecta `yiisoft/yii2-redis` e `yiisoft/yii2-mongodb` como capabilities, sem criar novos profiles;
+- percorre apenas PHP dentro dos paths já autorizados pelo `ProjectContext`;
+- identifica controllers pelo sufixo `Controller`;
+- normaliza actions `actionXxx()` e chaves literais de `actions()`;
+- registra chamadas literais a `render()`, `renderPartial()`, `renderAjax()` e `renderFile()`;
+- resolve somente a convenção estática segura `controllers/` -> `views/<controller-id>/`;
+- inventaria getters com `hasOne()`/`hasMany()` e alvo `Foo::class` quando literal.
+
+Referências calculadas, aliases não resolvidos, `renderFile()` e paths cuja resolução dependeria de runtime permanecem desconhecidos (`null`) em vez de gerar falso positivo. O modelo não produz findings e não decide severidade.
+
+### `src/Yii2RuleEngine.php`
+
+Aplica política sobre fatos conclusivos do `Yii2SemanticModel`. A primeira regra estável é `NINFA-YII2-COR-001`, que produz finding de correctness para view literal resolvida cujo arquivo não existe.
+
+O finding usa `tool=ninfa-yii2`, `severity=error`, `confidence=high`, `evidence_type=framework-correctness` e metadata com controller/view/path esperado. Não possui autofix.
+
+A separação model/engine evita misturar coleta de evidência com política de gate. Novas regras devem reutilizar o modelo antes de criar parsers paralelos.
+
 ## Modelo de resultado
 
 ### `src/Finding.php`
 
 Representa achado normalizado com localização, regra, problema, correção, severidade, confiança, tipo de evidência, proveniência e metadata. Não decide sozinho se um finding bloqueia.
+
+Findings nativos Yii2 usam o mesmo contrato; não existe schema paralelo para framework.
 
 ### `src/ToolResult.php`
 
@@ -214,6 +258,8 @@ glpi-plugin common + glpi-plugin-11
 O overlay Yii2 cobre Request/Response, DB/Command, HTML, redirect, headers, path/filesystem e HTTP-client em nível semântico. Yii 22 permanece nessa família sem branch de profile separada.
 
 O objeto também resolve as configurações Semgrep que `PipelineRunner` deve carregar. Scanners não devem espalhar condicionais de framework quando a informação pertence ao contrato.
+
+Correctness/architecture/performance da nova camada Yii2 não são automaticamente SAST. Uma regra só migra para `security` quando houver contrato de segurança e evidência apropriada.
 
 ### `src/SemgrepParser.php`
 
@@ -289,7 +335,16 @@ Aceita `RunResult` de `security` e grava o schema estruturado com inventário, f
 
 ### `scripts/ninfa-configure.php`
 
-No modo normal gera configs, `lefthook.yml` e `semantic-index.json`. Com `--assist`, executa PHPStan/Psalm estruturados, grava evidência bruta e findings no workspace externo.
+No modo normal gera configs, `lefthook.yml` e `semantic-index.json`. Para Yii2, o índice recebe `framework_semantics` com o snapshot de `Yii2SemanticModel` sem substituir os hints documentais existentes.
+
+Com `--assist`, executa PHPStan/Psalm estruturados, grava evidência bruta e findings no workspace externo. No profile Yii2 também grava:
+
+```text
+assist/yii2-semantic.json
+assist/yii2-findings.json
+```
+
+Os findings nativos entram ainda em `assist/findings.json`, usando o mesmo contrato `Finding` das demais fontes.
 
 ### `scripts/install-security-tools.sh`
 
@@ -318,6 +373,8 @@ setup
 
 `semgrep-rules` depende de `security-tools` e valida/testa a suíte Semgrep. `setup` executa toda a cadeia. Esses targets pertencem ao desenvolvimento do Ninfa, não ao consumidor.
 
+`profile-test` inclui `tests/yii2-semantic-model.php`, que valida capabilities, actions, views, relações, o primeiro finding nativo e persistência do snapshot no workspace.
+
 ## Política visual
 
 `CliStyle` permanece a única abstração de cores/símbolos. `NINFA_COLOR=auto` é o padrão; `always`, `never` e `NO_COLOR` completam o contrato. Não existem configurações específicas por scanner.
@@ -328,9 +385,13 @@ A documentação deve ficar junto do símbolo/bloco que explica e conter somente
 
 `tests/internal-docs.php` aplica o padrão a `src/*.php`. `tests/shell-docs.php` protege scripts shell. Não existe allowlist permanente de dívida documental.
 
+A primeira versão de `Yii2SemanticModel` foi bloqueada pelo próprio guard porque um arquivo com fluxo de controle relevante ainda não possuía comentário local de decisão/invariante. A correção adicionou documentação da invariável; o guard não foi relaxado. Esse comportamento é o modelo para novas regras Yii2.
+
 ## Estado atual
 
-A fundação, SCA estruturado, SAST estruturado e contratos de profile estão implementados para os quatro profiles PHP oficiais. O próximo trabalho deve ser calibração em projetos reais, redução de falsos positivos e evolução de exposure/gates baseada em evidência.
+A fundação, SCA estruturado, SAST estruturado e contratos de profile estão implementados para os quatro profiles PHP oficiais. A especialização Yii2 agora possui modelo semântico inicial e a primeira regra nativa de correctness em fase `assist`; a promoção ao gate de `check` depende de CI/field tests e calibração de falso positivo.
+
+O próximo trabalho Yii2 está detalhado em `docs/YII2-ANALYSIS.md`: actions/behaviors, relações, query patterns, remediações SAFE, PHPDoc mágico e hardening Redis/MongoDB.
 
 Roadmap de frameworks/ecossistemas:
 
