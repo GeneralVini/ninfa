@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/src/Yii2SemanticModel.php';
+require_once dirname(__DIR__) . '/src/Yii2RuleEngine.php';
 
 $root = sys_get_temp_dir() . '/ninfa-yii2-semantic-' . bin2hex(random_bytes(4));
 putenv('NINFA_WORKSPACE_ROOT=' . $root . '/workspace');
@@ -110,6 +110,16 @@ PHP,
     assert($serialized['capabilities']['redis'] === true);
     assert(count($serialized['controllers']) === 1);
 
+    $yii2Findings = (new Yii2RuleEngine())->analyse($model);
+    assert(count($yii2Findings) === 1);
+    assert($yii2Findings[0]->tool === 'ninfa-yii2');
+    assert($yii2Findings[0]->rule === Yii2RuleEngine::VIEW_NOT_FOUND);
+    assert($yii2Findings[0]->file === 'frontend/controllers/SiteController.php');
+    assert($yii2Findings[0]->severity === 'error');
+    assert($yii2Findings[0]->confidence === 'high');
+    assert(($yii2Findings[0]->metadata['category'] ?? null) === 'correctness');
+    assert(($yii2Findings[0]->metadata['expected_path'] ?? null) === 'frontend/views/site/missing.php');
+
     $configureOutput = [];
     $configureCode = 0;
     exec(
@@ -131,7 +141,7 @@ PHP,
     assert(($semanticIndex['framework_semantics']['capabilities']['mongodb'] ?? null) === true);
     assert(count($semanticIndex['framework_semantics']['controllers'] ?? []) === 1);
 
-    echo "[OK] Modelo semântico Yii2 preserva capabilities, actions, views, relações e índice externo.\n";
+    echo "[OK] Yii2 cobre modelo semântico, finding nativo e índice externo.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
     if (is_dir($root)) {
