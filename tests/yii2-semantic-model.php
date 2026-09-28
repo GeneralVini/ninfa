@@ -110,7 +110,28 @@ PHP,
     assert($serialized['capabilities']['redis'] === true);
     assert(count($serialized['controllers']) === 1);
 
-    echo "[OK] Modelo semântico Yii2 preserva capabilities, actions, views e relações.\n";
+    $configureOutput = [];
+    $configureCode = 0;
+    exec(
+        escapeshellarg(PHP_BINARY)
+        . ' ' . escapeshellarg(dirname(__DIR__) . '/scripts/ninfa-configure.php')
+        . ' ' . escapeshellarg($root)
+        . ' 2>&1',
+        $configureOutput,
+        $configureCode,
+    );
+    assert($configureCode === 0, implode("\n", $configureOutput));
+
+    $semanticIndexFile = $context->workspace()->file('semantic-index.json');
+    assert(is_file($semanticIndexFile));
+    $semanticIndex = json_decode((string) file_get_contents($semanticIndexFile), true, 512, JSON_THROW_ON_ERROR);
+    assert(is_array($semanticIndex));
+    assert(($semanticIndex['profile'] ?? null) === 'yii2');
+    assert(($semanticIndex['framework_semantics']['capabilities']['redis'] ?? null) === true);
+    assert(($semanticIndex['framework_semantics']['capabilities']['mongodb'] ?? null) === true);
+    assert(count($semanticIndex['framework_semantics']['controllers'] ?? []) === 1);
+
+    echo "[OK] Modelo semântico Yii2 preserva capabilities, actions, views, relações e índice externo.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
     if (is_dir($root)) {
