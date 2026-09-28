@@ -65,6 +65,7 @@ final class Yii2SemanticModel implements JsonSerializable
         array $composer,
         array $paths,
     ) {
+        // A ordem é intencional: capabilities são baratas; parsing de arquivos ocorre uma única vez por construção.
         $this->capabilities = $this->detectCapabilities($composer);
         $files = $this->phpFiles($paths);
         $this->controllers = $this->discoverControllers($files);
