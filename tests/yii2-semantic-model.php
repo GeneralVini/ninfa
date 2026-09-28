@@ -1,0 +1,126 @@
+<?php
+
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/src/Yii2SemanticModel.php';
+
+$root = sys_get_temp_dir() . '/ninfa-yii2-semantic-' . bin2hex(random_bytes(4));
+putenv('NINFA_WORKSPACE_ROOT=' . $root . '/workspace');
+
+try {
+    mkdir($root . '/frontend/controllers', 0775, true);
+    mkdir($root . '/frontend/views/site', 0775, true);
+    mkdir($root . '/common/models', 0775, true);
+
+    file_put_contents($root . '/composer.json', json_encode([
+        'require' => [
+            'php' => '>=8.2',
+            'yiisoft/yii2' => '^2.0.53',
+            'yiisoft/yii2-redis' => '^2.0',
+        ],
+        'require-dev' => [
+            'yiisoft/yii2-mongodb' => '^3.0',
+        ],
+    ], JSON_THROW_ON_ERROR));
+
+    file_put_contents($root . '/frontend/views/site/index.php', "<?php echo 'ok';\n");
+    file_put_contents(
+        $root . '/frontend/controllers/SiteController.php',
+        <<<'PHP'
+<?php
+
+namespace app\frontend\controllers;
+
+final class SiteController
+{
+    public function actionIndex(): void
+    {
+        $this->render('index');
+        $this->render('missing');
+        $view = 'dynamic';
+        $this->render($view);
+    }
+
+    public function actionUserProfile(): void
+    {
+    }
+
+    public function actions(): array
+    {
+        return [
+            'external-action' => ['class' => ExampleAction::class],
+        ];
+    }
+}
+PHP,
+    );
+
+    file_put_contents(
+        $root . '/common/models/Order.php',
+        <<<'PHP'
+<?php
+
+namespace app\common\models;
+
+final class Order
+{
+    public function getCustomer(): mixed
+    {
+        return $this->hasOne(Customer::class, ['id' => 'customer_id']);
+    }
+
+    public function getItems(): mixed
+    {
+        return $this->hasMany(OrderItem::class, ['order_id' => 'id']);
+    }
+}
+PHP,
+    );
+
+    $context = ProjectContext::fromRoot($root);
+    assert($context->profile() === 'yii2');
+
+    $model = Yii2SemanticModel::fromContext($context);
+    assert($model->capabilities() === ['redis' => true, 'mongodb' => true]);
+
+    $controllers = $model->controllers();
+    assert(count($controllers) === 1);
+    assert($controllers[0]['class'] === 'app\\frontend\\controllers\\SiteController');
+    assert($controllers[0]['id'] === 'site');
+    assert($controllers[0]['actions'] === ['external-action', 'index', 'user-profile']);
+    assert(count($controllers[0]['views']) === 2);
+    assert($controllers[0]['views'][0]['name'] === 'index');
+    assert($controllers[0]['views'][0]['resolved_path'] === 'frontend/views/site/index.php');
+    assert($controllers[0]['views'][0]['exists'] === true);
+    assert($controllers[0]['views'][1]['name'] === 'missing');
+    assert($controllers[0]['views'][1]['resolved_path'] === 'frontend/views/site/missing.php');
+    assert($controllers[0]['views'][1]['exists'] === false);
+
+    $relations = $model->relations();
+    assert(count($relations) === 2);
+    assert($relations[0]['model'] === 'app\\common\\models\\Order');
+    assert($relations[0]['name'] === 'customer');
+    assert($relations[0]['kind'] === 'hasOne');
+    assert($relations[0]['target'] === 'Customer');
+    assert($relations[1]['name'] === 'items');
+    assert($relations[1]['kind'] === 'hasMany');
+    assert($relations[1]['target'] === 'OrderItem');
+
+    $serialized = $model->jsonSerialize();
+    assert($serialized['capabilities']['redis'] === true);
+    assert(count($serialized['controllers']) === 1);
+
+    echo "[OK] Modelo semântico Yii2 preserva capabilities, actions, views e relações.\n";
+} finally {
+    putenv('NINFA_WORKSPACE_ROOT');
+    if (is_dir($root)) {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($iterator as $item) {
+            $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+        }
+        rmdir($root);
+    }
+}
