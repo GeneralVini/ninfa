@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/src/Yii2RuleEngine.php';
 
-$root = sys_get_temp_dir() . '/ninfa-yii2-semantic-' . bin2hex(random_bytes(4));
-putenv('NINFA_WORKSPACE_ROOT=' . $root . '/workspace');
+$token = bin2hex(random_bytes(4));
+$root = sys_get_temp_dir() . '/ninfa-yii2-semantic-' . $token;
+$workspaceRoot = sys_get_temp_dir() . '/ninfa-yii2-workspace-' . $token;
+putenv('NINFA_WORKSPACE_ROOT=' . $workspaceRoot);
 
 try {
     mkdir($root . '/frontend/controllers', 0775, true);
@@ -144,14 +146,17 @@ PHP,
     echo "[OK] Yii2 cobre modelo semântico, finding nativo e índice externo.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
-    if (is_dir($root)) {
+    foreach ([$root, $workspaceRoot] as $directory) {
+        if (!is_dir($directory)) {
+            continue;
+        }
         $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
             RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($iterator as $item) {
             $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
         }
-        rmdir($root);
+        rmdir($directory);
     }
 }
