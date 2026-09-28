@@ -233,9 +233,10 @@ final class Yii2SemanticModel implements JsonSerializable
             }
 
             $actionsBody = $this->methodBody($source, 'actions');
-            if ($actionsBody !== null && preg_match_all('/[\'\"]([a-zA-Z0-9_-]+)[\'\"]\s*=>/', $actionsBody, $externalActions) > 0) {
-                foreach ($externalActions[1] as $actionId) {
-                    $actions[] = (string) $actionId;
+            if ($actionsBody !== null) {
+                // Somente chaves do array retornado são actions; opções aninhadas como `class` não são IDs de action.
+                foreach ($this->topLevelReturnArrayKeys($actionsBody) as $actionId) {
+                    $actions[] = $actionId;
                 }
             }
             $actions = array_values(array_unique($actions));
@@ -269,6 +270,86 @@ final class Yii2SemanticModel implements JsonSerializable
         }
 
         return $controllers;
+    }
+
+    /**
+     * Extrai chaves string apenas do array de primeiro nível retornado por um método.
+     *
+     * O tokenizador aceita `return [...]` e `return array(...)`. Chaves de arrays
+     * aninhados, argumentos de função/closure e strings que não antecedem `=>` no
+     * nível raiz são ignoradas. O método não avalia PHP nem executa código consumidor.
+     *
+     * @param string $body Corpo textual do método `actions()` sem as chaves externas.
+     * @return list<string> IDs literais simples encontrados no array retornado.
+     */
+    private function topLevelReturnArrayKeys(string $body): array
+    {
+        /** @var array<int,array{0:int,1:string,2:int}|string> $tokens Tokens do corpo isolado como PHP válido. */
+        $tokens = token_get_all("<?php\n" . $body);
+        /** @var list<string> $keys Chaves literais válidas observadas no primeiro nível. */
+        $keys = [];
+        $afterReturn = false;
+        $arrayKeyword = false;
+        $started = false;
+        $depth = 0;
+
+        foreach ($tokens as $index => $token) {
+            if (!$afterReturn) {
+                if (is_array($token) && $token[0] === T_RETURN) {
+                    $afterReturn = true;
+                }
+                continue;
+            }
+
+            if (!$started && is_array($token) && $token[0] === T_ARRAY) {
+                $arrayKeyword = true;
+                continue;
+            }
+
+            $text = is_array($token) ? $token[1] : $token;
+            if (!$started) {
+                if ($text === '[' || ($arrayKeyword && $text === '(')) {
+                    $started = true;
+                    $depth = 1;
+                } elseif ($text === ';') {
+                    return [];
+                }
+                continue;
+            }
+
+            if (in_array($text, ['[', '(', '{'], true)) {
+                $depth++;
+                continue;
+            }
+            if (in_array($text, [']', ')', '}'], true)) {
+                $depth--;
+                if ($depth === 0) {
+                    break;
+                }
+                continue;
+            }
+            if ($depth !== 1 || !is_array($token) || $token[0] !== T_CONSTANT_ENCAPSED_STRING) {
+                continue;
+            }
+
+            if (preg_match('/^([\'\"])([A-Za-z0-9_-]+)\1$/', $token[1], $literalMatch) !== 1) {
+                continue;
+            }
+
+            // A string só é chave de action quando o próximo token significativo é a seta do array no mesmo nível.
+            for ($cursor = $index + 1; $cursor < count($tokens); $cursor++) {
+                $next = $tokens[$cursor];
+                if (is_array($next) && in_array($next[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                    continue;
+                }
+                if (is_array($next) && $next[0] === T_DOUBLE_ARROW) {
+                    $keys[] = $literalMatch[2];
+                }
+                break;
+            }
+        }
+
+        return array_values(array_unique($keys));
     }
 
     /**
