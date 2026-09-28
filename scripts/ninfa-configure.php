@@ -9,13 +9,15 @@ declare(strict_types=1);
  * Uso assist: `php scripts/ninfa-configure.php [root] --assist`.
  *
  * No modo normal, gera configurações externas, `lefthook.yml` e
- * `semantic-index.json` no workspace do projeto. `--force` é aceito apenas
- * por compatibilidade e não muda a regeneração do workspace.
+ * `semantic-index.json` no workspace do projeto. Para Yii2, o índice incorpora
+ * também o snapshot conservador de `Yii2SemanticModel`. `--force` é aceito
+ * apenas por compatibilidade e não muda a regeneração do workspace.
  *
  * No modo assist, executa PHPStan e Psalm em saída JSON, grava stdout/stderr e
  * `findings.json` em `<workspace>/assist`, renderiza os achados e retorna
  * código não zero quando há findings ou quando uma ferramenta falha sem
- * produzir finding estruturado.
+ * produzir finding estruturado. Em Yii2, a mesma auditoria preserva
+ * `yii2-semantic.json` sem modificar o consumidor.
  *
  * Este entrypoint não altera arquivos do projeto consumidor. Seus efeitos de
  * escrita ficam restritos ao workspace externo resolvido por ProjectContext.
@@ -24,6 +26,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/ExternalConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/SemanticHints.php';
+require_once dirname(__DIR__) . '/src/Yii2SemanticModel.php';
 require_once dirname(__DIR__) . '/src/LefthookConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';
 require_once dirname(__DIR__) . '/src/ToolResolver.php';
@@ -40,6 +43,7 @@ require_once dirname(__DIR__) . '/src/ToolResolver.php';
  * - cria `<workspace>/assist`;
  * - grava `phpstan.json`, `phpstan.stderr.log`, `psalm.json`,
  *   `psalm.stderr.log` e `findings.json`;
+ * - em Yii2, grava `yii2-semantic.json` com fatos de framework observados;
  * - escreve findings renderizados em stdout e erros de ferramenta em stderr.
  *
  * @param ProjectContext $context Contexto imutável do projeto consumidor.
@@ -86,6 +90,18 @@ function runAssist(ProjectContext $context, array $configs): int
     file_put_contents($dir . '/phpstan.stderr.log', $phpstan->stderr);
     file_put_contents($dir . '/psalm.json', $psalm->stdout);
     file_put_contents($dir . '/psalm.stderr.log', $psalm->stderr);
+
+    // Yii2 preserva também fatos de framework para correlacionar futuras regras e remediações.
+    if ($context->profile() === 'yii2') {
+        $yii2Semantic = Yii2SemanticModel::fromContext($context);
+        file_put_contents(
+            $dir . '/yii2-semantic.json',
+            json_encode(
+                $yii2Semantic,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+            ) . PHP_EOL,
+        );
+    }
 
     /** @var list<Finding> $findings Achados normalizados das duas ferramentas. */
     $findings = [
@@ -173,13 +189,15 @@ try {
         exit(runAssist($context, $configs));
     }
 
-    // O modo normal produz apenas artefatos auxiliares externos. O índice
-    // semântico continua documental e não deve ser interpretado como call graph.
+    // O modo normal produz apenas artefatos auxiliares externos. Hints documentais
+    // e fatos semânticos de framework permanecem separados no mesmo índice auditável.
     /** @var string $lefthookConfig Caminho do lefthook.yml externo gerado. */
     $lefthookConfig = (new LefthookConfigGenerator())->generate($context);
     /** @var SemanticHints $semanticHints Hints extraídos apenas de documentação do consumidor. */
     $semanticHints = SemanticHints::fromProject($context->root());
-    /** @var string $semanticIndex Caminho do semantic-index.json documental. */
+    /** @var Yii2SemanticModel|null $yii2Semantic Fatos Yii2 ou null fora do profile especializado. */
+    $yii2Semantic = $context->profile() === 'yii2' ? Yii2SemanticModel::fromContext($context) : null;
+    /** @var string $semanticIndex Caminho do semantic-index.json documental/semântico. */
     $semanticIndex = $context->workspace()->file('semantic-index.json');
     file_put_contents(
         $semanticIndex,
@@ -188,7 +206,8 @@ try {
             'files' => $semanticHints->files(),
             'symbols' => $semanticHints->symbols(),
             'profile_signals' => $semanticHints->profileSignals(),
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . PHP_EOL,
+            ...($yii2Semantic !== null ? ['framework_semantics' => $yii2Semantic] : []),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL,
     );
 } catch (Throwable $error) {
     // Entry point converte qualquer falha de preparação em erro CLI simples;
@@ -213,6 +232,15 @@ echo '[NINFA] Lefthook: ' . $lefthookConfig . PHP_EOL;
 echo '[NINFA] Semantica: ' . $semanticIndex . PHP_EOL;
 echo '[NINFA] Docs semanticos: ' . ($semanticHints->files() === [] ? 'nenhum' : implode(', ', $semanticHints->files())) . PHP_EOL;
 echo '[NINFA] Simbolos documentados: ' . count($semanticHints->symbols()) . PHP_EOL;
+
+// Yii2 expõe capabilities sem criar novos profiles e sem inferir suporte por nome de classe isolado.
+if ($context->profile() === 'yii2' && $yii2Semantic instanceof Yii2SemanticModel) {
+    $capabilities = $yii2Semantic->capabilities();
+    echo '[NINFA] Yii2 redis: ' . ($capabilities['redis'] ? 'sim' : 'nao') . PHP_EOL;
+    echo '[NINFA] Yii2 mongodb: ' . ($capabilities['mongodb'] ? 'sim' : 'nao') . PHP_EOL;
+    echo '[NINFA] Yii2 controllers: ' . count($yii2Semantic->controllers()) . PHP_EOL;
+    echo '[NINFA] Yii2 relations: ' . count($yii2Semantic->relations()) . PHP_EOL;
+}
 
 // GLPI expõe contexto adicional porque o host externo influencia diretamente
 // as configurações geradas para PHPStan/Psalm.
