@@ -24,7 +24,7 @@ A incorporação é conceitual. O Ninfa não deve copiar classes upstream sem pr
 
 ## Modelo semântico
 
-`src/Yii2SemanticModel.php` é a primeira camada compartilhada do profile. Ele não gera `Finding` e não decide severidade. O modelo coleta fatos estáticos reutilizáveis por regras posteriores.
+`src/Yii2SemanticModel.php` é a camada compartilhada do profile. Ele não gera `Finding` e não decide severidade. O modelo coleta fatos estáticos reutilizáveis por regras posteriores.
 
 Snapshot inicial:
 
@@ -47,6 +47,39 @@ Yii2SemanticModel
 
 A resolução inicial de views cobre a convenção estática `controllers/` -> `views/<controller-id>/` para chamadas literais a `render()`, `renderPartial()` e `renderAjax()`. Alias, `renderFile()`, nomes calculados, paths absolutos e traversal permanecem desconhecidos nesta camada até existir resolução específica suficientemente confiável.
 
+O modo normal de `scripts/ninfa-configure.php` persiste esse snapshot em `semantic-index.json`, sob `framework_semantics`, sem misturá-lo aos hints documentais de `SemanticHints`. Em `ninfa assist`, o snapshot também é preservado em `assist/yii2-semantic.json`.
+
+## Engine de regras nativas
+
+`src/Yii2RuleEngine.php` transforma somente fatos semânticos conclusivos em `Finding`. A separação é intencional:
+
+```text
+Yii2SemanticModel  -> fatos observados
+Yii2RuleEngine     -> política/regra
+Finding            -> contrato normalizado
+```
+
+A primeira regra implementada é:
+
+```text
+NINFA-YII2-COR-001
+```
+
+Ela reporta uma referência literal a view quando o modelo conseguiu resolver o path convencional e confirmou que o arquivo não existe. `exists=null`, nomes calculados, aliases não resolvidos e demais casos desconhecidos não produzem finding.
+
+O finding usa:
+
+```text
+tool          ninfa-yii2
+category      correctness
+severity      error
+confidence    high
+autofix       false
+evidence_type framework-correctness
+```
+
+No estágio atual a regra é incorporada ao fluxo de `assist`, que grava `assist/yii2-findings.json` e também inclui o finding no `assist/findings.json`. A promoção para o gate de `check` deve ocorrer apenas depois da validação desta tranche e de field tests em projetos Yii2 reais.
+
 ## Capabilities de storage
 
 O profile permanece `yii2` quando o Composer declara:
@@ -67,25 +100,25 @@ O modelo expõe:
 
 Regras ActiveRecord/Query podem posteriormente usar essas flags para habilitar semântica específica sem criar combinações de profile como `yii2-redis-mongodb`.
 
-## Taxonomia prevista
+## Taxonomia
 
-As regras específicas Yii2 devem receber ID estável do Ninfa, independente do nome upstream.
+As regras específicas Yii2 recebem ID estável do Ninfa, independente do nome upstream.
 
 | Família | Exemplo de ID | Tratamento padrão |
 | --- | --- | --- |
-| correctness | `NINFA-YII2-COR-001` | bloqueante quando a evidência é conclusiva |
+| correctness | `NINFA-YII2-COR-001` | bloqueante quando a evidência é conclusiva e a regra foi promovida ao gate |
 | security | `NINFA-YII2-SEC-001` | segue política SAST e evidência do fluxo |
 | architecture | `NINFA-YII2-ARCH-001` | advisory salvo política explícita |
 | performance | `NINFA-YII2-PERF-001` | advisory/remediation |
 | deprecation | `NINFA-YII2-DEP-001` | candidato a autofix seguro |
 | static-analysis | `NINFA-YII2-TYPE-001` | check/assist |
 
-O primeiro catálogo planejado é:
+Catálogo inicial:
 
 | Conceito | Categoria | Estado |
 | --- | --- | --- |
-| view literal inexistente | correctness | modelo semântico implementado; regra pendente |
-| action inexistente em filtros/behaviors | correctness | planejado |
+| view literal inexistente | correctness | `NINFA-YII2-COR-001` implementada; em `assist` |
+| action inexistente em filtros/behaviors | correctness | modelo de actions disponível; regra planejada |
 | relação ActiveRecord inexistente | correctness | inventário de relações implementado; regra pendente |
 | condição dinâmica insegura em Query | security/code-quality | planejado |
 | existência via `one()`/`count()` | performance | planejado |
@@ -130,7 +163,7 @@ Código novo do profile segue integralmente `docs/INTERNAL-ARCHITECTURE.md` e `t
 - comentários locais para decisões, precedências e invariantes relevantes;
 - I/O e mutações documentados junto do método responsável.
 
-O objetivo é preservar informação semântica real. Docblocks vazios ou que apenas repetem a assinatura não atendem ao contrato.
+O objetivo é preservar informação semântica real. Docblocks vazios ou que apenas repetem a assinatura não atendem ao contrato. O próprio CI já bloqueou a primeira versão de `Yii2SemanticModel` por ausência de comentário local de invariável em um arquivo com fluxo relevante; a implementação foi corrigida em vez de relaxar o guard.
 
 ## PHPDoc do consumidor Yii2
 
@@ -155,7 +188,7 @@ Toda nova regra Yii2 deve conter, no mínimo:
 3. caso limite;
 4. caso dinâmico/não resolvível que não pode virar falso positivo.
 
-`tests/yii2-semantic-model.php` protege a fundação atual: capabilities Redis/MongoDB, actions inline/externas, resolução de views literais e relações `hasOne`/`hasMany`.
+`tests/yii2-semantic-model.php` protege a fundação atual: capabilities Redis/MongoDB, actions inline/externas, resolução de views literais, relações `hasOne`/`hasMany`, o finding `NINFA-YII2-COR-001` e a persistência de `framework_semantics` no workspace externo.
 
 A evolução prevista é organizar fixtures em:
 
@@ -175,7 +208,7 @@ tests/fixtures/yii2/
 
 ### `ninfa check`
 
-Recebe correctness, static-analysis, deprecation e qualidade Yii2 conforme as regras forem promovidas ao pipeline. Não modifica o consumidor.
+Receberá correctness, static-analysis, deprecation e qualidade Yii2 à medida que cada regra passar pela fase de `assist`/field test e for promovida ao gate. Não modifica o consumidor.
 
 ### `ninfa fix`
 
@@ -183,7 +216,7 @@ Só deve aplicar remediações classificadas como seguras. Alterações de compo
 
 ### `ninfa assist`
 
-É o destino preferencial para findings Yii2 que exigem interpretação humana, incluindo PHPDoc sem correção mecânica comprovadamente segura.
+É a primeira superfície das regras nativas Yii2. Além de PHPStan/Psalm estruturados, preserva `yii2-semantic.json`, `yii2-findings.json` e inclui os findings Yii2 no `findings.json` consolidado.
 
 ### `ninfa security`
 
@@ -201,10 +234,10 @@ Ambos os projetos externos usam licença MIT. Consulte `THIRD_PARTY_NOTICES.md`.
 
 ## Sequência de implementação
 
-1. catálogo e contrato documental;
-2. modelo semântico compartilhado;
-3. correctness de view/action/relation;
-4. integração com findings normalizados;
+1. catálogo e contrato documental — iniciado;
+2. modelo semântico compartilhado — implementado para capabilities/controllers/actions/views/relations;
+3. correctness de view/action/relation — view implementada em `assist`; action/relation pendentes;
+4. integração com findings normalizados — iniciada com `NINFA-YII2-COR-001`;
 5. deprecations/remediações SAFE;
 6. query/security com correlação ao SAST;
 7. PHPDoc/magic properties via check/assist;
