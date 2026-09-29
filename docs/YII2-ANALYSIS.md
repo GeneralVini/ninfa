@@ -199,7 +199,7 @@ remediation   exists()/!exists()
 risk          review
 ```
 
-Ela permanece em `assist`. Não é vulnerabilidade e não entra automaticamente em `security`.
+Ela permanece em `assist` durante field test. Não é vulnerabilidade, não entra automaticamente em `security` e não é reescrita por `fix` nesta fase.
 
 ## Engine de regras nativas
 
