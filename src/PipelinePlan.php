@@ -9,9 +9,9 @@ require_once __DIR__ . '/FrontendDetector.php';
  * Produz o plano declarativo das operações públicas executadas pelo runner.
  *
  * `check` define as verificações de qualidade e adiciona ESLint/Prettier
- * somente quando o FrontendDetector indicar suporte. `fix` deriva apenas as
- * etapas marcadas como corrigíveis. `security` lista Composer Audit, OSV,
- * Psalm Taint e Semgrep.
+ * somente quando o FrontendDetector indicar suporte. `fix` deriva as etapas
+ * externas corrigíveis e, no profile Yii2, prefixa a remediação SAFE nativa.
+ * `security` lista Composer Audit, OSV, Psalm Taint e Semgrep.
  *
  * Esta classe não resolve binários nem inicia processos; ela apenas descreve
  * a ordem, o modo e a capacidade de correção das etapas.
@@ -64,28 +64,36 @@ final class PipelinePlan
     }
 
     /**
-     * Deriva o plano de `fix` exclusivamente das etapas corrigíveis do `check`.
+     * Monta o plano de `fix` preservando a ordem entre remediação nativa e ferramentas externas.
      *
-     * A derivação evita manter duas listas divergentes: cada hook corrigível
-     * preserva o mesmo `id` e passa a usar modo `fix`. O recheck posterior não
-     * pertence a este plano; é responsabilidade de RecheckingPipelineRunner.
+     * Hooks corrigíveis do `check` mantêm o mesmo `id` e passam a modo `fix`. Yii2 recebe
+     * antes deles `yii2-safe-remediation`, etapa interna que aplica somente regras catalogadas
+     * como SAFE. O recheck posterior não pertence a este plano; continua responsabilidade de
+     * RecheckingPipelineRunner, que executa exatamente um `check` ao final do fix bem-sucedido.
      *
-     * @param ProjectContext $context Contexto usado para obter o mesmo conjunto de hooks do check.
+     * @param ProjectContext $context Contexto usado para derivar o conjunto de hooks.
      * @return list<array{id:string,mode:string,fixable:bool}> Hooks mutadores em ordem estável.
      */
     public function fix(ProjectContext $context): array
     {
-        return array_map(
-            static fn (array $hook): array => [
+        /** @var list<array{id:string,mode:string,fixable:bool}> $hooks */
+        $hooks = [];
+        if ($context->profile() === 'yii2') {
+            $hooks[] = ['id' => 'yii2-safe-remediation', 'mode' => 'fix', 'fixable' => true];
+        }
+
+        foreach ($this->check($context) as $hook) {
+            if (!$hook['fixable']) {
+                continue;
+            }
+            $hooks[] = [
                 'id' => $hook['id'],
                 'mode' => 'fix',
                 'fixable' => true,
-            ],
-            array_values(array_filter(
-                $this->check($context),
-                static fn (array $hook): bool => $hook['fixable'],
-            )),
-        );
+            ];
+        }
+
+        return $hooks;
     }
 
     /**
