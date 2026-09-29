@@ -51,9 +51,9 @@ ninfa check /path/to/yii2-app
 
 O contexto considera estruturas Yii2 simples e Advanced, incluindo `common`, `frontend`, `backend` e `console` quando existentes. O profile de segurança combina o baseline PHP com semântica de Request/Response, DB/Command, HTML, redirects, headers e filesystem do ecossistema Yii2.
 
-Além do overlay SAST, `ninfa assist` possui uma camada semântica nativa em field test. Ela atualmente detecta view literal inexistente (`COR-001`), action inexistente em filtros/behaviors estáticos (`COR-002`), relation path literal inexistente em `with()/joinWith()/innerJoinWith()` (`COR-003`) e atributo inexistente em link literal de `hasOne()/hasMany()` quando `attributes()` fornece inventário conclusivo (`COR-004`). Referências dinâmicas ou inventários incompletos permanecem `unknown` e não são promovidos a finding.
+Além do overlay SAST, `ninfa assist` possui uma camada semântica nativa em field test. Ela atualmente detecta view literal inexistente (`COR-001`), action inexistente em filtros/behaviors estáticos (`COR-002`), relation path literal inexistente em `with()/joinWith()/innerJoinWith()` (`COR-003`), atributo inexistente em link literal de `hasOne()/hasMany()` quando `attributes()` fornece inventário conclusivo (`COR-004`) e checks redundantes de existência via `one()`/`count()` (`PERF-001`). Referências dinâmicas ou inventários incompletos permanecem `unknown` e não são promovidos a finding.
 
-`COR-004` não presume schema de banco pela ausência de uma propriedade no source: `parent::attributes()`, schema runtime, PHPDoc isolado, links dinâmicos e relações via `via()/viaTable()` permanecem fora da negação de atributos nesta tranche. O contrato técnico e os limites das quatro regras estão em [Análise semântica Yii2](docs/YII2-ANALYSIS.md).
+`COR-004` não presume schema de banco pela ausência de uma propriedade no source: `parent::attributes()`, schema runtime, PHPDoc isolado, links dinâmicos e relações via `via()/viaTable()` permanecem fora da negação de atributos nesta tranche. `PERF-001` é advisory de performance (`warning`) e recomenda `exists()`/`!exists()` apenas quando a equivalência é demonstrável em uma chain `ActiveRecord::find()` local. O contrato técnico e os limites das regras estão em [Análise semântica Yii2](docs/YII2-ANALYSIS.md).
 
 Yii 22 permanece dentro dessa família. O Ninfa não presume que Yii2 exija Repository, DTO, DDD, Clean Architecture ou Vertical Slice; essas decisões pertencem ao projeto consumidor, não ao scanner.
 
@@ -155,7 +155,7 @@ ninfa assist /path/to/project
 
 O comando não modifica o projeto. PHPStan e Psalm são executados em formato estruturado, os achados são exibidos com orientação de correção e a evidência completa fica em `/tmp/ninfa/<hash>/assist/`.
 
-No profile Yii2, o mesmo fluxo inclui findings semânticos nativos e preserva `yii2-semantic.json` e `yii2-findings.json` no workspace. A política é conservadora: uma referência só vira erro de correctness quando a ausência pode ser demonstrada; herança, traits, schema runtime e configuração dinâmica mantêm o estado `unknown` quando não há evidência suficiente.
+No profile Yii2, o mesmo fluxo inclui findings semânticos nativos e preserva `yii2-semantic.json` e `yii2-findings.json` no workspace. A política é conservadora: uma referência só vira erro de correctness quando a ausência pode ser demonstrada; herança, traits, schema runtime e configuração dinâmica mantêm o estado `unknown` quando não há evidência suficiente. Findings `PERF-*` são advisories e não são chamados de vulnerabilidade.
 
 ## Segurança
 
