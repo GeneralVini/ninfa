@@ -53,14 +53,19 @@ ninfa assist /caminho/do/projeto
 
 É a camada separada para achados semânticos de PHPStan/Psalm. Não altera o projeto consumidor. Usa o mesmo renderer visual do `check` e acrescenta a orientação de correção.
 
-No profile Yii2, o `assist` também executa as regras nativas de correctness em field test. Atualmente isso inclui:
+No profile Yii2, o `assist` também executa regras nativas em field test. Atualmente isso inclui:
 
 ```text
-NINFA-YII2-COR-001  view literal inexistente
-NINFA-YII2-COR-002  action inexistente referenciada por filtros/behaviors estáticos
-NINFA-YII2-COR-003  relation path literal inexistente em with/joinWith/innerJoinWith
-NINFA-YII2-COR-004  atributo inexistente em link literal de hasOne/hasMany
+NINFA-YII2-COR-001   view literal inexistente
+NINFA-YII2-COR-002   action inexistente referenciada por filtros/behaviors estáticos
+NINFA-YII2-COR-003   relation path literal inexistente em with/joinWith/innerJoinWith
+NINFA-YII2-COR-004   atributo inexistente em link literal de hasOne/hasMany
+NINFA-YII2-PERF-001  one()/count() usados apenas para testar existência
 ```
+
+As quatro regras `COR-*` são findings de correctness. `PERF-001` é advisory de performance com `severity=warning`: quando uma chain `ActiveRecord::find()` local e comprovável termina em `one()`/`count()` e o resultado é comparado apenas para saber se há registros, o Ninfa recomenda `exists()` ou `!exists()`.
+
+`PERF-001` reconhece equivalências estritas como `one() !== null`, `one() === null`, `count() > 0`, `count() !== 0`, `count() <= 0`, `count() >= 1` e as formas com os operandos invertidos. Uso de `count()` como número real, `one()` como registro, thresholds diferentes, variáveis de query sem tipo comprovável e factories dinâmicas não geram finding nesta tranche.
 
 Referências dinâmicas ou cujo inventário de actions/relações não seja conclusivo permanecem `unknown` e não geram finding. Em `COR-003`, parent ActiveRecord externo desconhecido, traits que possam introduzir relações e target intermediário não resolvível impedem a afirmação de ausência.
 
@@ -131,6 +136,8 @@ Validação estrutural dos profiles e runners:
 ```bash
 make profile-test
 ```
+
+A suíte inclui `tests/yii2-semantic-model.php` para correctness Yii2 e `tests/yii2-query-existence.php` para `PERF-001`, além dos contratos gerais do pipeline.
 
 Validação das regras Semgrep do próprio Ninfa:
 
