@@ -26,7 +26,7 @@ A incorporação é conceitual. O Ninfa não deve copiar classes upstream sem pr
 
 `src/Yii2SemanticModel.php` é a camada compartilhada do profile. Ele não gera `Finding` e não decide severidade. O modelo coleta fatos estáticos reutilizáveis por regras posteriores.
 
-Snapshot inicial:
+Snapshot atual:
 
 ```text
 Yii2SemanticModel
@@ -49,25 +49,54 @@ A resolução inicial de views cobre a convenção estática `controllers/` -> `
 
 O modo normal de `scripts/ninfa-configure.php` persiste esse snapshot em `semantic-index.json`, sob `framework_semantics`, sem misturá-lo aos hints documentais de `SemanticHints`. Em `ninfa assist`, o snapshot também é preservado em `assist/yii2-semantic.json`.
 
+## Referências de actions em behaviors
+
+`src/Yii2BehaviorActionAnalyzer.php` complementa o modelo semântico para uma classe de evidência que depende do source original do controller: referências de action dentro de `behaviors()`.
+
+O analisador não executa PHP do consumidor. Ele tokeniza somente arrays literais retornados por `behaviors()` e cobre:
+
+```text
+ActionFilter.only
+ActionFilter.except
+AuthMethod.optional
+AccessControl.rules[].actions
+VerbFilter.actions (chaves)
+```
+
+A classificação é conservadora. Configurações com classe dinâmica, arrays não literais ou famílias de behavior que não possam ser reconhecidas com segurança são ignoradas. Wildcards de `only`/`except`/`optional` e a chave `*` de `VerbFilter` não são tratados como IDs concretos.
+
+A existência de action é tri-state:
+
+```text
+true   action conhecida no controller ou em parent controller local
+false  inventário conclusivo e action ausente
+null   herança/composição dinâmica impede provar ausência
+```
+
+Herança local entre controllers é percorrida. Pais padrão `yii\\base\\Controller`, `yii\\web\\Controller` e `yii\\console\\Controller` encerram a cadeia como conhecidos. Pai customizado externo/desconhecido, `parent::actions()`, `array_merge()`, spread ou retorno indireto de `actions()` degradam o inventário para `null`, evitando falso positivo.
+
 ## Engine de regras nativas
 
 `src/Yii2RuleEngine.php` transforma somente fatos semânticos conclusivos em `Finding`. A separação é intencional:
 
 ```text
-Yii2SemanticModel  -> fatos observados
-Yii2RuleEngine     -> política/regra
-Finding            -> contrato normalizado
+Yii2SemanticModel ----------┐
+                            ├-> Yii2RuleEngine -> Finding
+Yii2BehaviorActionAnalyzer -┘
 ```
 
-A primeira regra implementada é:
+As regras implementadas nesta tranche são:
 
 ```text
-NINFA-YII2-COR-001
+NINFA-YII2-COR-001  view literal inexistente
+NINFA-YII2-COR-002  action inexistente referenciada em behavior/filter
 ```
 
-Ela reporta uma referência literal a view quando o modelo conseguiu resolver o path convencional e confirmou que o arquivo não existe. `exists=null`, nomes calculados, aliases não resolvidos e demais casos desconhecidos não produzem finding.
+`COR-001` reporta uma referência literal a view quando o modelo conseguiu resolver o path convencional e confirmou que o arquivo não existe. `exists=null`, nomes calculados, aliases não resolvidos e demais casos desconhecidos não produzem finding.
 
-O finding usa:
+`COR-002` reporta somente referências literais de behavior cujo inventário de actions esteja completo e tenha resultado `exists=false`. O finding preserva a origem da referência (`only`, `except`, `optional`, `rules[].actions` ou `VerbFilter.actions`) e a classe do behavior. Referências com `exists=null` não produzem finding.
+
+Os findings usam:
 
 ```text
 tool          ninfa-yii2
@@ -78,7 +107,7 @@ autofix       false
 evidence_type framework-correctness
 ```
 
-No estágio atual a regra é incorporada ao fluxo de `assist`, que grava `assist/yii2-findings.json` e também inclui o finding no `assist/findings.json`. A promoção para o gate de `check` deve ocorrer apenas depois da validação desta tranche e de field tests em projetos Yii2 reais.
+No estágio atual as regras são incorporadas ao fluxo de `assist`, que grava `assist/yii2-findings.json` e também inclui os findings no `assist/findings.json`. A promoção para o gate de `check` deve ocorrer apenas depois de field tests em projetos Yii2 reais.
 
 ## Capabilities de storage
 
@@ -113,12 +142,12 @@ As regras específicas Yii2 recebem ID estável do Ninfa, independente do nome u
 | deprecation | `NINFA-YII2-DEP-001` | candidato a autofix seguro |
 | static-analysis | `NINFA-YII2-TYPE-001` | check/assist |
 
-Catálogo inicial:
+Catálogo atual:
 
 | Conceito | Categoria | Estado |
 | --- | --- | --- |
 | view literal inexistente | correctness | `NINFA-YII2-COR-001` implementada; em `assist` |
-| action inexistente em filtros/behaviors | correctness | modelo de actions disponível; regra planejada |
+| action inexistente em filtros/behaviors | correctness | `NINFA-YII2-COR-002` implementada; em `assist` |
 | relação ActiveRecord inexistente | correctness | inventário de relações implementado; regra pendente |
 | condição dinâmica insegura em Query | security/code-quality | planejado |
 | existência via `one()`/`count()` | performance | planejado |
@@ -188,7 +217,9 @@ Toda nova regra Yii2 deve conter, no mínimo:
 3. caso limite;
 4. caso dinâmico/não resolvível que não pode virar falso positivo.
 
-`tests/yii2-semantic-model.php` protege a fundação atual: capabilities Redis/MongoDB, actions inline/externas, resolução de views literais, relações `hasOne`/`hasMany`, o finding `NINFA-YII2-COR-001` e a persistência de `framework_semantics` no workspace externo.
+`tests/yii2-semantic-model.php` protege a fundação atual: capabilities Redis/MongoDB, actions inline/externas, resolução de views literais, relações `hasOne`/`hasMany`, `NINFA-YII2-COR-001`, `NINFA-YII2-COR-002` e a persistência de `framework_semantics` no workspace externo.
+
+Para `COR-002`, a fixture cobre referências válidas e inválidas em `only`, `except`, `AccessControl.rules[].actions`, `VerbFilter.actions` e `AuthMethod.optional`. Também verifica que wildcards, valores de action dinâmicos e classe de behavior dinâmica não viram finding.
 
 A evolução prevista é organizar fixtures em:
 
@@ -216,11 +247,11 @@ Só deve aplicar remediações classificadas como seguras. Alterações de compo
 
 ### `ninfa assist`
 
-É a primeira superfície das regras nativas Yii2. Além de PHPStan/Psalm estruturados, preserva `yii2-semantic.json`, `yii2-findings.json` e inclui os findings Yii2 no `findings.json` consolidado.
+É a primeira superfície das regras nativas Yii2. Além de PHPStan/Psalm estruturados, preserva `yii2-semantic.json`, `yii2-findings.json` e inclui os findings Yii2 no `findings.json` consolidado. Nesta tranche isso inclui `COR-001` e `COR-002`.
 
 ### `ninfa security`
 
-Continua reservado à segurança. View inexistente, query ineficiente ou preferência arquitetural não são chamadas de vulnerabilidade. Regras Yii2 só entram em `security` quando há contrato de segurança correspondente e evidência adequada.
+Continua reservado à segurança. View inexistente, action de filtro inexistente, query ineficiente ou preferência arquitetural não são chamadas de vulnerabilidade. Regras Yii2 só entram em `security` quando há contrato de segurança correspondente e evidência adequada.
 
 ## Proveniência
 
@@ -232,12 +263,14 @@ As ideias de regras são comparadas com:
 
 Ambos os projetos externos usam licença MIT. Consulte `THIRD_PARTY_NOTICES.md`. Se código ou porção substancial vier a ser adaptado literalmente, o copyright e o texto de licença correspondentes devem acompanhar a distribuição.
 
+A validação de actions em behaviors foi reimplementada sob o modelo conservador do Ninfa. A implementação upstream usa PHPStan Reflection/AST para provar subclasses de `ActionFilter`; o Ninfa, nesta tranche, prefere reconhecer classes/configurações estáticas e degradar incerteza para `null` em vez de afirmar equivalência onde não possui reflexão completa.
+
 ## Sequência de implementação
 
 1. catálogo e contrato documental — iniciado;
 2. modelo semântico compartilhado — implementado para capabilities/controllers/actions/views/relations;
-3. correctness de view/action/relation — view implementada em `assist`; action/relation pendentes;
-4. integração com findings normalizados — iniciada com `NINFA-YII2-COR-001`;
+3. correctness de view/action/relation — view e action implementadas em `assist`; relation pendente;
+4. integração com findings normalizados — `NINFA-YII2-COR-001` e `NINFA-YII2-COR-002` integradas;
 5. deprecations/remediações SAFE;
 6. query/security com correlação ao SAST;
 7. PHPDoc/magic properties via check/assist;
