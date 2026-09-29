@@ -168,7 +168,7 @@ security
 
 O plano descreve; `PipelineRunner` executa.
 
-As regras nativas Yii2 ainda não foram promovidas ao plano público de `check`: nesta tranche elas entram em `assist` para calibração/field test antes de se tornarem gate.
+As regras nativas Yii2 ainda não foram promovidas ao plano público de `check`: nesta tranche elas entram em `assist` para calibração/field test antes de se tornarem gate. `PERF-001` permanece advisory mesmo dentro de `assist`; a presença do finding não o transforma em vulnerabilidade ou em regra SAST.
 
 ### `src/PipelineRunner.php`
 
