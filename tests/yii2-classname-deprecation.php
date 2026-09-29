@@ -118,10 +118,11 @@ PHP,
     assert($result['changes'] === 5);
 
     $fixed = (string) file_get_contents($root . '/src/ClassNameConsumer.php');
-    assert(substr_count($fixed, 'LocalObject::class') === 2);
-    assert(substr_count($fixed, 'ChildObject::class') === 1);
-    assert(substr_count($fixed, 'BaseObject::class') === 1);
-    assert(substr_count($fixed, 'static::class') === 1);
+    // A vírgula distingue chamadas realmente convertidas de exemplos `::className()` preservados em texto.
+    assert(substr_count($fixed, 'LocalObject::class,') === 2);
+    assert(substr_count($fixed, 'ChildObject::class,') === 1);
+    assert(substr_count($fixed, 'BaseObject::class,') === 1);
+    assert(substr_count($fixed, 'static::class,') === 1);
     assert(str_contains($fixed, 'self::className()'));
     assert(str_contains($fixed, 'parent::className()'));
     assert(str_contains($fixed, "'LocalObject::className()'"));
