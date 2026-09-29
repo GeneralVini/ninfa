@@ -106,6 +106,11 @@ namespace app\common\models;
 
 final class Order extends \yii\db\ActiveRecord
 {
+    public function attributes(): array
+    {
+        return ['id', 'customer_id'];
+    }
+
     public function getCustomer(): mixed
     {
         return $this->hasOne(Customer::class, ['id' => 'customer_id']);
@@ -114,6 +119,23 @@ final class Order extends \yii\db\ActiveRecord
     public function getItems(): mixed
     {
         return $this->hasMany(OrderItem::class, ['order_id' => 'id']);
+    }
+
+    public function getBrokenCustomer(): mixed
+    {
+        return $this->hasOne(Customer::class, ['missing_related' => 'missing_current']);
+    }
+
+    public function getViaCustomer(): mixed
+    {
+        return $this->hasOne(Customer::class, ['missing_related' => 'missing_current'])
+            ->viaTable('order_customer', ['order_id' => 'id']);
+    }
+
+    public function getDynamicCustomer(): mixed
+    {
+        $link = ['id' => 'customer_id'];
+        return $this->hasOne(Customer::class, $link);
     }
 
     public function getRuntimeRelation(): mixed
@@ -146,6 +168,11 @@ namespace app\common\models;
 
 final class Customer extends \yii\db\ActiveRecord
 {
+    public function attributes(): array
+    {
+        return ['id', 'address_id'];
+    }
+
     public function getAddress(): mixed
     {
         return $this->hasOne(Address::class, ['id' => 'address_id']);
@@ -163,6 +190,66 @@ namespace app\common\models;
 
 final class Address extends \yii\db\ActiveRecord
 {
+    public function attributes(): array
+    {
+        return ['id'];
+    }
+}
+PHP,
+    );
+
+    file_put_contents(
+        $root . '/common/models/OrderItem.php',
+        <<<'PHP'
+<?php
+
+namespace app\common\models;
+
+final class OrderItem extends \yii\db\ActiveRecord
+{
+    public function attributes(): array
+    {
+        return ['id', 'order_id'];
+    }
+}
+PHP,
+    );
+
+    file_put_contents(
+        $root . '/common/models/UnknownSchemaOrder.php',
+        <<<'PHP'
+<?php
+
+namespace app\common\models;
+
+final class UnknownSchemaOrder extends \yii\db\ActiveRecord
+{
+    public function getCustomer(): mixed
+    {
+        return $this->hasOne(Customer::class, ['id' => 'missing_runtime_column']);
+    }
+}
+PHP,
+    );
+
+    file_put_contents(
+        $root . '/common/models/DynamicAttributesOrder.php',
+        <<<'PHP'
+<?php
+
+namespace app\common\models;
+
+final class DynamicAttributesOrder extends \yii\db\ActiveRecord
+{
+    public function attributes(): array
+    {
+        return parent::attributes();
+    }
+
+    public function getCustomer(): mixed
+    {
+        return $this->hasOne(Customer::class, ['id' => 'missing_dynamic_column']);
+    }
 }
 PHP,
     );
@@ -204,18 +291,14 @@ PHP,
     assert($controllers[0]['views'][1]['exists'] === false);
 
     $relations = $model->relations();
-    assert(count($relations) === 3);
+    assert(count($relations) === 10);
     assert($relations[0]['model'] === 'app\\common\\models\\Customer');
     assert($relations[0]['name'] === 'address');
     assert($relations[0]['kind'] === 'hasOne');
     assert($relations[0]['target'] === 'Address');
-    assert($relations[1]['model'] === 'app\\common\\models\\Order');
-    assert($relations[1]['name'] === 'customer');
-    assert($relations[1]['kind'] === 'hasOne');
-    assert($relations[1]['target'] === 'Customer');
-    assert($relations[2]['name'] === 'items');
-    assert($relations[2]['kind'] === 'hasMany');
-    assert($relations[2]['target'] === 'OrderItem');
+    assert(in_array('brokenCustomer', array_column($relations, 'name'), true));
+    assert(in_array('dynamicCustomer', array_column($relations, 'name'), true));
+    assert(in_array('viaCustomer', array_column($relations, 'name'), true));
 
     $serialized = $model->jsonSerialize();
     assert($serialized['capabilities']['redis'] === true);
@@ -247,8 +330,40 @@ PHP,
     assert(count($runtimeGetterReference) === 1);
     assert($runtimeGetterReference[0]['exists'] === null);
 
+    $linkReferences = (new Yii2RelationLinkAnalyzer())->references($context, $model);
+    assert(count($linkReferences) === 6);
+    $brokenLink = array_values(array_filter(
+        $linkReferences,
+        static fn (array $reference): bool => $reference['relation'] === 'brokenCustomer',
+    ));
+    assert(count($brokenLink) === 1);
+    assert($brokenLink[0]['related_exists'] === false);
+    assert($brokenLink[0]['current_exists'] === false);
+    assert($brokenLink[0]['related_inventory_complete'] === true);
+    assert($brokenLink[0]['current_inventory_complete'] === true);
+    assert(!in_array('viaCustomer', array_column($linkReferences, 'relation'), true));
+    assert(!in_array('dynamicCustomer', array_column($linkReferences, 'relation'), true));
+
+    $unknownSchemaLink = array_values(array_filter(
+        $linkReferences,
+        static fn (array $reference): bool => $reference['current_model'] === 'app\\common\\models\\UnknownSchemaOrder',
+    ));
+    assert(count($unknownSchemaLink) === 1);
+    assert($unknownSchemaLink[0]['related_exists'] === true);
+    assert($unknownSchemaLink[0]['current_exists'] === null);
+    assert($unknownSchemaLink[0]['current_inventory_complete'] === false);
+
+    $dynamicAttributesLink = array_values(array_filter(
+        $linkReferences,
+        static fn (array $reference): bool => $reference['current_model'] === 'app\\common\\models\\DynamicAttributesOrder',
+    ));
+    assert(count($dynamicAttributesLink) === 1);
+    assert($dynamicAttributesLink[0]['related_exists'] === true);
+    assert($dynamicAttributesLink[0]['current_exists'] === null);
+    assert($dynamicAttributesLink[0]['current_inventory_complete'] === false);
+
     $yii2Findings = (new Yii2RuleEngine())->analyse($model, $context);
-    assert(count($yii2Findings) === 8);
+    assert(count($yii2Findings) === 10);
     assert($yii2Findings[0]->tool === 'ninfa-yii2');
     assert($yii2Findings[0]->rule === Yii2RuleEngine::VIEW_NOT_FOUND);
     assert($yii2Findings[0]->file === 'frontend/controllers/SiteController.php');
@@ -298,6 +413,30 @@ PHP,
         assert(($finding->metadata['autofix'] ?? null) === false);
     }
 
+    $linkFindings = array_values(array_filter(
+        $yii2Findings,
+        static fn (Finding $finding): bool => $finding->rule === Yii2RuleEngine::RELATION_LINK_ATTRIBUTE_NOT_FOUND,
+    ));
+    assert(count($linkFindings) === 2);
+    assert(array_column(array_map(static fn (Finding $finding): array => $finding->metadata, $linkFindings), 'side') === [
+        'related',
+        'current',
+    ]);
+    assert(array_column(array_map(static fn (Finding $finding): array => $finding->metadata, $linkFindings), 'attribute') === [
+        'missing_related',
+        'missing_current',
+    ]);
+    foreach ($linkFindings as $finding) {
+        assert($finding->file === 'common/models/Order.php');
+        assert($finding->line > 0);
+        assert($finding->severity === 'error');
+        assert($finding->confidence === 'high');
+        assert(($finding->metadata['category'] ?? null) === 'correctness');
+        assert(($finding->metadata['relation'] ?? null) === 'brokenCustomer');
+        assert(($finding->metadata['attribute_inventory_complete'] ?? null) === true);
+        assert(($finding->metadata['autofix'] ?? null) === false);
+    }
+
     $configureOutput = [];
     $configureCode = 0;
     exec(
@@ -319,7 +458,7 @@ PHP,
     assert(($semanticIndex['framework_semantics']['capabilities']['mongodb'] ?? null) === true);
     assert(count($semanticIndex['framework_semantics']['controllers'] ?? []) === 1);
 
-    echo "[OK] Yii2 cobre modelo semântico, views, behavior actions, ActiveQuery relations, findings nativos e índice externo.\n";
+    echo "[OK] Yii2 cobre views, behavior actions, ActiveQuery relations, links ActiveRecord, findings nativos e índice externo.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
     foreach ([$root, $workspaceRoot] as $directory) {
