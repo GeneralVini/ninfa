@@ -70,7 +70,7 @@ final class Yii2MagicPropertyAnalyzer
                 continue;
             }
 
-            $short = substr($relation['model'], (int) strrpos('\\' . $relation['model'], '\\'));
+            $short = $this->shortName($relation['model']);
             $doc = $this->classDocblock($source, $short);
             if ($doc === null || preg_match('/@property(?:-read|-write)?\\s+[^$\\r\\n]+\\$[A-Za-z_][A-Za-z0-9_]*/', $doc['doc']) !== 1) {
                 continue;
@@ -194,7 +194,7 @@ final class Yii2MagicPropertyAnalyzer
             if ($fqcn === '') {
                 continue;
             }
-            $alias = isset($parts[1]) ? trim((string) $parts[1]) : substr($fqcn, (int) strrpos('\\' . $fqcn, '\\'));
+            $alias = isset($parts[1]) ? trim((string) $parts[1]) : $this->shortName($fqcn);
             $imports[$alias] = $fqcn;
         }
         return $imports;
@@ -221,5 +221,17 @@ final class Yii2MagicPropertyAnalyzer
             return $uses[$first] . ($segments === [] ? '' : '\\' . implode('\\', $segments));
         }
         return $namespace === '' ? $trimmed : $namespace . '\\' . $trimmed;
+    }
+
+    /**
+     * Extrai o último segmento de um FQCN para correlacionar a declaração local.
+     *
+     * @param string $fqcn Nome qualificado sem barra inicial.
+     * @return string Nome curto da classe.
+     */
+    private function shortName(string $fqcn): string
+    {
+        $position = strrpos($fqcn, '\\');
+        return $position === false ? $fqcn : substr($fqcn, $position + 1);
     }
 }
