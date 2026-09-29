@@ -10,8 +10,8 @@ require_once __DIR__ . '/Yii2SemanticModel.php';
  *
  * O analisador reutiliza o inventário `hasOne()`/`hasMany()` do Yii2SemanticModel e
  * só declara ausência quando consegue provar localmente a classe ActiveRecord e sua
- * cadeia de herança. Herança externa não reconhecida, traits e expressões dinâmicas
- * degradam para `unknown` em vez de produzir falso positivo.
+ * cadeia de herança. Herança externa não reconhecida, traits, getters não classificáveis
+ * e expressões dinâmicas degradam para `unknown` em vez de produzir falso positivo.
  */
 final class Yii2RelationReferenceAnalyzer
 {
@@ -136,18 +136,19 @@ final class Yii2RelationReferenceAnalyzer
     }
 
     /**
-     * Indexa classes locais, parent resolvido e uso de trait que reduz completude.
+     * Indexa classes locais, parent, getters e uso de trait que reduz completude.
      *
      * Imports são lidos apenas antes da primeira declaração de classe para não
-     * confundir `use SomeTrait;` interno com import de namespace. Uma classe que usa
-     * trait é mantida no índice, porém seu inventário não é considerado conclusivo.
+     * confundir `use SomeTrait;` interno com import de namespace. Getters são guardados
+     * mesmo quando o modelo não conseguiu classificá-los como relação: se `getFoo()`
+     * existe mas seu retorno é dinâmico, uma query `with('foo')` deve ficar unknown.
      *
      * @param list<string> $files Arquivos PHP candidatos.
-     * @return array<string,array{file:string,parent:string|null,trait_use:bool}> Metadados por FQCN local.
+     * @return array<string,array{file:string,parent:string|null,trait_use:bool,getters:list<string>}> Metadados por FQCN local.
      */
     private function classMetadata(array $files): array
     {
-        /** @var array<string,array{file:string,parent:string|null,trait_use:bool}> $classes */
+        /** @var array<string,array{file:string,parent:string|null,trait_use:bool,getters:list<string>}> $classes */
         $classes = [];
 
         foreach ($files as $file) {
@@ -167,11 +168,20 @@ final class Yii2RelationReferenceAnalyzer
                 $offset = (int) $match[0][1];
                 $tail = substr($source, $offset);
                 $traitUse = preg_match('/\buse\s+[A-Za-z_\\\\][A-Za-z0-9_\\\\]*(?:\s*,\s*[A-Za-z_\\\\][A-Za-z0-9_\\\\]*)*\s*;/', $tail) === 1;
+                /** @var list<string> $getters Getters observados a partir da declaração da classe. */
+                $getters = [];
+                if (preg_match_all('/\bfunction\s+get([A-Z][A-Za-z0-9_]*)\s*\(/', $tail, $getterMatches) > 0) {
+                    foreach ($getterMatches[1] as $suffix) {
+                        $getters[] = lcfirst((string) $suffix);
+                    }
+                }
+                $getters = array_values(array_unique($getters));
 
                 $classes[$class] = [
                     'file' => $file,
                     'parent' => $parent,
                     'trait_use' => $traitUse,
+                    'getters' => $getters,
                 ];
             }
         }
@@ -225,7 +235,7 @@ final class Yii2RelationReferenceAnalyzer
      * incompleto porque podem introduzir getters de relação fora do arquivo da classe.
      *
      * @param string $class FQCN local candidato.
-     * @param array<string,array{file:string,parent:string|null,trait_use:bool}> $classes Índice local.
+     * @param array<string,array{file:string,parent:string|null,trait_use:bool,getters:list<string>}> $classes Índice local.
      * @param array<string,bool> $visited Proteção contra ciclos de herança inválidos.
      * @return bool True quando ausência no inventário pode ser tratada como evidência.
      */
@@ -254,20 +264,25 @@ final class Yii2RelationReferenceAnalyzer
     /**
      * Valida cada segmento de uma relation path usando relações próprias e herdadas.
      *
+     * Se um getter compatível existe mas não foi classificado como `hasOne/hasMany`, a
+     * ausência não é comprovável: o resultado vira unknown. Isso protege relations que
+     * são construídas por helper/factory ou cujo target não é literal.
+     *
      * @param string $modelClass FQCN do ActiveRecord de origem.
      * @param string $path Relation path literal, possivelmente pontuada/aliased.
      * @param array<string,array<string,string|null>> $relations Relações normalizadas por classe.
-     * @param array<string,array{file:string,parent:string|null,trait_use:bool}> $classes Índice local.
+     * @param array<string,array{file:string,parent:string|null,trait_use:bool,getters:list<string>}> $classes Índice local.
      * @return array{exists:bool|null,missing_relation:string|null,resolved_prefix:string} Resultado conservador.
      */
     private function resolvePath(string $modelClass, string $path, array $relations, array $classes): array
     {
         $segments = explode('.', $path);
+        $lastIndex = count($segments) - 1;
         $current = $modelClass;
         /** @var list<string> $resolved Segmentos comprovadamente encontrados. */
         $resolved = [];
 
-        foreach ($segments as $segment) {
+        foreach ($segments as $index => $segment) {
             $trimmed = trim($segment);
             $parts = preg_split('/\s+/', $trimmed, 2) ?: [];
             $relation = $parts[0] ?? '';
@@ -277,6 +292,9 @@ final class Yii2RelationReferenceAnalyzer
 
             $available = $this->relationsForClass($current, $relations, $classes, []);
             if (!array_key_exists($relation, $available)) {
+                if ($this->getterExists($current, $relation, $classes, [])) {
+                    return ['exists' => null, 'missing_relation' => null, 'resolved_prefix' => implode('.', $resolved)];
+                }
                 return [
                     'exists' => false,
                     'missing_relation' => $relation,
@@ -292,12 +310,39 @@ final class Yii2RelationReferenceAnalyzer
             $current = $target;
 
             // Segmentos seguintes só podem ser negados quando o target local também tem inventário completo.
-            if ($segment !== end($segments) && !$this->classInventoryComplete($current, $classes, [])) {
+            if ($index < $lastIndex && !$this->classInventoryComplete($current, $classes, [])) {
                 return ['exists' => null, 'missing_relation' => null, 'resolved_prefix' => implode('.', $resolved)];
             }
         }
 
         return ['exists' => true, 'missing_relation' => null, 'resolved_prefix' => implode('.', $resolved)];
+    }
+
+    /**
+     * Verifica getter próprio/herdado para não confundir relação dinâmica com ausência.
+     *
+     * @param string $class FQCN local a consultar.
+     * @param string $relation Nome de relation path convertido diretamente para getter Yii2.
+     * @param array<string,array{file:string,parent:string|null,trait_use:bool,getters:list<string>}> $classes Índice local.
+     * @param array<string,bool> $visited Proteção contra ciclos de herança inválidos.
+     * @return bool True quando `get<Relation>()` foi observado na classe ou parent local.
+     */
+    private function getterExists(string $class, string $relation, array $classes, array $visited): bool
+    {
+        if (isset($visited[$class]) || !isset($classes[$class])) {
+            return false;
+        }
+        if (in_array($relation, $classes[$class]['getters'], true)) {
+            return true;
+        }
+
+        $parent = $classes[$class]['parent'];
+        if ($parent === null || !isset($classes[$parent])) {
+            return false;
+        }
+
+        $visited[$class] = true;
+        return $this->getterExists($parent, $relation, $classes, $visited);
     }
 
     /**
@@ -308,7 +353,7 @@ final class Yii2RelationReferenceAnalyzer
      *
      * @param string $class FQCN cuja visão efetiva será montada.
      * @param array<string,array<string,string|null>> $relations Mapa de relações próprias.
-     * @param array<string,array{file:string,parent:string|null,trait_use:bool}> $classes Índice local.
+     * @param array<string,array{file:string,parent:string|null,trait_use:bool,getters:list<string>}> $classes Índice local.
      * @param array<string,bool> $visited Proteção contra ciclos.
      * @return array<string,string|null> Relações efetivas por nome.
      */
