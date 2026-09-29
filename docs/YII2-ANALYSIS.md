@@ -191,7 +191,7 @@ classe não comprovada como ActiveRecord
 
 ## Deprecations SAFE
 
-`src/Yii2DeprecationAnalyzer.php` produz patches exatos para a primeira família de depreciações mecânicas:
+`src/Yii2DeprecationAnalyzer.php` produz patches exatos para depreciações mecânicas gerais:
 
 ```text
 NINFA-YII2-DEP-001  Yii::trace() -> Yii::debug()
@@ -199,7 +199,22 @@ NINFA-YII2-DEP-002  Controller::EXIT_CODE_* -> yii\console\ExitCode::*
 NINFA-YII2-DEP-003  return 0/1 em console action -> ExitCode::*
 ```
 
-`DEP-002` só atua quando a classe usada na constante resolve estaticamente para `yii\console\Controller`. `DEP-003` só atua em action de classe cuja herança local termina em controller console Yii2 conhecido.
+`src/Yii2CachingDeprecationAnalyzer.php` cobre APIs de caching apenas com receiver tipado comprovado:
+
+```text
+NINFA-YII2-DEP-004  Cache::mget/mset/madd() -> multiGet/multiSet/multiAdd()
+NINFA-YII2-DEP-005  Dependency::getHasChanged() -> isChanged()
+```
+
+`src/Yii2ClassNameDeprecationAnalyzer.php` cobre a API antiga de `BaseObject`:
+
+```text
+NINFA-YII2-DEP-006  SomeObject::className()/static::className() -> ::class
+```
+
+`DEP-002` só atua quando a classe usada na constante resolve estaticamente para `yii\console\Controller`. `DEP-003` só atua em action de classe cuja herança local termina em controller console Yii2 conhecido. `DEP-004/005` exigem tipo nominal comprovado por parâmetro/propriedade/`new` local ou subclasse local. `DEP-006` exige `yii\base\BaseObject` ou subclasse local comprovada; `self::className()` e `parent::className()` permanecem intactos por late static binding, assim como hierarquia externa inconclusiva.
+
+Para `DEP-006`, comentários, PHPDoc, strings, inline HTML e heredoc são mascarados preservando offsets antes da detecção. Isso impede que exemplos textuais sejam tratados como código autofixável.
 
 Esses findings usam:
 
@@ -210,6 +225,8 @@ confidence        high
 remediation_risk  safe
 autofix           true
 ```
+
+A mesma evidência dos analyzers alimenta `assist` e `fix`; a engine não mantém uma segunda lógica de prova de tipo.
 
 ## PHPDoc e static analysis
 
@@ -273,16 +290,18 @@ Ela não é security nem correctness. Helper, service ou classe cuja herança de
 A separação de responsabilidades é:
 
 ```text
-Yii2SemanticModel ----------------┐
-Yii2BehaviorActionAnalyzer -------┤
-Yii2RelationReferenceAnalyzer ----┤
-Yii2RelationLinkAnalyzer ---------┤
-Yii2QueryConditionAnalyzer -------┤
-Yii2QueryExistenceAnalyzer -------┤
-Yii2FindShortcutAnalyzer ---------┤
-Yii2DeprecationAnalyzer ----------┼-> Yii2RuleEngine -> Finding[]
-Yii2MagicPropertyAnalyzer --------┤
-Yii2ControllerAccessAnalyzer -----┘
+Yii2SemanticModel ---------------------┐
+Yii2BehaviorActionAnalyzer ------------┤
+Yii2RelationReferenceAnalyzer ---------┤
+Yii2RelationLinkAnalyzer --------------┤
+Yii2QueryConditionAnalyzer ------------┤
+Yii2QueryExistenceAnalyzer ------------┤
+Yii2FindShortcutAnalyzer --------------┤
+Yii2DeprecationAnalyzer ---------------┤
+Yii2CachingDeprecationAnalyzer --------┼-> Yii2RuleEngine -> Finding[]
+Yii2ClassNameDeprecationAnalyzer ------┤
+Yii2MagicPropertyAnalyzer -------------┤
+Yii2ControllerAccessAnalyzer ----------┘
 ```
 
 Catálogo atual:
@@ -299,6 +318,9 @@ Catálogo atual:
 | `NINFA-YII2-DEP-001` | deprecation | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-DEP-002` | deprecation | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-DEP-003` | deprecation | `assist` + `fix`, warning, SAFE |
+| `NINFA-YII2-DEP-004` | deprecation | `assist` + `fix`, warning, SAFE |
+| `NINFA-YII2-DEP-005` | deprecation | `assist` + `fix`, warning, SAFE |
+| `NINFA-YII2-DEP-006` | deprecation | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-TYPE-001` | static-analysis | `assist`, warning, SEMANTIC |
 | `NINFA-YII2-ARCH-001` | architecture | `assist`, warning, REVIEW |
 
@@ -312,6 +334,8 @@ Atualmente consome:
 
 ```text
 Yii2DeprecationAnalyzer
+Yii2CachingDeprecationAnalyzer
+Yii2ClassNameDeprecationAnalyzer
 Yii2FindShortcutAnalyzer
 ```
 
@@ -349,6 +373,8 @@ tests/yii2-semantic-model.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
 tests/yii2-deprecation-remediation.php
+tests/yii2-typed-deprecation.php
+tests/yii2-classname-deprecation.php
 tests/yii2-find-shortcut.php
 tests/yii2-magic-property.php
 tests/yii2-controller-access.php
@@ -374,7 +400,7 @@ assist/findings.json
 
 ### `ninfa fix`
 
-Executa somente remediações nativas marcadas SAFE e os fixers externos existentes. Atualmente são SAFE nativas: `DEP-001..003` e `MOD-001`.
+Executa somente remediações nativas marcadas SAFE e os fixers externos existentes. Atualmente são SAFE nativas: `DEP-001..006` e `MOD-001`.
 
 `COR-*`, `PERF-001`, `TYPE-001` e `ARCH-001` não são reescritos automaticamente.
 
