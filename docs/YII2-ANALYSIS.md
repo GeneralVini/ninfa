@@ -50,6 +50,8 @@ Yii2SemanticModel
 
 O modo normal de `scripts/ninfa-configure.php` persiste esse snapshot em `semantic-index.json`, sob `framework_semantics`. Em `ninfa assist`, o snapshot também é preservado em `assist/yii2-semantic.json`.
 
+`Yii2ModelRulesAnalyzer` adiciona um inventário reutilizável de atributos de Model para rules/scenarios/labels/forms sem transformar schema runtime em fato. Nesta tranche ele é calculado sob demanda pelos analyzers e ainda não amplia o schema persistido de `Yii2SemanticModel`.
+
 `SemanticHints` continua separado: documentação do consumidor pode enriquecer contexto, mas não é usada como prova de AST, reachability, schema ou relação.
 
 ## Regras de correctness
@@ -135,6 +137,49 @@ Requisitos atuais:
 | `=`, `!=`, `<>`, `>`, `>=`, `<`, `<=` | exatamente 2 |
 
 Hash conditions, spread, variáveis e receivers sem tipo demonstrável ficam fora da negação.
+
+### COR-006 — atributo inexistente em `Model::rules()`
+
+`src/Yii2ModelRulesAnalyzer.php` estabelece um inventário de atributos reutilizável e usa essa prova para validar atributos literais no índice 0 das rules.
+
+Inventários são conclusivos apenas em duas situações:
+
+```text
+attributes() retorna lista literal completa
+ou
+cadeia local termina em yii\base\Model e os atributos vêm de propriedades públicas não estáticas
+```
+
+Herança local agrega propriedades públicas do parent. Em contrapartida, `ActiveRecord` sem override literal de `attributes()` continua inconclusivo, pois colunas podem vir do schema em runtime. Trait usada pela classe, parent externo e `attributes()` dinâmico também tornam o inventário incompleto.
+
+Exemplo:
+
+```php
+class SignupForm extends \yii\base\Model
+{
+    public string $email = '';
+
+    public function rules(): array
+    {
+        return [
+            ['emial', 'string'], // COR-006: inventário completo prova ausência
+        ];
+    }
+}
+```
+
+A primeira tranche aceita string literal ou array literal de strings como lista de atributos. `array_merge()`, spread, variável, concatenação, retorno indireto e outras shapes dinâmicas permanecem `unknown`.
+
+Contrato:
+
+```text
+category          correctness
+severity          error
+confidence        high
+autofix           false
+```
+
+O Ninfa não tenta decidir automaticamente se a correção é renomear a rule ou adicionar um atributo ao Model, porque isso depende de intenção de domínio.
 
 ## Security smell
 
@@ -331,6 +376,7 @@ Yii2BehaviorActionAnalyzer ------------┤
 Yii2RelationReferenceAnalyzer ---------┤
 Yii2RelationLinkAnalyzer --------------┤
 Yii2QueryConditionAnalyzer ------------┤
+Yii2ModelRulesAnalyzer ----------------┤
 Yii2WhereEqualityAnalyzer -------------┤
 Yii2QueryExistenceAnalyzer ------------┤
 Yii2FindShortcutAnalyzer --------------┤
@@ -350,6 +396,7 @@ Catálogo atual:
 | `NINFA-YII2-COR-003` | correctness | `assist`, error |
 | `NINFA-YII2-COR-004` | correctness | `assist`, error |
 | `NINFA-YII2-COR-005` | correctness | `assist`, error |
+| `NINFA-YII2-COR-006` | correctness | `assist`, error |
 | `NINFA-YII2-SEC-001` | security-smell | `assist`, warning, REVIEW |
 | `NINFA-YII2-PERF-001` | performance | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-MOD-001` | modernization | `assist` + `fix`, warning, SAFE |
@@ -382,7 +429,7 @@ A operação é idempotente: uma segunda execução sobre o resultado já corrig
 
 No CLI, `ninfa fix` executa a remediação SAFE Yii2 antes dos fixers externos. Depois o fluxo normal de `RecheckingPipelineRunner` preserva o contrato já existente de **um único `check` final**. A remediação nativa não é representada como pseudo-binário em `PipelinePlan`.
 
-`SEC-001` não é consumida por `Yii2SafeRemediator`: a sugestão de hash condition é REVIEW até existir evidência suficiente para uma promoção explícita a SAFE.
+`SEC-001` não é consumida por `Yii2SafeRemediator`: a sugestão de hash condition é REVIEW até existir evidência suficiente para uma promoção explícita a SAFE. `COR-006` também não possui autofix: escolher entre corrigir a rule e alterar o contrato do Model exige intenção de domínio.
 
 ## Capabilities Redis e MongoDB
 
@@ -413,6 +460,7 @@ A suíte dedicada inclui:
 tests/yii2-semantic-model.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
+tests/yii2-model-rules.php
 tests/yii2-where-equality.php
 tests/yii2-deprecation-remediation.php
 tests/yii2-typed-deprecation.php
@@ -421,6 +469,8 @@ tests/yii2-find-shortcut.php
 tests/yii2-magic-property.php
 tests/yii2-controller-access.php
 ```
+
+`tests/yii2-model-rules.php` cobre propriedades públicas, herança local, `attributes()` literal de ActiveRecord, atributos inválidos, ActiveRecord runtime, traits, `attributes()` dinâmico e `rules()` dinâmica.
 
 Todos integram `make profile-test`.
 
@@ -432,7 +482,7 @@ As regras nativas Yii2 continuam fora do gate principal enquanto correctness/adv
 
 ### `ninfa assist`
 
-É a superfície principal dos findings nativos, incluindo `SEC-001`, e preserva:
+É a superfície principal dos findings nativos, incluindo `COR-006` e `SEC-001`, e preserva:
 
 ```text
 assist/yii2-semantic.json
@@ -459,6 +509,8 @@ As regras e transformações são inspiradas em ideias dos projetos:
 
 O Ninfa não reproduz PHPStan Reflection nem acopla IDs públicos ao upstream. Quando uma regra upstream depende de type inference mais forte, a implementação nativa reduz cobertura em vez de inferir tipo incorreto.
 
+`COR-006` reimplementa apenas a parte de existência de atributos de `modelRulesValidation`; validação de classe do validator, options e tipos permanece fora desta tranche.
+
 As regras arquiteturais do upstream são tratadas como opiniões úteis/advisories por padrão. Só passam a correctness/security quando houver contrato objetivo e evidência apropriada.
 
 A matriz de rastreabilidade das regras upstream fica em `docs/YII2-UPSTREAM-RULE-MATRIX.md` e deve ser atualizada junto com qualquer promoção `DEFERRED/PARTIAL/REVIEW/SEMANTIC` para uma regra NINFA própria.
@@ -467,9 +519,9 @@ A matriz de rastreabilidade das regras upstream fica em `docs/YII2-UPSTREAM-RULE
 
 A evolução seguinte prioriza:
 
-1. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção a `security`/autofix;
-2. ampliar model/config validation (`rules`, `scenarios`, config arrays) usando inventário confiável de atributos/config properties;
-3. melhorar typing com evidência forte antes de `RemoveRedundantHtmlEncodeRector`;
-4. aprofundar PHPDoc/magic properties mantendo `SEMANTIC` sem autofix;
+1. reutilizar o inventário de Model em `scenarios()`, `attributeLabels()` e `attributeHints()`;
+2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção a `security`/autofix;
+3. avançar ActiveForm/UploadedFile/config arrays apenas quando o tipo do Model/componente for demonstrável;
+4. melhorar typing com evidência forte antes de `RemoveRedundantHtmlEncodeRector`;
 5. hardening Redis/MongoDB e inventário de schema apenas com fonte forte e auditável;
 6. promover correctness ao `check` somente após calibração de falso positivo.
