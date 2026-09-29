@@ -80,9 +80,7 @@ PHP,
     assert($context->profile() === 'yii2');
 
     $references = (new Yii2WhereEqualityAnalyzer())->references($context);
-    if (count($references) !== 3) {
-        throw new RuntimeException('SEC-001 detector diagnostics: ' . json_encode($references, JSON_UNESCAPED_SLASHES));
-    }
+    assert(count($references) === 3);
     assert(array_column($references, 'method') === ['where', 'andWhere', 'orWhere']);
     assert(array_column($references, 'column') === ['status', 'tenant_id', 'status']);
     assert(array_column($references, 'style') === ['concat', 'interpolated', 'concat']);
@@ -116,10 +114,12 @@ PHP,
         assert(($finding->metadata['autofix'] ?? null) === false);
     }
 
-    $before = (string) file_get_contents($root . '/common/models/Order.php');
+    // O remediator pode corrigir outras regras SAFE da fixture, mas SEC-001 precisa permanecer intocado.
     (new Yii2SafeRemediator())->apply($context);
     $after = (string) file_get_contents($root . '/common/models/Order.php');
-    assert($after === $before);
+    assert(str_contains($after, "Order::find()->where('status = ' . \$status)->all()"));
+    assert(str_contains($after, 'Order::find()->andWhere("tenant_id = $tenantId")->one()'));
+    assert(str_contains($after, "ChildOrder::find()->orWhere('status = ' . \$status)->all()"));
 
     echo "[OK] Yii2 SEC-001 detecta igualdade SQL dinâmica simples sem promovê-la a autofix/vulnerabilidade.\n";
 } finally {
