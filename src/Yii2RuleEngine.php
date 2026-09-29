@@ -7,6 +7,7 @@ require_once __DIR__ . '/Yii2SemanticModel.php';
 require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
+require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
 
 /**
  * Converte fatos conclusivos das camadas semânticas Yii2 em findings próprios do Ninfa.
@@ -29,15 +30,19 @@ final class Yii2RuleEngine
     /** Identificador estável da regra de atributo inexistente em link hasOne/hasMany. */
     public const RELATION_LINK_ATTRIBUTE_NOT_FOUND = 'NINFA-YII2-COR-004';
 
+    /** Identificador estável de verificação redundante de existência em query. */
+    public const REDUNDANT_EXISTENCE_CHECK = 'NINFA-YII2-PERF-001';
+
     /**
      * Avalia o snapshot Yii2 e produz somente findings suportados pelo catálogo atual.
      *
      * `COR-001` promove referências literais de view com path resolvido e arquivo ausente.
      * Quando ProjectContext é fornecido, `COR-002` valida actions em behaviors/filters,
-     * `COR-003` valida relation paths literais de ActiveQuery e `COR-004` valida cada lado
-     * de links literais de `hasOne()`/`hasMany()` somente quando `attributes()` fornece um
-     * inventário estático completo. Os analisadores usam `null` quando herança, trait,
-     * schema runtime ou expressão dinâmica impede prova segura; a engine ignora esses casos.
+     * `COR-003` valida relation paths literais de ActiveQuery, `COR-004` valida cada lado
+     * de links literais de `hasOne()`/`hasMany()` e `PERF-001` identifica comparações que
+     * usam `one()`/`count()` apenas para testar existência. Os analisadores preservam
+     * `unknown` quando herança, schema runtime, tipo de query ou expressão dinâmica impede
+     * prova segura; a engine não converte esses casos em findings.
      *
      * @param Yii2SemanticModel $model Snapshot semântico previamente construído.
      * @param ProjectContext|null $context Contexto necessário às regras que leem o source original.
@@ -152,6 +157,35 @@ final class Yii2RuleEngine
             if ($reference['current_exists'] === false) {
                 $findings[] = $this->relationLinkFinding($reference, 'current');
             }
+        }
+
+        // PERF-001 é advisory: a equivalência com exists() é comprovada, mas não há autofix nesta fase.
+        foreach ((new Yii2QueryExistenceAnalyzer())->references($context) as $reference) {
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::REDUNDANT_EXISTENCE_CHECK,
+                problem: 'Query Yii2 usa ' . $reference['source_method'] . '() apenas para verificar existência.',
+                correction: 'Use ' . $reference['replacement'] . ' na mesma query para evitar carregar/contar dados desnecessários.',
+                severity: 'warning',
+                confidence: 'high',
+                evidenceType: 'framework-performance',
+                provenance: ['ninfa:yii2-query-existence-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'performance',
+                    'model' => $reference['model'],
+                    'source_method' => $reference['source_method'],
+                    'operator' => $reference['operator'],
+                    'operand' => $reference['operand'],
+                    'query_on_left' => $reference['query_on_left'],
+                    'negated' => $reference['negated'],
+                    'replacement' => $reference['replacement'],
+                    'remediation_risk' => 'review',
+                    'autofix' => false,
+                ],
+            );
         }
 
         return $findings;
