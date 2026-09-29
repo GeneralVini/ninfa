@@ -6,6 +6,7 @@ require_once __DIR__ . '/Finding.php';
 require_once __DIR__ . '/Yii2SemanticModel.php';
 require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
+require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
 
 /**
  * Converte fatos conclusivos das camadas semânticas Yii2 em findings próprios do Ninfa.
@@ -25,15 +26,18 @@ final class Yii2RuleEngine
     /** Identificador estável da regra de relação inexistente em ActiveQuery literal. */
     public const QUERY_RELATION_NOT_FOUND = 'NINFA-YII2-COR-003';
 
+    /** Identificador estável da regra de atributo inexistente em link hasOne/hasMany. */
+    public const RELATION_LINK_ATTRIBUTE_NOT_FOUND = 'NINFA-YII2-COR-004';
+
     /**
      * Avalia o snapshot Yii2 e produz somente findings suportados pelo catálogo atual.
      *
      * `COR-001` promove referências literais de view com path resolvido e arquivo ausente.
-     * Quando ProjectContext é fornecido, `COR-002` também valida referências estáticas de
-     * ActionFilter/AccessControl/VerbFilter/AuthMethod e `COR-003` valida relation paths
-     * literais em `with()`/`joinWith()`/`innerJoinWith()`. Os analisadores especializados
-     * usam `null` quando herança, trait ou expressão dinâmica impede prova segura; a engine
-     * ignora esses casos em vez de transformar incerteza em erro.
+     * Quando ProjectContext é fornecido, `COR-002` valida actions em behaviors/filters,
+     * `COR-003` valida relation paths literais de ActiveQuery e `COR-004` valida cada lado
+     * de links literais de `hasOne()`/`hasMany()` somente quando `attributes()` fornece um
+     * inventário estático completo. Os analisadores usam `null` quando herança, trait,
+     * schema runtime ou expressão dinâmica impede prova segura; a engine ignora esses casos.
      *
      * @param Yii2SemanticModel $model Snapshot semântico previamente construído.
      * @param ProjectContext|null $context Contexto necessário às regras que leem o source original.
@@ -140,6 +144,71 @@ final class Yii2RuleEngine
             );
         }
 
+        // COR-004 trata os dois lados do link separadamente e nunca infere schema implícito de banco.
+        foreach ((new Yii2RelationLinkAnalyzer())->references($context, $model) as $reference) {
+            if ($reference['related_exists'] === false) {
+                $findings[] = $this->relationLinkFinding($reference, 'related');
+            }
+            if ($reference['current_exists'] === false) {
+                $findings[] = $this->relationLinkFinding($reference, 'current');
+            }
+        }
+
         return $findings;
+    }
+
+    /**
+     * Constrói finding de link ActiveRecord preservando qual lado possui atributo inválido.
+     *
+     * @param array{
+     *   file:string,
+     *   line:int,
+     *   relation:string,
+     *   kind:'hasOne'|'hasMany',
+     *   current_model:string,
+     *   related_model:string,
+     *   related_attribute:string,
+     *   current_attribute:string,
+     *   related_exists:bool|null,
+     *   current_exists:bool|null,
+     *   related_inventory_complete:bool,
+     *   current_inventory_complete:bool
+     * } $reference Evidência normalizada do par de link.
+     * @param 'related'|'current' $side Lado cujo inventário provou ausência.
+     * @return Finding Finding de correctness sem autofix.
+     */
+    private function relationLinkFinding(array $reference, string $side): Finding
+    {
+        $attribute = $side === 'related' ? $reference['related_attribute'] : $reference['current_attribute'];
+        $model = $side === 'related' ? $reference['related_model'] : $reference['current_model'];
+        $label = $side === 'related' ? 'relacionado' : 'atual';
+
+        return new Finding(
+            tool: 'ninfa-yii2',
+            file: $reference['file'],
+            line: $reference['line'],
+            rule: self::RELATION_LINK_ATTRIBUTE_NOT_FOUND,
+            problem: 'Atributo Yii2 do ActiveRecord ' . $label . ' não encontrado no link ' . $reference['kind'] . '(): ' . $attribute,
+            correction: 'Corrija o array de link da relação ou o contrato explícito de attributes() do ActiveRecord correspondente.',
+            severity: 'error',
+            confidence: 'high',
+            evidenceType: 'framework-correctness',
+            provenance: ['ninfa:yii2-relation-link-analyzer'],
+            metadata: [
+                'framework' => 'yii2',
+                'category' => 'correctness',
+                'relation' => $reference['relation'],
+                'relation_kind' => $reference['kind'],
+                'side' => $side,
+                'model' => $model,
+                'attribute' => $attribute,
+                'related_model' => $reference['related_model'],
+                'current_model' => $reference['current_model'],
+                'related_attribute' => $reference['related_attribute'],
+                'current_attribute' => $reference['current_attribute'],
+                'attribute_inventory_complete' => true,
+                'autofix' => false,
+            ],
+        );
     }
 }
