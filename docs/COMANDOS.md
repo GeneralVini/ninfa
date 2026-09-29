@@ -53,7 +53,15 @@ ninfa assist /caminho/do/projeto
 
 É a camada separada para achados semânticos de PHPStan/Psalm. Não altera o projeto consumidor. Usa o mesmo renderer visual do `check` e acrescenta a orientação de correção.
 
-No profile Yii2, o `assist` também executa as regras nativas de correctness já promovidas para field test. Atualmente isso inclui `NINFA-YII2-COR-001` (view literal inexistente) e `NINFA-YII2-COR-002` (action inexistente referenciada por filtros/behaviors estáticos). Referências dinâmicas ou cujo inventário de actions não seja conclusivo permanecem `unknown` e não geram finding.
+No profile Yii2, o `assist` também executa as regras nativas de correctness já promovidas para field test. Atualmente isso inclui:
+
+```text
+NINFA-YII2-COR-001  view literal inexistente
+NINFA-YII2-COR-002  action inexistente referenciada por filtros/behaviors estáticos
+NINFA-YII2-COR-003  relation path literal inexistente em with/joinWith/innerJoinWith
+```
+
+Referências dinâmicas ou cujo inventário de actions/relações não seja conclusivo permanecem `unknown` e não geram finding. Em `COR-003`, parent ActiveRecord externo desconhecido, traits que possam introduzir relações e target intermediário não resolvível impedem a afirmação de ausência.
 
 A auditoria completa fica no workspace externo:
 
