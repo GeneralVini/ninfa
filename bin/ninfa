@@ -9,8 +9,9 @@ declare(strict_types=1);
  * Uso: `ninfa <check|fix|security|assist> [root]`.
  * Quando `root` é omitido, usa o diretório atual. O script cria ProjectContext,
  * imprime projeto/profile/workspace e delega check/fix/security ao
- * RecheckingPipelineRunner. `assist` é delegado a `scripts/ninfa-configure.php
- * --assist` por meio de ProcessRunner.
+ * RecheckingPipelineRunner. No profile Yii2, `fix` aplica primeiro a pequena camada
+ * de remediações nativas classificadas como SAFE; o recheck único do runner valida
+ * essas mudanças junto das correções externas. `assist` é delegado ao configurador.
  *
  * Exit codes: 0 para sucesso; 2 para uso inválido; 1 para exceção capturada;
  * nos fluxos normais preserva o status retornado pelo runner/configurador.
@@ -19,6 +20,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/RecheckingPipelineRunner.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';
+require_once dirname(__DIR__) . '/src/Yii2SafeRemediator.php';
 
 /** @var list<string> $args Argumentos posicionais do CLI após remover argv[0]. */
 $args = $argv;
@@ -48,6 +50,13 @@ try {
     echo '[NINFA] Projeto consumidor: ' . $context->root() . PHP_EOL;
     echo '[NINFA] Profile: ' . $context->profile() . PHP_EOL;
     echo '[NINFA] Workspace externo: ' . $context->workspace()->path() . PHP_EOL;
+
+    // Remediação nativa só roda em `fix` Yii2 e contém exclusivamente transformações SAFE catalogadas.
+    if ($operation === 'fix' && $context->profile() === 'yii2') {
+        $remediation = (new Yii2SafeRemediator())->apply($context);
+        echo '[NINFA] Yii2 SAFE: ' . $remediation['changes'] . ' alteração(ões) em '
+            . count($remediation['changed_files']) . ' arquivo(s).' . PHP_EOL;
+    }
 
     // `assist` usa o configurador auditável; as demais operações passam pelo
     // runner que implementa recheck específico após `fix`.
