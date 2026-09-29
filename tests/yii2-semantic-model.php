@@ -33,7 +33,11 @@ try {
 
 namespace app\frontend\controllers;
 
-final class SiteController
+use yii\filters\AccessControl;
+use yii\filters\VerbFilter;
+use yii\filters\auth\HttpBearerAuth;
+
+final class SiteController extends \yii\web\Controller
 {
     public function actionIndex(): void
     {
@@ -51,6 +55,42 @@ final class SiteController
     {
         return [
             'external-action' => ['class' => ExampleAction::class],
+        ];
+    }
+
+    public function behaviors(): array
+    {
+        $dynamicAction = 'runtime-only';
+        $behaviorClass = AccessControl::class;
+
+        return [
+            'access' => [
+                'class' => AccessControl::class,
+                'only' => ['index', 'missing-only', 'admin-*', $dynamicAction],
+                'except' => ['user-profile', 'missing-except'],
+                'rules' => [
+                    [
+                        'allow' => true,
+                        'actions' => ['external-action', 'missing-rule'],
+                    ],
+                ],
+            ],
+            'verbs' => [
+                'class' => VerbFilter::class,
+                'actions' => [
+                    'index' => ['GET'],
+                    'missing-verb' => ['POST'],
+                    '*' => ['GET'],
+                ],
+            ],
+            'auth' => [
+                'class' => HttpBearerAuth::class,
+                'optional' => ['index', 'missing-optional', 'api-*'],
+            ],
+            'dynamic' => [
+                'class' => $behaviorClass,
+                'only' => ['missing-dynamic-class'],
+            ],
         ];
     }
 }
@@ -112,8 +152,16 @@ PHP,
     assert($serialized['capabilities']['redis'] === true);
     assert(count($serialized['controllers']) === 1);
 
-    $yii2Findings = (new Yii2RuleEngine())->analyse($model);
-    assert(count($yii2Findings) === 1);
+    $behaviorReferences = (new Yii2BehaviorActionAnalyzer())->references($context, $model);
+    assert(count($behaviorReferences) === 10);
+    assert(count(array_filter($behaviorReferences, static fn (array $reference): bool => $reference['exists'] === false)) === 5);
+    assert(!in_array('admin-*', array_column($behaviorReferences, 'action'), true));
+    assert(!in_array('api-*', array_column($behaviorReferences, 'action'), true));
+    assert(!in_array('missing-dynamic-class', array_column($behaviorReferences, 'action'), true));
+    assert(!in_array('runtime-only', array_column($behaviorReferences, 'action'), true));
+
+    $yii2Findings = (new Yii2RuleEngine())->analyse($model, $context);
+    assert(count($yii2Findings) === 6);
     assert($yii2Findings[0]->tool === 'ninfa-yii2');
     assert($yii2Findings[0]->rule === Yii2RuleEngine::VIEW_NOT_FOUND);
     assert($yii2Findings[0]->file === 'frontend/controllers/SiteController.php');
@@ -121,6 +169,28 @@ PHP,
     assert($yii2Findings[0]->confidence === 'high');
     assert(($yii2Findings[0]->metadata['category'] ?? null) === 'correctness');
     assert(($yii2Findings[0]->metadata['expected_path'] ?? null) === 'frontend/views/site/missing.php');
+
+    $actionFindings = array_values(array_filter(
+        $yii2Findings,
+        static fn (Finding $finding): bool => $finding->rule === Yii2RuleEngine::BEHAVIOR_ACTION_NOT_FOUND,
+    ));
+    assert(count($actionFindings) === 5);
+    assert(array_column(array_map(static fn (Finding $finding): array => $finding->metadata, $actionFindings), 'action') === [
+        'missing-only',
+        'missing-except',
+        'missing-rule',
+        'missing-verb',
+        'missing-optional',
+    ]);
+    foreach ($actionFindings as $finding) {
+        assert($finding->file === 'frontend/controllers/SiteController.php');
+        assert($finding->line > 0);
+        assert($finding->severity === 'error');
+        assert($finding->confidence === 'high');
+        assert(($finding->metadata['category'] ?? null) === 'correctness');
+        assert(($finding->metadata['action_inventory_complete'] ?? null) === true);
+        assert(($finding->metadata['autofix'] ?? null) === false);
+    }
 
     $configureOutput = [];
     $configureCode = 0;
@@ -143,7 +213,7 @@ PHP,
     assert(($semanticIndex['framework_semantics']['capabilities']['mongodb'] ?? null) === true);
     assert(count($semanticIndex['framework_semantics']['controllers'] ?? []) === 1);
 
-    echo "[OK] Yii2 cobre modelo semântico, finding nativo e índice externo.\n";
+    echo "[OK] Yii2 cobre modelo semântico, views, behavior actions, findings nativos e índice externo.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
     foreach ([$root, $workspaceRoot] as $directory) {
