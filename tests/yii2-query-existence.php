@@ -110,12 +110,12 @@ PHP,
     assert($result['changes'] === 7);
 
     $fixed = (string) file_get_contents($root . '/common/models/Order.php');
-    assert(str_contains($fixed, "$oneExists = Order::find()->where(['status' => 1])->exists();"));
-    assert(str_contains($fixed, "$oneMissing = !Order::find()->where(['status' => 2])->exists();"));
-    assert(str_contains($fixed, "$countPositive = Order::find()->where(['status' => 3])->exists();"));
-    assert(str_contains($fixed, "$countNonZero = Order::find()->where(['status' => 4])->exists();"));
-    assert(str_contains($fixed, "$countEmpty = !Order::find()->where(['status' => 5])->exists();"));
-    assert(str_contains($fixed, "$countAtLeastOne = Order::find()->where(['status' => 6])->exists();"));
+    assert(str_contains($fixed, '$oneExists = Order::find()->where([\'status\' => 1])->exists();'));
+    assert(str_contains($fixed, '$oneMissing = !Order::find()->where([\'status\' => 2])->exists();'));
+    assert(str_contains($fixed, '$countPositive = Order::find()->where([\'status\' => 3])->exists();'));
+    assert(str_contains($fixed, '$countNonZero = Order::find()->where([\'status\' => 4])->exists();'));
+    assert(str_contains($fixed, '$countEmpty = !Order::find()->where([\'status\' => 5])->exists();'));
+    assert(str_contains($fixed, '$countAtLeastOne = Order::find()->where([\'status\' => 6])->exists();'));
     assert(str_contains($fixed, '$empty = !ChildOrder::find()->exists();'));
     assert(str_contains($fixed, '$total = Order::find()->count();'));
     assert(str_contains($fixed, '$row = Order::find()->one();'));
