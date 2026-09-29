@@ -7,12 +7,11 @@ require_once __DIR__ . '/ProjectContext.php';
 /**
  * Detecta verificações de existência Yii2 que carregam linha inteira ou contam registros.
  *
- * A análise nativa é deliberadamente conservadora: nesta tranche somente chains estáticas
- * iniciadas em `ActiveRecord::find()` de classes locais comprovadamente herdadas de bases
- * ActiveRecord Yii2 são consideradas. Comparações suportadas precisam ser estritas ou
- * relacionais contra `null`, `0` ou `1`; variáveis tipadas como QueryInterface, factories,
- * closures e queries cujo tipo dependa de runtime ficam fora do scan em vez de receber
- * inferência heurística.
+ * A análise nativa é deliberadamente conservadora: somente chains estáticas iniciadas em
+ * `ActiveRecord::find()` de classes locais comprovadamente herdadas de bases ActiveRecord
+ * Yii2 são consideradas. Quando a comparação representa inequivocamente presença/ausência,
+ * a mesma evidência inclui um patch exato para `exists()`/`!exists()`; queries cujo tipo ou
+ * semântica dependam de runtime permanecem fora do scan.
  */
 final class Yii2QueryExistenceAnalyzer
 {
@@ -27,10 +26,10 @@ final class Yii2QueryExistenceAnalyzer
     /**
      * Localiza comparações em que `one()`/`count()` são usados apenas como teste booleano.
      *
-     * O resultado já normaliza comparações invertidas (`0 < Query::count()`) para a
-     * perspectiva da query e informa se `exists()` precisa ser negado. Chamadas sem
-     * comparação, thresholds diferentes dos equivalentes booleanos e classes não
-     * comprovadas como ActiveRecord local não entram no resultado.
+     * O resultado normaliza comparações invertidas (`0 < Query::count()`) para a perspectiva
+     * da query e carrega o intervalo completo da comparação. O replacement preserva a chain
+     * original e troca apenas o teste final por `exists()` ou `!exists()`, permitindo que
+     * `assist` e `fix` compartilhem a mesma fonte de verdade.
      *
      * @param ProjectContext $context Contexto Yii2 que delimita root e paths elegíveis.
      * @return list<array{
@@ -42,7 +41,10 @@ final class Yii2QueryExistenceAnalyzer
      *   operand:'null'|'0'|'1',
      *   query_on_left:bool,
      *   negated:bool,
-     *   replacement:'exists()'|'!exists()'
+     *   replacement:'exists()'|'!exists()',
+     *   replacement_code:string,
+     *   offset:int,
+     *   length:int
      * }> Comparações semanticamente equivalentes a `exists()`/`!exists()`.
      */
     public function references(ProjectContext $context): array
@@ -55,12 +57,12 @@ final class Yii2QueryExistenceAnalyzer
         $classes = $this->classMetadata($files);
         /** @var array<string,bool> $activeCache Cache de classificação ActiveRecord por FQCN. */
         $activeCache = [];
-        /** @var list<array{file:string,line:int,model:string,source_method:'one'|'count',operator:'==='|'!=='|'>'|'<'|'>='|'<=',operand:'null'|'0'|'1',query_on_left:bool,negated:bool,replacement:'exists()'|'!exists()'}> $references */
+        /** @var list<array{file:string,line:int,model:string,source_method:'one'|'count',operator:'==='|'!=='|'>'|'<'|'>='|'<=',operand:'null'|'0'|'1',query_on_left:bool,negated:bool,replacement:'exists()'|'!exists()',replacement_code:string,offset:int,length:int}> $references */
         $references = [];
 
         $pattern = '/(?P<class>\\\\?[A-Za-z_][A-Za-z0-9_\\\\]*)::find\s*\(\s*\)(?P<chain>(?:\s*->\s*[A-Za-z_][A-Za-z0-9_]*\s*\([^;{}]*?\))*)\s*->\s*(?P<method>one|count)\s*\(\s*\)/s';
 
-        // Só o subconjunto com origem ActiveRecord e comparação literal inequívoca pode gerar finding de performance.
+        // Só o subconjunto com origem ActiveRecord e comparação literal inequívoca pode gerar patch SAFE.
         foreach ($files as $file) {
             $source = (string) file_get_contents($file);
             $namespace = $this->namespaceOf($source);
@@ -81,16 +83,23 @@ final class Yii2QueryExistenceAnalyzer
                 }
 
                 $offset = (int) $match[0][1];
-                $endOffset = $offset + strlen((string) $match[0][0]);
+                $queryText = (string) $match[0][0];
+                $endOffset = $offset + strlen($queryText);
                 $method = strtolower((string) $match['method'][0]);
                 $comparison = $this->comparisonAt($source, $offset, $endOffset, $method);
                 if ($comparison === null) {
                     continue;
                 }
 
+                $existsQuery = preg_replace('/\b(?:one|count)\s*\(\s*\)\s*$/i', 'exists()', $queryText, 1);
+                if (!is_string($existsQuery) || $existsQuery === $queryText) {
+                    continue;
+                }
+                $replacementCode = $comparison['negated'] ? '!' . $existsQuery : $existsQuery;
+
                 $references[] = [
                     'file' => $this->relativePath($context->root(), $file),
-                    'line' => substr_count(substr($source, 0, $offset), "\n") + 1,
+                    'line' => substr_count(substr($source, 0, $comparison['patch_offset']), "\n") + 1,
                     'model' => $class,
                     'source_method' => $method,
                     'operator' => $comparison['operator'],
@@ -98,10 +107,14 @@ final class Yii2QueryExistenceAnalyzer
                     'query_on_left' => $comparison['query_on_left'],
                     'negated' => $comparison['negated'],
                     'replacement' => $comparison['negated'] ? '!exists()' : 'exists()',
+                    'replacement_code' => $replacementCode,
+                    'offset' => $comparison['patch_offset'],
+                    'length' => $comparison['patch_length'],
                 ];
             }
         }
 
+        usort($references, static fn (array $left, array $right): int => [$left['file'], $left['offset']] <=> [$right['file'], $right['offset']]);
         return $references;
     }
 
@@ -176,9 +189,9 @@ final class Yii2QueryExistenceAnalyzer
     /**
      * Decide se uma classe local termina em uma base ActiveRecord Yii2 conhecida.
      *
-     * Parents externos não reconhecidos retornam false; esta regra de performance não
-     * precisa transformar incerteza de tipo em finding. O cache evita repetir cadeias
-     * de herança em arquivos com várias comparações.
+     * Parents externos não reconhecidos retornam false. O cache evita repetir cadeias de
+     * herança em arquivos com várias comparações e a política prefere falso negativo a
+     * aplicar rewrite em QueryInterface cuja origem não foi demonstrada.
      *
      * @param string $class FQCN candidato.
      * @param array<string,array{parent:string|null}> $classes Índice local de herança.
@@ -205,7 +218,7 @@ final class Yii2QueryExistenceAnalyzer
             return true;
         }
 
-        // Apenas herança local continua a prova; qualquer parent externo desconhecido encerra sem finding.
+        // Apenas herança local continua a prova; qualquer parent externo desconhecido encerra sem finding/patch.
         $visited[$class] = true;
         $cache[$class] = $this->isActiveRecord($parent, $classes, $cache, $visited);
         return $cache[$class];
@@ -215,42 +228,56 @@ final class Yii2QueryExistenceAnalyzer
      * Resolve a comparação imediatamente adjacente à chamada terminal `one()`/`count()`.
      *
      * Comparações no lado direito são invertidas para que o resultado sempre descreva
-     * `query OP constante`. Somente equivalências booleanas reconhecidas são aceitas.
+     * `query OP constante`. O método também retorna o intervalo completo a ser substituído;
+     * espaços internos fazem parte do patch, enquanto tokens vizinhos ficam preservados.
      *
      * @param string $source Código-fonte completo do arquivo.
      * @param int $start Offset inicial da chain de query.
      * @param int $end Offset imediatamente após `one()`/`count()`.
      * @param 'one'|'count' $method Método terminal observado.
-     * @return array{operator:'==='|'!=='|'>'|'<'|'>='|'<=',operand:'null'|'0'|'1',query_on_left:bool,negated:bool}|null Comparação normalizada.
+     * @return array{operator:'==='|'!=='|'>'|'<'|'>='|'<=',operand:'null'|'0'|'1',query_on_left:bool,negated:bool,patch_offset:int,patch_length:int}|null Comparação normalizada.
      */
     private function comparisonAt(string $source, int $start, int $end, string $method): ?array
     {
         $right = substr($source, $end, 48);
-        if (preg_match('/^\s*(===|!==|>=|<=|>|<)\s*(null|0|1)\b/i', $right, $match) === 1) {
-            $operator = (string) $match[1];
-            $operand = strtolower((string) $match[2]);
+        if (preg_match('/^\s*(===|!==|>=|<=|>|<)\s*(null|0|1)\b/i', $right, $match, PREG_OFFSET_CAPTURE) === 1) {
+            $operator = (string) $match[1][0];
+            $operand = strtolower((string) $match[2][0]);
             $negated = $this->negatedExistence($method, $operator, $operand);
-            return $negated === null ? null : [
+            if ($negated === null) {
+                return null;
+            }
+            $comparisonLength = (int) $match[2][1] + strlen((string) $match[2][0]);
+            return [
                 'operator' => $operator,
                 'operand' => $operand,
                 'query_on_left' => true,
                 'negated' => $negated,
+                'patch_offset' => $start,
+                'patch_length' => ($end - $start) + $comparisonLength,
             ];
         }
 
-        $left = substr($source, max(0, $start - 48), min(48, $start));
-        if (preg_match('/(null|0|1)\s*(===|!==|>=|<=|>|<)\s*$/i', $left, $match) !== 1) {
+        $leftStart = max(0, $start - 48);
+        $left = substr($source, $leftStart, $start - $leftStart);
+        if (preg_match('/(null|0|1)\s*(===|!==|>=|<=|>|<)\s*$/i', $left, $match, PREG_OFFSET_CAPTURE) !== 1) {
             return null;
         }
 
-        $operand = strtolower((string) $match[1]);
-        $operator = $this->invertOperator((string) $match[2]);
+        $operand = strtolower((string) $match[1][0]);
+        $operator = $this->invertOperator((string) $match[2][0]);
         $negated = $this->negatedExistence($method, $operator, $operand);
-        return $negated === null ? null : [
+        if ($negated === null) {
+            return null;
+        }
+        $patchOffset = $leftStart + (int) $match[0][1];
+        return [
             'operator' => $operator,
             'operand' => $operand,
             'query_on_left' => false,
             'negated' => $negated,
+            'patch_offset' => $patchOffset,
+            'patch_length' => $end - $patchOffset,
         ];
     }
 
@@ -322,7 +349,7 @@ final class Yii2QueryExistenceAnalyzer
     private function namespaceOf(string $source): string
     {
         return preg_match('/\bnamespace\s+([^;{]+)\s*[;{]/', $source, $match) === 1
-            ? trim((string) $match[1], " \\t\\n\\r\\0\\x0B\\\\")
+            ? trim((string) $match[1], " \t\n\r\0\x0B\\")
             : '';
     }
 
@@ -352,11 +379,11 @@ final class Yii2QueryExistenceAnalyzer
             }
 
             $parts = preg_split('/\s+as\s+/i', $import, 2) ?: [];
-            $fqcn = trim((string) ($parts[0] ?? ''), " \\t\\n\\r\\0\\x0B\\\\");
+            $fqcn = trim((string) ($parts[0] ?? ''), " \t\n\r\0\x0B\\");
             if ($fqcn === '') {
                 continue;
             }
-            $alias = isset($parts[1]) ? trim((string) $parts[1]) : basename(str_replace('\\\\', '/', $fqcn));
+            $alias = isset($parts[1]) ? trim((string) $parts[1]) : basename(str_replace('\\', '/', $fqcn));
             $imports[$alias] = $fqcn;
         }
 
