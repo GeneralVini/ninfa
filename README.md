@@ -51,7 +51,9 @@ ninfa check /path/to/yii2-app
 
 O contexto considera estruturas Yii2 simples e Advanced, incluindo `common`, `frontend`, `backend` e `console` quando existentes. O profile de segurança combina o baseline PHP com semântica de Request/Response, DB/Command, HTML, redirects, headers e filesystem do ecossistema Yii2.
 
-Além do overlay SAST, `ninfa assist` possui uma camada semântica nativa em field test. Ela atualmente detecta view literal inexistente (`COR-001`), action inexistente em filtros/behaviors estáticos (`COR-002`) e relation path literal inexistente em `with()/joinWith()/innerJoinWith()` (`COR-003`). Referências dinâmicas ou inventários incompletos permanecem `unknown` e não são promovidos a finding.
+Além do overlay SAST, `ninfa assist` possui uma camada semântica nativa em field test. Ela atualmente detecta view literal inexistente (`COR-001`), action inexistente em filtros/behaviors estáticos (`COR-002`), relation path literal inexistente em `with()/joinWith()/innerJoinWith()` (`COR-003`) e atributo inexistente em link literal de `hasOne()/hasMany()` quando `attributes()` fornece inventário conclusivo (`COR-004`). Referências dinâmicas ou inventários incompletos permanecem `unknown` e não são promovidos a finding.
+
+`COR-004` não presume schema de banco pela ausência de uma propriedade no source: `parent::attributes()`, schema runtime, PHPDoc isolado, links dinâmicos e relações via `via()/viaTable()` permanecem fora da negação de atributos nesta tranche.
 
 Yii 22 permanece dentro dessa família. O Ninfa não presume que Yii2 exija Repository, DTO, DDD, Clean Architecture ou Vertical Slice; essas decisões pertencem ao projeto consumidor, não ao scanner.
 
