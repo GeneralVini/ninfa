@@ -75,14 +75,30 @@ null   herança/composição dinâmica impede provar ausência
 
 Herança local entre controllers é percorrida. Pais padrão `yii\\base\\Controller`, `yii\\web\\Controller` e `yii\\console\\Controller` encerram a cadeia como conhecidos. Pai customizado externo/desconhecido, `parent::actions()`, `array_merge()`, spread ou retorno indireto de `actions()` degradam o inventário para `null`, evitando falso positivo.
 
+## Referências de relações em ActiveQuery
+
+`src/Yii2RelationReferenceAnalyzer.php` reutiliza o inventário `hasOne()`/`hasMany()` para validar relation paths literais usadas em:
+
+```text
+Model::find()->with('relation')
+Model::find()->joinWith('relation')
+Model::find()->innerJoinWith('relation')
+```
+
+Paths pontuados, como `customer.address`, são percorridos segmento a segmento quando o target intermediário também é um ActiveRecord local conclusivo. Alias literal de `joinWith`, como `items item`, é normalizado para `items` somente durante a resolução e permanece intacto na evidência.
+
+A regra não tenta provar ausência quando a classe de origem possui parent externo desconhecido, usa trait capaz de adicionar getters de relação ou quando um target intermediário não pode ser resolvido com segurança. Nesses casos a referência recebe `exists=null`. Arrays de relações, closures, variáveis e relation paths calculadas também permanecem fora desta tranche.
+
+O objetivo inicial é detectar relação inexistente referenciada por query, equivalente conceitualmente à família `activeQueryWithValidation` do projeto upstream. A validação dos campos do array de link de `hasOne()/hasMany()` — conceito distinto da regra upstream `activeRecordRelationValidation` — ainda exige inventário de atributos/reflection mais rico e não é presumida por `COR-003`.
+
 ## Engine de regras nativas
 
 `src/Yii2RuleEngine.php` transforma somente fatos semânticos conclusivos em `Finding`. A separação é intencional:
 
 ```text
-Yii2SemanticModel ----------┐
-                            ├-> Yii2RuleEngine -> Finding
-Yii2BehaviorActionAnalyzer -┘
+Yii2SemanticModel ------------┐
+Yii2BehaviorActionAnalyzer ---┼-> Yii2RuleEngine -> Finding
+Yii2RelationReferenceAnalyzer ┘
 ```
 
 As regras implementadas nesta tranche são:
@@ -90,11 +106,14 @@ As regras implementadas nesta tranche são:
 ```text
 NINFA-YII2-COR-001  view literal inexistente
 NINFA-YII2-COR-002  action inexistente referenciada em behavior/filter
+NINFA-YII2-COR-003  relation path literal inexistente em ActiveQuery
 ```
 
 `COR-001` reporta uma referência literal a view quando o modelo conseguiu resolver o path convencional e confirmou que o arquivo não existe. `exists=null`, nomes calculados, aliases não resolvidos e demais casos desconhecidos não produzem finding.
 
 `COR-002` reporta somente referências literais de behavior cujo inventário de actions esteja completo e tenha resultado `exists=false`. O finding preserva a origem da referência (`only`, `except`, `optional`, `rules[].actions` ou `VerbFilter.actions`) e a classe do behavior. Referências com `exists=null` não produzem finding.
+
+`COR-003` reporta relation path literal somente quando a classe ActiveRecord e sua cadeia local tornam o inventário conclusivo. O finding preserva model, método de query, path completo, segmento ausente e prefixo já resolvido. Herança desconhecida, trait, target intermediário incerto ou expressão dinâmica não produzem finding.
 
 Os findings usam:
 
@@ -127,7 +146,7 @@ O modelo expõe:
 }
 ```
 
-Regras ActiveRecord/Query podem posteriormente usar essas flags para habilitar semântica específica sem criar combinações de profile como `yii2-redis-mongodb`.
+Regras ActiveRecord/Query podem usar essas flags para habilitar semântica específica sem criar combinações de profile como `yii2-redis-mongodb`.
 
 ## Taxonomia
 
@@ -148,7 +167,8 @@ Catálogo atual:
 | --- | --- | --- |
 | view literal inexistente | correctness | `NINFA-YII2-COR-001` implementada; em `assist` |
 | action inexistente em filtros/behaviors | correctness | `NINFA-YII2-COR-002` implementada; em `assist` |
-| relação ActiveRecord inexistente | correctness | inventário de relações implementado; regra pendente |
+| relation path inexistente em `with/joinWith/innerJoinWith` | correctness | `NINFA-YII2-COR-003` implementada; em `assist` |
+| link inválido de `hasOne/hasMany` | correctness/static-analysis | planejado; depende de inventário de atributos confiável |
 | condição dinâmica insegura em Query | security/code-quality | planejado |
 | existência via `one()`/`count()` | performance | planejado |
 | APIs Yii2 deprecated | deprecation | planejado |
@@ -217,9 +237,11 @@ Toda nova regra Yii2 deve conter, no mínimo:
 3. caso limite;
 4. caso dinâmico/não resolvível que não pode virar falso positivo.
 
-`tests/yii2-semantic-model.php` protege a fundação atual: capabilities Redis/MongoDB, actions inline/externas, resolução de views literais, relações `hasOne`/`hasMany`, `NINFA-YII2-COR-001`, `NINFA-YII2-COR-002` e a persistência de `framework_semantics` no workspace externo.
+`tests/yii2-semantic-model.php` protege a fundação atual: capabilities Redis/MongoDB, actions inline/externas, resolução de views literais, relações `hasOne`/`hasMany`, `NINFA-YII2-COR-001`, `NINFA-YII2-COR-002`, `NINFA-YII2-COR-003` e a persistência de `framework_semantics` no workspace externo.
 
 Para `COR-002`, a fixture cobre referências válidas e inválidas em `only`, `except`, `AccessControl.rules[].actions`, `VerbFilter.actions` e `AuthMethod.optional`. Também verifica que wildcards, valores de action dinâmicos e classe de behavior dinâmica não viram finding.
+
+Para `COR-003`, a fixture cobre relação válida, relação ausente, alias em `joinWith`, relation path pontuada válida, segmento aninhado inexistente, variável dinâmica, array de relações e model com parent externo desconhecido. O último caso precisa permanecer `exists=null`, não erro.
 
 A evolução prevista é organizar fixtures em:
 
@@ -247,11 +269,11 @@ Só deve aplicar remediações classificadas como seguras. Alterações de compo
 
 ### `ninfa assist`
 
-É a primeira superfície das regras nativas Yii2. Além de PHPStan/Psalm estruturados, preserva `yii2-semantic.json`, `yii2-findings.json` e inclui os findings Yii2 no `findings.json` consolidado. Nesta tranche isso inclui `COR-001` e `COR-002`.
+É a primeira superfície das regras nativas Yii2. Além de PHPStan/Psalm estruturados, preserva `yii2-semantic.json`, `yii2-findings.json` e inclui os findings Yii2 no `findings.json` consolidado. Nesta tranche isso inclui `COR-001`, `COR-002` e `COR-003`.
 
 ### `ninfa security`
 
-Continua reservado à segurança. View inexistente, action de filtro inexistente, query ineficiente ou preferência arquitetural não são chamadas de vulnerabilidade. Regras Yii2 só entram em `security` quando há contrato de segurança correspondente e evidência adequada.
+Continua reservado à segurança. View inexistente, action de filtro inexistente, relation path inexistente, query ineficiente ou preferência arquitetural não são chamadas de vulnerabilidade. Regras Yii2 só entram em `security` quando há contrato de segurança correspondente e evidência adequada.
 
 ## Proveniência
 
@@ -265,12 +287,14 @@ Ambos os projetos externos usam licença MIT. Consulte `THIRD_PARTY_NOTICES.md`.
 
 A validação de actions em behaviors foi reimplementada sob o modelo conservador do Ninfa. A implementação upstream usa PHPStan Reflection/AST para provar subclasses de `ActionFilter`; o Ninfa, nesta tranche, prefere reconhecer classes/configurações estáticas e degradar incerteza para `null` em vez de afirmar equivalência onde não possui reflexão completa.
 
+A validação de relation paths também é uma reimplementação conservadora: o upstream consegue apoiar-se em PHPStan Reflection para validar `with()/joinWith()/innerJoinWith()`. O Ninfa restringe `COR-003` a chamadas literais sobre ActiveRecord local cuja herança possa ser encerrada em bases Yii2 conhecidas e não presume completude quando traits ou parents externos podem introduzir relações.
+
 ## Sequência de implementação
 
 1. catálogo e contrato documental — iniciado;
 2. modelo semântico compartilhado — implementado para capabilities/controllers/actions/views/relations;
-3. correctness de view/action/relation — view e action implementadas em `assist`; relation pendente;
-4. integração com findings normalizados — `NINFA-YII2-COR-001` e `NINFA-YII2-COR-002` integradas;
+3. correctness de view/action/relation — `COR-001`, `COR-002` e relation path `COR-003` implementadas em `assist`; validação de campos do link permanece futura;
+4. integração com findings normalizados — três regras correctness integradas;
 5. deprecations/remediações SAFE;
 6. query/security com correlação ao SAST;
 7. PHPDoc/magic properties via check/assist;
