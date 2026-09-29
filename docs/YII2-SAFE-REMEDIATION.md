@@ -12,6 +12,7 @@ O aplicador é `src/Yii2SafeRemediator.php`. Ele recebe patches com `file`, `off
 
 | ID | Transformação | Prova exigida |
 | --- | --- | --- |
+| `NINFA-YII2-PERF-001` | `one()/count()` usados apenas para existência → `exists()/!exists()` | ActiveRecord local comprovado + comparação literal equivalente |
 | `NINFA-YII2-MOD-001` | `find()->where(hash)->one()/all()` → `findOne()/findAll()` | ActiveRecord e hash literal suportado |
 | `NINFA-YII2-DEP-001` | `Yii::trace()` → `Yii::debug()` | chamada global literal |
 | `NINFA-YII2-DEP-002` | `Controller::EXIT_CODE_*` → `yii\console\ExitCode::*` | classe resolve para `yii\console\Controller` |
@@ -20,7 +21,38 @@ O aplicador é `src/Yii2SafeRemediator.php`. Ele recebe patches com `file`, `off
 | `NINFA-YII2-DEP-005` | `Dependency::getHasChanged()` → `isChanged()` | receiver comprovado como `yii\caching\Dependency` ou subclasse local |
 | `NINFA-YII2-DEP-006` | `SomeObject::className()` / `static::className()` → `::class` | classe nomeada ou classe léxica comprovada como `yii\base\BaseObject`/subclasse local |
 
-`DEP-004` e `DEP-005` são inspiradas nas regras `ReplaceCacheMultiMethodAliasesRector` e `ReplaceGetHasChangedWithIsChangedRector`; `DEP-006` segue `ReplaceClassnameWithClassRector`, todos de `mspirkov/yii2-rector`. O Ninfa reimplementa os conceitos sob seu próprio contrato de evidência, workspace, testes e idempotência; não depende da API interna do projeto upstream.
+`PERF-001` é inspirada em `ReplaceExistenceCheckWithExistsRector`; `DEP-004` e `DEP-005` em `ReplaceCacheMultiMethodAliasesRector` e `ReplaceGetHasChangedWithIsChangedRector`; `DEP-006` segue `ReplaceClassnameWithClassRector`, todos de `mspirkov/yii2-rector`. O Ninfa reimplementa os conceitos sob seu próprio contrato de evidência, workspace, testes e idempotência; não depende da API interna do projeto upstream.
+
+## Existência com `exists()`
+
+`src/Yii2QueryExistenceAnalyzer.php` reconhece apenas comparações que respondem inequivocamente “há algum registro?” ou “não há registro?”. O analyzer exige uma chain iniciada em `ActiveRecord::find()` cuja classe local tenha herança comprovada até uma base Yii2 de DB, Redis ou MongoDB.
+
+Exemplos SAFE:
+
+```php
+Order::find()->where(['status' => 1])->one() !== null;
+// -> Order::find()->where(['status' => 1])->exists();
+
+Order::find()->count() === 0;
+// -> !Order::find()->exists();
+
+0 !== Order::find()->count();
+// -> Order::find()->exists();
+```
+
+A evidência contém o intervalo completo da comparação, não apenas o nome `one`/`count`, porque o replacement elimina também operador e literal. Comparações invertidas são normalizadas antes de gerar o patch.
+
+Permanecem intactos:
+
+```text
+count() > 1
+one() usado como valor
+count() usado como quantidade
+classe sem herança ActiveRecord comprovável
+QueryInterface obtido de variável/factory/runtime
+```
+
+Quando `PERF-001` contém internamente uma chain que também seria candidata a `MOD-001`, o remediator aplica precedência explícita a `PERF-001`. O shortcut aninhado é descartado antes da validação de sobreposição; qualquer outra sobreposição entre regras SAFE continua sendo erro e interrompe a escrita.
 
 ## Prova de tipo para caching
 
@@ -76,19 +108,11 @@ Também ficam fora do SAFE classes cujo parent externo impede concluir a cadeia.
 
 ## Relação entre `assist` e `fix`
 
-`DEP-004` e `DEP-005` usam o mesmo `Yii2CachingDeprecationAnalyzer` nos dois fluxos. `DEP-006` usa `Yii2ClassNameDeprecationAnalyzer` da mesma forma. Cada analyzer produz evidência única com `file`, `line`, `rule`, `kind`, `replacement`, `offset` e `length`.
+`PERF-001`, `DEP-004`, `DEP-005` e `DEP-006` usam o mesmo analyzer nos dois fluxos. Cada analyzer produz uma evidência única com localização e dados suficientes para a normalização como `Finding`; os analyzers SAFE também expõem `offset`, `length` e replacement exato para o `fix`.
 
-No `assist`, `Yii2RuleEngine` apenas normaliza essa evidência como `Finding` com:
+No `assist`, `Yii2RuleEngine` normaliza `PERF-001` como performance e as regras `DEP-*` como deprecation, todas com `confidence=high`, `remediation_risk=safe` e `autofix=true` quando o subconjunto seguro foi comprovado.
 
-```text
-category          deprecation
-severity          warning
-confidence        high
-remediation_risk  safe
-autofix           true
-```
-
-No `fix`, `Yii2SafeRemediator` reutiliza os offsets/replacements da mesma evidência. Não existe uma segunda implementação da lógica de prova para apresentação de findings.
+No `fix`, `Yii2SafeRemediator` reutiliza os mesmos offsets/replacements. Não existe uma segunda implementação da lógica de equivalência ou prova de tipo somente para apresentação de findings.
 
 Para `profile=yii2`, `bin/ninfa` executa `Yii2SafeRemediator` antes dos fixers externos. Depois, `RecheckingPipelineRunner` mantém o contrato global do Ninfa: um único `check` completo ao final de um `fix` bem-sucedido.
 
@@ -102,13 +126,16 @@ O próprio código do Ninfa continua sujeito ao guard de documentação: classes
 
 ## Testes
 
-As remediações de deprecation são cobertas por:
+As remediações SAFE são cobertas por:
 
 ```text
+tests/yii2-query-existence.php
 tests/yii2-deprecation-remediation.php
 tests/yii2-typed-deprecation.php
 tests/yii2-classname-deprecation.php
 ```
+
+A fixture de existência cobre `one()`/`count()`, operadores invertidos, formas positivas/negadas, thresholds não equivalentes, classe não Yii2, precedência sobre `MOD-001` e idempotência.
 
 A fixture de caching verifica parâmetros tipados, propriedades tipadas, subclasses locais, variáveis inicializadas com `new`, receivers não comprovados, emissão dos mesmos casos como findings de `assist` e idempotência do `fix`.
 
@@ -116,4 +143,4 @@ A fixture de `className()` cobre classe explícita, `static`, subclasses locais,
 
 ## Limite atual
 
-As tranches de caching e `className()` estão fechadas no contrato atual: detecção, finding e autofix SAFE compartilham a mesma fonte de evidência. Ampliações futuras da prova de tipo — por exemplo unions, hierarquia externa completa, factory/container ou PHPDoc como fonte auxiliar — exigem política explícita de confiança antes de entrarem em autofix.
+As tranches de existência, caching e `className()` estão fechadas no contrato atual: detecção, finding e autofix SAFE compartilham a mesma fonte de evidência. Ampliações futuras da prova de tipo — por exemplo unions, hierarquia externa completa, factory/container ou PHPDoc como fonte auxiliar — exigem política explícita de confiança antes de entrarem em autofix.
