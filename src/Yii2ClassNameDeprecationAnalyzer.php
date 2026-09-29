@@ -36,12 +36,13 @@ final class Yii2ClassNameDeprecationAnalyzer
 
         foreach ($files as $file) {
             $source = (string) file_get_contents($file);
-            $namespace = $this->namespaceOf($source);
-            $uses = $this->importsOf($source);
-            $scopes = $this->classScopes($source, $namespace);
+            $code = $this->codeMask($source);
+            $namespace = $this->namespaceOf($code);
+            $uses = $this->importsOf($code);
+            $scopes = $this->classScopes($code, $namespace);
             $relative = $this->relativePath($context->root(), $file);
 
-            foreach ($this->candidateCalls($source) as $call) {
+            foreach ($this->candidateCalls($code) as $call) {
                 if ($call['class'] === 'self' || $call['class'] === 'parent') {
                     continue;
                 }
@@ -72,12 +73,55 @@ final class Yii2ClassNameDeprecationAnalyzer
     }
 
     /**
+     * Produz uma visão do source com comentários e strings mascarados sem deslocar offsets.
+     *
+     * Autofix baseado em regex nunca deve interpretar exemplos em comentário, PHPDoc, string,
+     * inline HTML ou conteúdo de heredoc como código executável. Os bytes mascarados viram
+     * espaços, mas quebras de linha são preservadas para manter offsets e linhas auditáveis.
+     *
+     * @param string $source Código-fonte original.
+     * @return string Source de mesmo comprimento contendo somente regiões analisáveis.
+     */
+    private function codeMask(string $source): string
+    {
+        /** @var list<int> $maskedTokens Tokens cujo texto não representa código elegível. */
+        $maskedTokens = [
+            T_COMMENT,
+            T_DOC_COMMENT,
+            T_CONSTANT_ENCAPSED_STRING,
+            T_ENCAPSED_AND_WHITESPACE,
+            T_INLINE_HTML,
+            T_START_HEREDOC,
+            T_END_HEREDOC,
+        ];
+        $masked = '';
+
+        foreach (token_get_all($source) as $token) {
+            if (!is_array($token)) {
+                $masked .= $token;
+                continue;
+            }
+
+            $text = $token[1];
+            if (!in_array($token[0], $maskedTokens, true)) {
+                $masked .= $text;
+                continue;
+            }
+
+            $replacement = preg_replace('/[^\r\n]/', ' ', $text);
+            $masked .= is_string($replacement) ? $replacement : str_repeat(' ', strlen($text));
+        }
+
+        return $masked;
+    }
+
+    /**
      * Extrai chamadas `X::className()` sem argumentos e preserva o intervalo substituível.
      *
      * O intervalo começa em `className` e inclui os parênteses, portanto trocar todo o trecho
      * por `class` preserva exatamente o qualifier original, inclusive `static` ou FQCN.
      *
-     * @param string $source Código-fonte completo do arquivo.
+     * @param string $source Código-fonte mascarado com offsets idênticos ao original.
      * @return list<array{class:string,offset:int,length:int}> Chamadas candidatas em ordem textual.
      */
     private function candidateCalls(string $source): array
@@ -121,7 +165,7 @@ final class Yii2ClassNameDeprecationAnalyzer
     /**
      * Delimita corpos de classes para associar `static` à declaração correta.
      *
-     * @param string $source Código-fonte completo.
+     * @param string $source Código-fonte mascarado.
      * @param string $namespace Namespace do arquivo sem barra inicial.
      * @return list<array{class:string,start:int,end:int}> Escopos de classe não sobrepostos.
      */
@@ -194,7 +238,7 @@ final class Yii2ClassNameDeprecationAnalyzer
         $pattern = '/\b(?:abstract\s+|final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)(?P<tail>[^{]*)\{/';
 
         foreach ($files as $file) {
-            $source = (string) file_get_contents($file);
+            $source = $this->codeMask((string) file_get_contents($file));
             $namespace = $this->namespaceOf($source);
             $uses = $this->importsOf($source);
             $count = preg_match_all($pattern, $source, $matches, PREG_SET_ORDER);
@@ -220,7 +264,7 @@ final class Yii2ClassNameDeprecationAnalyzer
     /**
      * Retorna o offset da chave que fecha um bloco iniciado em `$openingOffset`.
      *
-     * @param string $source Código-fonte completo.
+     * @param string $source Código-fonte mascarado.
      * @param int $openingOffset Offset da chave de abertura.
      * @return int|null Offset da chave final ou null quando o bloco é inválido.
      */
@@ -281,7 +325,7 @@ final class Yii2ClassNameDeprecationAnalyzer
     /**
      * Extrai namespace do arquivo sem executar código.
      *
-     * @param string $source Código-fonte completo.
+     * @param string $source Código-fonte mascarado.
      * @return string Namespace sem barra inicial.
      */
     private function namespaceOf(string $source): string
@@ -294,9 +338,9 @@ final class Yii2ClassNameDeprecationAnalyzer
     /**
      * Extrai imports de classe simples declarados antes da primeira classe.
      *
-     * Group use, imports de function/const e aliases dinâmicos ficam fora deste parser.
+     * Group use e imports de function/const ficam fora deste parser.
      *
-     * @param string $source Código-fonte completo.
+     * @param string $source Código-fonte mascarado.
      * @return array<string,string> Alias para FQCN sem barra inicial.
      */
     private function importsOf(string $source): array
