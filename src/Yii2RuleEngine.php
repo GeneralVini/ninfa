@@ -12,6 +12,7 @@ require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
 require_once __DIR__ . '/Yii2FindShortcutAnalyzer.php';
 require_once __DIR__ . '/Yii2DeprecationAnalyzer.php';
 require_once __DIR__ . '/Yii2CachingDeprecationAnalyzer.php';
+require_once __DIR__ . '/Yii2ClassNameDeprecationAnalyzer.php';
 require_once __DIR__ . '/Yii2MagicPropertyAnalyzer.php';
 require_once __DIR__ . '/Yii2ControllerAccessAnalyzer.php';
 
@@ -59,6 +60,9 @@ final class Yii2RuleEngine
 
     /** Identificador estável de Dependency::getHasChanged(). */
     public const DEPENDENCY_METHOD_DEPRECATED = 'NINFA-YII2-DEP-005';
+
+    /** Identificador estável de BaseObject::className(). */
+    public const CLASS_NAME_DEPRECATED = 'NINFA-YII2-DEP-006';
 
     /** Identificador estável de relação sem tag de propriedade mágica em PHPDoc já mantido. */
     public const MAGIC_PROPERTY_MISSING = 'NINFA-YII2-TYPE-001';
@@ -277,6 +281,9 @@ final class Yii2RuleEngine
         }
         foreach ((new Yii2CachingDeprecationAnalyzer())->references($context) as $reference) {
             $findings[] = $this->deprecationFinding($reference, 'ninfa:yii2-caching-deprecation-analyzer');
+        }
+        foreach ((new Yii2ClassNameDeprecationAnalyzer())->references($context) as $reference) {
+            $findings[] = $this->deprecationFinding($reference, 'ninfa:yii2-classname-deprecation-analyzer');
         }
 
         // TYPE-001 só exige tag quando a classe já mantém um contrato de propriedades mágicas.
