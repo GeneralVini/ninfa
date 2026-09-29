@@ -89,7 +89,46 @@ Paths pontuados, como `customer.address`, são percorridos segmento a segmento q
 
 A regra não tenta provar ausência quando a classe de origem possui parent externo desconhecido, usa trait capaz de adicionar getters de relação ou quando um target intermediário não pode ser resolvido com segurança. Nesses casos a referência recebe `exists=null`. Arrays de relações, closures, variáveis e relation paths calculadas também permanecem fora desta tranche.
 
-O objetivo inicial é detectar relação inexistente referenciada por query, equivalente conceitualmente à família `activeQueryWithValidation` do projeto upstream. A validação dos campos do array de link de `hasOne()/hasMany()` — conceito distinto da regra upstream `activeRecordRelationValidation` — ainda exige inventário de atributos/reflection mais rico e não é presumida por `COR-003`.
+O objetivo é detectar relação inexistente referenciada por query, equivalente conceitualmente à família `activeQueryWithValidation` do projeto upstream.
+
+## Links de `hasOne()` e `hasMany()`
+
+`src/Yii2RelationLinkAnalyzer.php` implementa a primeira tranche equivalente ao conceito upstream `activeRecordRelationValidation`, mas com um contrato deliberadamente mais restrito para evitar inferir schema inexistente.
+
+No Yii2, o segundo argumento da relação representa um mapa:
+
+```php
+$this->hasOne(Customer::class, [
+    'id' => 'customer_id',
+]);
+```
+
+A chave pertence ao ActiveRecord relacionado (`Customer`) e o valor pertence ao ActiveRecord atual. O Ninfa valida os dois lados de forma independente.
+
+A ausência só é demonstrável quando o inventário de atributos daquele lado é conclusivo. Nesta tranche, um inventário é considerado conclusivo quando:
+
+```php
+public function attributes(): array
+{
+    return ['id', 'customer_id'];
+}
+```
+
+ou quando esse método literal é herdado de uma classe local igualmente conclusiva.
+
+O Ninfa **não** usa como prova negativa:
+
+- ausência de propriedade declarada no source;
+- PHPDoc `@property` isolado;
+- migrations sem correlação inequívoca com o model;
+- schema implícito do banco que só existe em runtime;
+- `parent::attributes()`, `array_merge()`, variáveis ou lógica condicional em `attributes()`;
+- parent externo/desconhecido;
+- trait que possa alterar o contrato quando não existe override literal na própria classe.
+
+Esses casos resultam em `null` para o lado sem inventário conclusivo. Uma relação pode, portanto, provar o lado relacionado e manter o lado atual como unknown, ou vice-versa.
+
+Links não literais permanecem fora da regra. Relações seguidas por `via()` ou `viaTable()` também são ignoradas nesta tranche, seguindo o mesmo cuidado adotado no upstream: o significado do link depende do modelo/tabela intermediária e não deve ser validado como relação direta.
 
 ## Engine de regras nativas
 
@@ -97,8 +136,9 @@ O objetivo inicial é detectar relação inexistente referenciada por query, equ
 
 ```text
 Yii2SemanticModel ------------┐
-Yii2BehaviorActionAnalyzer ---┼-> Yii2RuleEngine -> Finding
-Yii2RelationReferenceAnalyzer ┘
+Yii2BehaviorActionAnalyzer ---┤
+Yii2RelationReferenceAnalyzer ├-> Yii2RuleEngine -> Finding
+Yii2RelationLinkAnalyzer -----┘
 ```
 
 As regras implementadas nesta tranche são:
@@ -107,6 +147,7 @@ As regras implementadas nesta tranche são:
 NINFA-YII2-COR-001  view literal inexistente
 NINFA-YII2-COR-002  action inexistente referenciada em behavior/filter
 NINFA-YII2-COR-003  relation path literal inexistente em ActiveQuery
+NINFA-YII2-COR-004  atributo inexistente em link literal de hasOne()/hasMany()
 ```
 
 `COR-001` reporta uma referência literal a view quando o modelo conseguiu resolver o path convencional e confirmou que o arquivo não existe. `exists=null`, nomes calculados, aliases não resolvidos e demais casos desconhecidos não produzem finding.
@@ -114,6 +155,8 @@ NINFA-YII2-COR-003  relation path literal inexistente em ActiveQuery
 `COR-002` reporta somente referências literais de behavior cujo inventário de actions esteja completo e tenha resultado `exists=false`. O finding preserva a origem da referência (`only`, `except`, `optional`, `rules[].actions` ou `VerbFilter.actions`) e a classe do behavior. Referências com `exists=null` não produzem finding.
 
 `COR-003` reporta relation path literal somente quando a classe ActiveRecord e sua cadeia local tornam o inventário conclusivo. O finding preserva model, método de query, path completo, segmento ausente e prefixo já resolvido. Herança desconhecida, trait, target intermediário incerto ou expressão dinâmica não produzem finding.
+
+`COR-004` produz um finding por lado comprovadamente inválido do link. O metadata preserva `side=related|current`, models, atributos, relation name e kind. Se um lado tiver inventário inconclusivo, ele permanece `null` e não gera finding. Não existe autofix porque trocar uma coluna de relação exige intenção de domínio.
 
 Os findings usam:
 
@@ -146,7 +189,7 @@ O modelo expõe:
 }
 ```
 
-Regras ActiveRecord/Query podem usar essas flags para habilitar semântica específica sem criar combinações de profile como `yii2-redis-mongodb`.
+Regras ActiveRecord/Query podem usar essas flags para habilitar semântica específica sem criar combinações de profile como `yii2-redis-mongodb`. `COR-004` também funciona para essas classes quando `attributes()` fornece inventário literal; sem isso, schema runtime continua unknown.
 
 ## Taxonomia
 
@@ -168,7 +211,7 @@ Catálogo atual:
 | view literal inexistente | correctness | `NINFA-YII2-COR-001` implementada; em `assist` |
 | action inexistente em filtros/behaviors | correctness | `NINFA-YII2-COR-002` implementada; em `assist` |
 | relation path inexistente em `with/joinWith/innerJoinWith` | correctness | `NINFA-YII2-COR-003` implementada; em `assist` |
-| link inválido de `hasOne/hasMany` | correctness/static-analysis | planejado; depende de inventário de atributos confiável |
+| atributo inexistente em link literal de `hasOne/hasMany` | correctness | `NINFA-YII2-COR-004` implementada; exige inventário literal de atributos; em `assist` |
 | condição dinâmica insegura em Query | security/code-quality | planejado |
 | existência via `one()`/`count()` | performance | planejado |
 | APIs Yii2 deprecated | deprecation | planejado |
@@ -226,6 +269,8 @@ assist -> pode explicar e propor patch
 fix    -> não altera PHPDoc semanticamente sensível nesta fase
 ```
 
+`COR-004` não usa PHPDoc isolado como inventário negativo de colunas. Isso é proposital: property magic pode representar relação, getter, behavior ou informação incompleta e não equivale necessariamente ao schema efetivo.
+
 Autofix de PHPDoc só deve ser habilitado depois de fixtures e field tests demonstrarem equivalência e baixo índice de falso positivo.
 
 ## Testes e fixtures
@@ -237,11 +282,13 @@ Toda nova regra Yii2 deve conter, no mínimo:
 3. caso limite;
 4. caso dinâmico/não resolvível que não pode virar falso positivo.
 
-`tests/yii2-semantic-model.php` protege a fundação atual: capabilities Redis/MongoDB, actions inline/externas, resolução de views literais, relações `hasOne`/`hasMany`, `NINFA-YII2-COR-001`, `NINFA-YII2-COR-002`, `NINFA-YII2-COR-003` e a persistência de `framework_semantics` no workspace externo.
+`tests/yii2-semantic-model.php` protege a fundação atual: capabilities Redis/MongoDB, actions inline/externas, resolução de views literais, relações `hasOne`/`hasMany`, `NINFA-YII2-COR-001` a `COR-004` e a persistência de `framework_semantics` no workspace externo.
 
 Para `COR-002`, a fixture cobre referências válidas e inválidas em `only`, `except`, `AccessControl.rules[].actions`, `VerbFilter.actions` e `AuthMethod.optional`. Também verifica que wildcards, valores de action dinâmicos e classe de behavior dinâmica não viram finding.
 
 Para `COR-003`, a fixture cobre relação válida, relação ausente, alias em `joinWith`, relation path pontuada válida, segmento aninhado inexistente, variável dinâmica, array de relações e model com parent externo desconhecido. O último caso precisa permanecer `exists=null`, não erro.
+
+Para `COR-004`, a fixture cobre links válidos, um link com os dois lados inválidos, `viaTable()` ignorado, link dinâmico ignorado, ActiveRecord sem override de `attributes()` e override dinâmico por `parent::attributes()`. Os dois últimos mantêm o lado atual como `null` em vez de acusar coluna inexistente.
 
 A evolução prevista é organizar fixtures em:
 
@@ -269,11 +316,11 @@ Só deve aplicar remediações classificadas como seguras. Alterações de compo
 
 ### `ninfa assist`
 
-É a primeira superfície das regras nativas Yii2. Além de PHPStan/Psalm estruturados, preserva `yii2-semantic.json`, `yii2-findings.json` e inclui os findings Yii2 no `findings.json` consolidado. Nesta tranche isso inclui `COR-001`, `COR-002` e `COR-003`.
+É a primeira superfície das regras nativas Yii2. Além de PHPStan/Psalm estruturados, preserva `yii2-semantic.json`, `yii2-findings.json` e inclui os findings Yii2 no `findings.json` consolidado. Nesta tranche isso inclui `COR-001`, `COR-002`, `COR-003` e `COR-004`.
 
 ### `ninfa security`
 
-Continua reservado à segurança. View inexistente, action de filtro inexistente, relation path inexistente, query ineficiente ou preferência arquitetural não são chamadas de vulnerabilidade. Regras Yii2 só entram em `security` quando há contrato de segurança correspondente e evidência adequada.
+Continua reservado à segurança. View inexistente, action de filtro inexistente, relation path inexistente, link ActiveRecord inválido, query ineficiente ou preferência arquitetural não são chamadas de vulnerabilidade. Regras Yii2 só entram em `security` quando há contrato de segurança correspondente e evidência adequada.
 
 ## Proveniência
 
@@ -289,15 +336,17 @@ A validação de actions em behaviors foi reimplementada sob o modelo conservado
 
 A validação de relation paths também é uma reimplementação conservadora: o upstream consegue apoiar-se em PHPStan Reflection para validar `with()/joinWith()/innerJoinWith()`. O Ninfa restringe `COR-003` a chamadas literais sobre ActiveRecord local cuja herança possa ser encerrada em bases Yii2 conhecidas e não presume completude quando traits ou parents externos podem introduzir relações.
 
+Para links de relação, o upstream usa Reflection/BaseObjectPropertyAnalyzer para validar propriedades em cada lado do mapa. O Ninfa não simula essa reflection sem evidência: `COR-004` só nega atributo quando existe `attributes()` literal completo, e ignora `via()`/`viaTable()` nesta tranche, preservando a mesma cautela conceitual sem copiar a implementação upstream.
+
 ## Sequência de implementação
 
 1. catálogo e contrato documental — iniciado;
 2. modelo semântico compartilhado — implementado para capabilities/controllers/actions/views/relations;
-3. correctness de view/action/relation — `COR-001`, `COR-002` e relation path `COR-003` implementadas em `assist`; validação de campos do link permanece futura;
-4. integração com findings normalizados — três regras correctness integradas;
+3. correctness de view/action/relation — `COR-001` a `COR-004` implementadas em `assist` com política conservadora;
+4. integração com findings normalizados — quatro regras correctness integradas;
 5. deprecations/remediações SAFE;
 6. query/security com correlação ao SAST;
 7. PHPDoc/magic properties via check/assist;
-8. hardening Redis/MongoDB e field tests.
+8. hardening Redis/MongoDB, ampliação segura do inventário de schema e field tests.
 
 Cada etapa deve atualizar código, PHPDoc, testes e documentação no mesmo conjunto de mudanças.
