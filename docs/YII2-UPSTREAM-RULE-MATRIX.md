@@ -86,19 +86,46 @@ A primeira tranche ignora receiver armazenado em variável, expressão composta,
 | `activeRecordConditionValidation` | `PARTIAL` | `NINFA-YII2-COR-005` cobre aridade de operators literais |
 | `queryConditionValidation` | `PARTIAL` | mesma base de `COR-005`; ampliar tipos/conditions somente com prova segura |
 | `activeQueryWithValidation` | `PARTIAL` | relation paths já cobertos; outras validações dependem de typing adicional |
-| `activeRecordUpdateValuesValidation` | `DEFERRED` | requer inventário confiável de atributos/schema antes de negar chaves |
+| `activeRecordUpdateValuesValidation` | `DEFERRED` | agora pode reutilizar o inventário de atributos quando ele for conclusivo; schema runtime continua `unknown` |
 | `baseObjectInstantiationValidation` | `DEFERRED` | útil para config arrays; requer modelagem de setters/properties/configuração Yii2 |
-| `behaviorAttributesValidation` | `DEFERRED` | depende de inventário de atributos e semântica de behavior |
+| `behaviorAttributesValidation` | `DEFERRED` | pode reutilizar o inventário de atributos, mas ainda requer semântica do behavior |
 | `componentBehaviorsValidation` | `PARTIAL` | parser de behaviors já existe para actions; config geral ainda não |
-| `htmlActiveAttributeValidation` | `DEFERRED` | requer tipo de model + inventário de atributos confiável |
-| `modelAttributeHintsValidation` | `DEFERRED` | depende de contrato completo de atributos |
-| `modelAttributeLabelsValidation` | `DEFERRED` | depende de contrato completo de atributos |
-| `modelRulesValidation` | `DEFERRED` | alta utilidade, mas validators/rules precisam parser semântico próprio |
-| `modelScenariosValidation` | `DEFERRED` | depende do mesmo inventário de atributos/rules |
+| `htmlActiveAttributeValidation` | `DEFERRED` | inventário de Model existe; falta resolver o tipo do model no ponto de uso |
+| `modelAttributeHintsValidation` | `SAFE-CANDIDATE` | inventário compartilhado concluído; falta parser de `attributeHints()` |
+| `modelAttributeLabelsValidation` | `SAFE-CANDIDATE` | inventário compartilhado concluído; falta parser de `attributeLabels()` |
+| `modelRulesValidation` | `PARTIAL` | `NINFA-YII2-COR-006` valida atributos literais ausentes; opções/validators ainda não |
+| `modelScenariosValidation` | `SAFE-CANDIDATE` | inventário compartilhado já permite validar nomes literais; parser ainda pendente |
 | `uploadedFileInstanceValidation` | `DEFERRED` | exige type/data-flow suficiente para evitar falso positivo |
 | `widgetPropertiesValidation` | `DEFERRED` | exige resolução confiável de classe/config properties |
 | `yiiCreateObjectValidation` | `DEFERRED` | candidato futuro do modelo de config arrays/DI |
-| `activeFormFieldValidation` | `DEFERRED` | depende de model + attribute typing no ponto de uso |
+| `activeFormFieldValidation` | `DEFERRED` | inventário existe; falta resolver model + attribute no ponto de uso |
+
+### Inventário de Model e `COR-006`
+
+`src/Yii2ModelRulesAnalyzer.php` estabelece a primeira base compartilhada para regras de Model. Um inventário é **conclusivo** apenas quando:
+
+- `attributes()` retorna uma lista literal completa; ou
+- a classe termina em `yii\base\Model` por cadeia local e seus atributos são derivados de propriedades públicas não estáticas.
+
+ActiveRecord sem override literal não é negado porque o schema pode ser resolvido em runtime. Traits, parent externo, `attributes()` dinâmico, `array_merge()`, retorno indireto e regras dinâmicas também degradam para `unknown`.
+
+`NINFA-YII2-COR-006` usa esse inventário para validar apenas o índice 0 literal de cada entrada de `rules()`:
+
+```php
+class SignupForm extends \yii\base\Model
+{
+    public string $email = '';
+
+    public function rules(): array
+    {
+        return [
+            ['emial', 'string'], // COR-006
+        ];
+    }
+}
+```
+
+A regra é correctness, `severity=error`, `confidence=high` e `autofix=false`. Corrigir nome de atributo ou alterar contrato do Model depende de intenção de domínio e não é uma remediação mecânica.
 
 ## `yii2-phpstan-rules`: code quality / arquitetura
 
@@ -127,11 +154,11 @@ PHPDoc do próprio Ninfa continua obrigatório e narrativo. Qualquer analyzer no
 
 A sequência recomendada depois das regras já fechadas é:
 
-1. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção de segurança ou autofix;
-2. ampliar model/config validation (`rules`, `scenarios`, config arrays) usando um inventário de atributos/config properties compartilhado;
-3. melhorar typing com evidência de analyzer externo antes de `RemoveRedundantHtmlEncodeRector`;
-4. aprofundar PHPDoc/magic properties sem autofix;
-5. regras arquiteturais configuráveis, sempre separadas de correctness/security;
+1. ampliar a família Model sobre o inventário compartilhado: `scenarios()`, `attributeLabels()` e `attributeHints()`;
+2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção de segurança ou autofix;
+3. avançar config arrays/ActiveForm/UploadedFile somente quando o tipo do Model ou componente for demonstrável;
+4. melhorar typing com evidência de analyzer externo antes de `RemoveRedundantHtmlEncodeRector`;
+5. aprofundar PHPDoc/magic properties sem autofix;
 6. field tests em aplicações Yii2 reais antes de promover novos findings para `ninfa check`.
 
 A matriz deve ser atualizada no mesmo commit sempre que uma ideia upstream mudar de estado ou ganhar um ID NINFA próprio.
