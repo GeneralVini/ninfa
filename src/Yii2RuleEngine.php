@@ -8,6 +8,7 @@ require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
+require_once __DIR__ . '/Yii2DeprecationAnalyzer.php';
 
 /**
  * Converte fatos conclusivos das camadas semânticas Yii2 em findings próprios do Ninfa.
@@ -33,16 +34,24 @@ final class Yii2RuleEngine
     /** Identificador estável de verificação redundante de existência em query. */
     public const REDUNDANT_EXISTENCE_CHECK = 'NINFA-YII2-PERF-001';
 
+    /** Identificador estável da substituição deprecated `Yii::trace()` -> `Yii::debug()`. */
+    public const TRACE_DEPRECATED = 'NINFA-YII2-DEP-001';
+
+    /** Identificador estável de constantes antigas do console controller. */
+    public const EXIT_CONSTANT_DEPRECATED = 'NINFA-YII2-DEP-002';
+
+    /** Identificador estável de magic numbers retornados por console actions. */
+    public const ACTION_EXIT_LITERAL = 'NINFA-YII2-DEP-003';
+
     /**
      * Avalia o snapshot Yii2 e produz somente findings suportados pelo catálogo atual.
      *
      * `COR-001` promove referências literais de view com path resolvido e arquivo ausente.
      * Quando ProjectContext é fornecido, `COR-002` valida actions em behaviors/filters,
      * `COR-003` valida relation paths literais de ActiveQuery, `COR-004` valida cada lado
-     * de links literais de `hasOne()`/`hasMany()` e `PERF-001` identifica comparações que
-     * usam `one()`/`count()` apenas para testar existência. Os analisadores preservam
-     * `unknown` quando herança, schema runtime, tipo de query ou expressão dinâmica impede
-     * prova segura; a engine não converte esses casos em findings.
+     * de links literais de `hasOne()`/`hasMany()`, `PERF-001` identifica comparações que
+     * usam `one()`/`count()` apenas para testar existência e `DEP-001..003` expõem
+     * depreciações com replacement mecânico SAFE. Casos não comprováveis permanecem fora.
      *
      * @param Yii2SemanticModel $model Snapshot semântico previamente construído.
      * @param ProjectContext|null $context Contexto necessário às regras que leem o source original.
@@ -159,7 +168,7 @@ final class Yii2RuleEngine
             }
         }
 
-        // PERF-001 é advisory: a equivalência com exists() é comprovada, mas não há autofix nesta fase.
+        // PERF-001 é advisory: a equivalência com exists() é comprovada, mas permanece REVIEW.
         foreach ((new Yii2QueryExistenceAnalyzer())->references($context) as $reference) {
             $findings[] = new Finding(
                 tool: 'ninfa-yii2',
@@ -184,6 +193,30 @@ final class Yii2RuleEngine
                     'replacement' => $reference['replacement'],
                     'remediation_risk' => 'review',
                     'autofix' => false,
+                ],
+            );
+        }
+
+        // DEP-001..003 carregam replacement exato e são os primeiros candidatos de remediação SAFE nativa.
+        foreach ((new Yii2DeprecationAnalyzer())->references($context) as $reference) {
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: $reference['rule'],
+                problem: $reference['problem'],
+                correction: 'Substitua por `' . $reference['replacement'] . '`.',
+                severity: 'warning',
+                confidence: 'high',
+                evidenceType: 'framework-deprecation',
+                provenance: ['ninfa:yii2-deprecation-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'deprecation',
+                    'kind' => $reference['kind'],
+                    'replacement' => $reference['replacement'],
+                    'remediation_risk' => 'safe',
+                    'autofix' => true,
                 ],
             );
         }
