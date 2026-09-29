@@ -34,6 +34,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/semantic-hints.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-semantic-model.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-query-existence.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-deprecation-remediation.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/tooling-integration.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/pipeline-runner.php
 	php tests/legacy-config-policy.php
