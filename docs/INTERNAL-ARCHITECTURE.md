@@ -75,6 +75,13 @@ Yii2SemanticModel
   │              ├─ with()
   │              ├─ joinWith()
   │              └─ innerJoinWith()
+  │
+  ├──────────────────────────┐
+  │                          ↓
+  │              Yii2RelationLinkAnalyzer
+  │              ├─ link literal de hasOne/hasMany
+  │              ├─ attributes() literal
+  │              └─ estados tri-state por lado
   │                          │
   └───────────────┬──────────┘
                   ↓
@@ -247,11 +254,17 @@ Valida relation paths literais em `Model::find()->with()`, `joinWith()` e `inner
 
 O analisador resolve imports e namespace, combina relações herdadas de parents locais e percorre paths pontuados quando o target intermediário também é conclusivo. Alias literal de `joinWith`, como `items item`, é normalizado apenas para lookup. A existência é tri-state: `false` só aparece quando a origem é ActiveRecord local cuja herança termina em base Yii2 conhecida e o segmento está ausente. Parent externo desconhecido, trait, target intermediário incerto ou expressão dinâmica degradam para `null`/fora do scan.
 
-`COR-003` não valida ainda as colunas/atributos do array de link de `hasOne()/hasMany()`. Essa análise exige inventário de atributos confiável e permanece separada para não inferir schema de banco por ausência no source.
+### `src/Yii2RelationLinkAnalyzer.php`
+
+Valida os dois lados de mapas literais usados no segundo argumento de `hasOne()`/`hasMany()`. A chave é atributo do ActiveRecord relacionado e o valor é atributo do ActiveRecord atual.
+
+A ausência só pode ser afirmada quando o lado possui inventário explícito de atributos. A implementação aceita `attributes()` que retorna lista literal completa e herança local desse contrato. `parent::attributes()`, `array_merge()`, schema implícito de banco, PHPDoc isolado, traits sem override explícito, parent externo e expressões dinâmicas permanecem `unknown`.
+
+Os lados são independentes: related pode ser conclusivo e current unknown, ou vice-versa. Links dinâmicos são ignorados. Relações seguidas por `via()`/`viaTable()` também ficam fora desta tranche porque a semântica do mapa depende do intermediário.
 
 ### `src/Yii2RuleEngine.php`
 
-Aplica política sobre fatos conclusivos do `Yii2SemanticModel`, `Yii2BehaviorActionAnalyzer` e `Yii2RelationReferenceAnalyzer`.
+Aplica política sobre fatos conclusivos do `Yii2SemanticModel`, `Yii2BehaviorActionAnalyzer`, `Yii2RelationReferenceAnalyzer` e `Yii2RelationLinkAnalyzer`.
 
 As regras estáveis atuais são:
 
@@ -259,7 +272,10 @@ As regras estáveis atuais são:
 NINFA-YII2-COR-001  view literal resolvida cujo arquivo não existe
 NINFA-YII2-COR-002  action inexistente referenciada por behavior/filter estático
 NINFA-YII2-COR-003  relation path literal inexistente em ActiveQuery
+NINFA-YII2-COR-004  atributo inexistente em link literal de hasOne/hasMany
 ```
+
+`COR-004` produz um finding separado por lado inválido do link e preserva `side=related|current`, models, relation name/kind e atributos em metadata. Não existe autofix porque trocar coluna de relação depende de intenção de domínio.
 
 Os findings usam `tool=ninfa-yii2`, `severity=error`, `confidence=high`, `evidence_type=framework-correctness` e metadata específica da evidência. Nenhuma das regras possui autofix.
 
@@ -376,7 +392,7 @@ Aceita `RunResult` de `security` e grava o schema estruturado com inventário, f
 
 No modo normal gera configs, `lefthook.yml` e `semantic-index.json`. Para Yii2, o índice recebe `framework_semantics` com o snapshot de `Yii2SemanticModel` sem substituir os hints documentais existentes.
 
-Com `--assist`, executa PHPStan/Psalm estruturados, grava evidência bruta e findings no workspace externo. No profile Yii2, `Yii2RuleEngine` recebe também o `ProjectContext`, habilitando `COR-001`, `COR-002` e `COR-003`, e grava:
+Com `--assist`, executa PHPStan/Psalm estruturados, grava evidência bruta e findings no workspace externo. No profile Yii2, `Yii2RuleEngine` recebe também o `ProjectContext`, habilitando `COR-001` a `COR-004`, e grava:
 
 ```text
 assist/yii2-semantic.json
@@ -412,7 +428,7 @@ setup
 
 `semgrep-rules` depende de `security-tools` e valida/testa a suíte Semgrep. `setup` executa toda a cadeia. Esses targets pertencem ao desenvolvimento do Ninfa, não ao consumidor.
 
-`profile-test` inclui `tests/yii2-semantic-model.php`, que valida capabilities, actions, views, relações, `COR-001`, referências de action em behaviors para `COR-002`, relation paths ActiveQuery para `COR-003`, casos wildcard/dinâmicos/unknown e persistência do snapshot no workspace.
+`profile-test` inclui `tests/yii2-semantic-model.php`, que valida capabilities, actions, views, relation paths, links `hasOne/hasMany`, `COR-001` a `COR-004`, casos wildcard/dinâmicos/unknown e persistência do snapshot no workspace.
 
 ## Política visual
 
@@ -428,9 +444,9 @@ A primeira versão de `Yii2SemanticModel` foi bloqueada pelo próprio guard porq
 
 ## Estado atual
 
-A fundação, SCA estruturado, SAST estruturado e contratos de profile estão implementados para os quatro profiles PHP oficiais. A especialização Yii2 agora possui modelo semântico inicial e três regras nativas de correctness em fase `assist`: view literal inexistente, action inexistente referenciada por behavior/filter estático e relation path literal inexistente em ActiveQuery. A promoção ao gate de `check` depende de field tests e calibração de falso positivo.
+A fundação, SCA estruturado, SAST estruturado e contratos de profile estão implementados para os quatro profiles PHP oficiais. A especialização Yii2 agora possui modelo semântico inicial e quatro regras nativas de correctness em fase `assist`: view literal inexistente, action inexistente em behavior/filter, relation path inexistente em ActiveQuery e atributo inexistente em link literal de relação quando `attributes()` fornece inventário conclusivo.
 
-O próximo trabalho Yii2 está detalhado em `docs/YII2-ANALYSIS.md`: validação dos links/atributos de relações quando houver evidência de schema suficiente, query patterns, remediações SAFE, PHPDoc mágico e hardening Redis/MongoDB.
+A promoção ao gate de `check` depende de field tests e calibração de falso positivo. O próximo trabalho Yii2 está detalhado em `docs/YII2-ANALYSIS.md`: query patterns/performance, remediações SAFE, PHPDoc mágico, ampliação segura do inventário de schema e hardening Redis/MongoDB.
 
 Roadmap de frameworks/ecossistemas:
 
