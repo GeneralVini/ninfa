@@ -176,9 +176,13 @@ Yii2SemanticModel
        ├─ Yii2RelationReferenceAnalyzer
        ├─ Yii2RelationLinkAnalyzer
        ├─ Yii2QueryConditionAnalyzer
+       ├─ Yii2ModelRulesAnalyzer
+       ├─ Yii2WhereEqualityAnalyzer
        ├─ Yii2QueryExistenceAnalyzer
        ├─ Yii2FindShortcutAnalyzer
        ├─ Yii2DeprecationAnalyzer
+       ├─ Yii2CachingDeprecationAnalyzer
+       ├─ Yii2ClassNameDeprecationAnalyzer
        ├─ Yii2MagicPropertyAnalyzer
        └─ Yii2ControllerAccessAnalyzer
                 │
@@ -213,9 +217,19 @@ Valida related/current de links literais `hasOne()/hasMany()` somente quando `at
 
 Valida aridade de operators em condition arrays literais de `where()/andWhere()/orWhere()` iniciados por ActiveRecord local comprovado. Conjunctions literais podem ser percorridas recursivamente. Hash conditions, spread, variáveis e receivers incertos ficam fora.
 
+### `src/Yii2ModelRulesAnalyzer.php`
+
+Constrói inventário de atributos reutilizável para a família Model e valida o índice 0 literal de `rules()`. Inventário só é conclusivo quando `attributes()` retorna lista literal completa ou quando uma cadeia local termina em `yii\base\Model` e os atributos podem ser derivados de propriedades públicas não estáticas.
+
+ActiveRecord sem override literal, traits, parent externo, `attributes()` dinâmico, rules dinâmicas e outras shapes não demonstráveis permanecem `unknown`. O analyzer não consulta banco, não executa o consumidor e não usa PHPDoc como substituto de schema.
+
+### `src/Yii2WhereEqualityAnalyzer.php`
+
+Detecta igualdade SQL dinâmica simples em `where()/andWhere()/orWhere()` de ActiveRecord comprovado. Produz security smell REVIEW (`SEC-001`) sem afirmar SQL injection e sem participar do autofix.
+
 ### `src/Yii2QueryExistenceAnalyzer.php`
 
-Detecta `one()`/`count()` usados apenas para testar existência e produz remediation `exists()`/`!exists()`. A regra é performance/REVIEW e não participa do autofix.
+Detecta `one()`/`count()` usados apenas para testar existência e produz remediation `exists()`/`!exists()`. A regra `PERF-001` é SAFE no subconjunto de equivalência comprovada e participa de `assist + fix`.
 
 ### `src/Yii2FindShortcutAnalyzer.php`
 
@@ -243,6 +257,14 @@ return 0/1 em console action -> ExitCode::*
 
 As regras que dependem de tipo só são emitidas quando a herança/classe pode ser resolvida estaticamente.
 
+### `src/Yii2CachingDeprecationAnalyzer.php`
+
+Valida receiver tipado antes de recomendar/corrigir aliases deprecated de Cache e `Dependency::getHasChanged()`. A mesma evidência alimenta `assist` e `fix`.
+
+### `src/Yii2ClassNameDeprecationAnalyzer.php`
+
+Moderniza `BaseObject::className()` apenas quando a hierarquia é comprovada, preservando `self::className()`, `parent::className()` e contextos textuais mascarados.
+
 ### `src/Yii2MagicPropertyAnalyzer.php`
 
 Verifica property tags de relations apenas quando a classe já mantém contrato `@property*`. Não autoedita PHPDoc e ignora classes sem essa convenção, magic accessors customizados e property pública nativa de mesmo nome.
@@ -261,16 +283,21 @@ COR-002  action de behavior/filter ausente
 COR-003  relation path ausente
 COR-004  atributo inválido em link de relation
 COR-005  aridade inválida em query condition
-PERF-001 redundant existence check
+COR-006  atributo inexistente em Model::rules()
+SEC-001  igualdade SQL dinâmica simples, security smell REVIEW
+PERF-001 redundant existence check SAFE
 MOD-001  findOne/findAll shortcut seguro
 DEP-001  Yii::trace deprecated
 DEP-002  exit constant deprecated
 DEP-003  magic exit literal em console action
+DEP-004  aliases Cache multi* deprecated
+DEP-005  Dependency::getHasChanged deprecated
+DEP-006  BaseObject::className deprecated
 TYPE-001 magic relation property ausente no PHPDoc já adotado
 ARCH-001 Yii::$app request/response dentro de controller
 ```
 
-A engine preserva categoria e risco em metadata. Architecture/performance não são vulnerabilidades por associação.
+A engine preserva categoria e risco em metadata. Architecture/performance/security-smell não são vulnerabilidades por associação.
 
 ## Remediação nativa Yii2
 
@@ -280,19 +307,23 @@ Agrega apenas analyzers SAFE. O contrato é:
 
 1. analyzer prova equivalência e fornece `file`, `offset`, `length`, `replacement`;
 2. remediator agrupa patches por arquivo;
-3. patches sobrepostos são rejeitados;
-4. aplicação ocorre por offset decrescente;
-5. arquivos sem mudança não são regravados;
-6. segunda execução precisa ser idempotente.
+3. resolve apenas a precedência declarada `PERF-001 > MOD-001`;
+4. demais patches sobrepostos são rejeitados;
+5. aplicação ocorre por offset decrescente;
+6. arquivos sem mudança não são regravados;
+7. segunda execução precisa ser idempotente.
 
 SAFE atual:
 
 ```text
 Yii2DeprecationAnalyzer
+Yii2CachingDeprecationAnalyzer
+Yii2ClassNameDeprecationAnalyzer
+Yii2QueryExistenceAnalyzer
 Yii2FindShortcutAnalyzer
 ```
 
-REVIEW/SEMANTIC não entram nessa classe.
+`COR-006`, `SEC-001`, architecture e PHPDoc semântico não entram nessa classe.
 
 ## Assist Yii2
 
@@ -319,7 +350,7 @@ yii3        common + yii3
 glpi-plugin common + glpi-plugin-11
 ```
 
-Correctness, performance, modernization, deprecation, PHPDoc e architecture advisory do rule engine Yii2 não migram automaticamente para SAST.
+Correctness, performance, modernization, deprecation, PHPDoc e architecture advisory do rule engine Yii2 não migram automaticamente para SAST. `SEC-001` também permanece fora do gate enquanto for apenas security smell com `taint_proven=false`.
 
 ### `src/SemgrepParser.php`
 
@@ -359,7 +390,11 @@ Persiste inventário, fontes, findings, vulnerabilidades deduplicadas e exit fin
 tests/yii2-semantic-model.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
+tests/yii2-model-rules.php
+tests/yii2-where-equality.php
 tests/yii2-deprecation-remediation.php
+tests/yii2-typed-deprecation.php
+tests/yii2-classname-deprecation.php
 tests/yii2-find-shortcut.php
 tests/yii2-magic-property.php
 tests/yii2-controller-access.php
@@ -370,5 +405,7 @@ Remediações SAFE possuem teste de idempotência. Casos dinâmicos/incertos dev
 ## Estado atual
 
 O Ninfa possui quatro profiles PHP oficiais, SCA/SAST estruturado e uma camada Yii2 nativa em expansão. A estratégia continua sendo absorver conhecimento útil do ecossistema sem transformar o produto em wrapper de regras externas.
+
+O inventário de Model introduzido por `Yii2ModelRulesAnalyzer` passa a ser a base planejada para `scenarios()`, `attributeLabels()`, `attributeHints()`, ActiveForm e outras validações que dependem de atributos.
 
 A promoção de regras nativas para `check` e a ampliação de autofix dependem de evidência de baixo falso positivo em projetos Yii2 reais. A documentação canônica da especialização está em `docs/YII2-ANALYSIS.md`.
