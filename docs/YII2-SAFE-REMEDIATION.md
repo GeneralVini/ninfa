@@ -60,7 +60,21 @@ public function run(RuntimeCache $cache): void
 
 A política é preferir falso negativo temporário a alterar método de um objeto cujo contrato não foi comprovado.
 
-## Relação com `fix`
+## Relação entre `assist` e `fix`
+
+`DEP-004` e `DEP-005` usam o mesmo `Yii2CachingDeprecationAnalyzer` nos dois fluxos. O analyzer produz uma evidência única com `file`, `line`, `rule`, `kind`, `replacement`, `offset` e `length`.
+
+No `assist`, `Yii2RuleEngine` apenas normaliza essa evidência como `Finding` com:
+
+```text
+category          deprecation
+severity          warning
+confidence        high
+remediation_risk  safe
+autofix           true
+```
+
+No `fix`, `Yii2SafeRemediator` reutiliza os offsets/replacements da mesma evidência. Não existe uma segunda implementação de prova de tipo para apresentação de findings.
 
 Para `profile=yii2`, `bin/ninfa` executa `Yii2SafeRemediator` antes dos fixers externos. Depois, `RecheckingPipelineRunner` mantém o contrato global do Ninfa: um único `check` completo ao final de um `fix` bem-sucedido.
 
@@ -81,8 +95,8 @@ tests/yii2-deprecation-remediation.php
 tests/yii2-typed-deprecation.php
 ```
 
-A fixture de caching verifica parâmetros tipados, propriedades tipadas, subclasses locais, variáveis inicializadas com `new`, receivers não comprovados e idempotência. Os testes integram `make profile-test`.
+A fixture de caching verifica parâmetros tipados, propriedades tipadas, subclasses locais, variáveis inicializadas com `new`, receivers não comprovados, emissão dos mesmos casos como findings de `assist` e idempotência do `fix`. Os testes integram `make profile-test`.
 
 ## Limite atual
 
-`DEP-004` e `DEP-005` já participam da camada SAFE de `fix`. A exposição dessas duas ocorrências como findings de `assist` deve reutilizar o mesmo analyzer, sem duplicar a lógica de prova de tipo; essa integração é a próxima etapa antes de considerar o catálogo fechado.
+A tranche de caching está fechada no contrato atual: detecção, finding e autofix SAFE compartilham a mesma fonte de evidência. Ampliações futuras da prova de tipo — por exemplo unions, promoted properties complexas, factory/container ou PHPDoc como fonte auxiliar — exigem uma política explícita de confiança antes de entrarem em autofix.
