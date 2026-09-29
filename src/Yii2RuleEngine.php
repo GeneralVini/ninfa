@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/Finding.php';
 require_once __DIR__ . '/Yii2SemanticModel.php';
 require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
+require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 
 /**
  * Converte fatos conclusivos das camadas semânticas Yii2 em findings próprios do Ninfa.
@@ -21,13 +22,17 @@ final class Yii2RuleEngine
     /** Identificador estável da regra de action inexistente referenciada por behavior. */
     public const BEHAVIOR_ACTION_NOT_FOUND = 'NINFA-YII2-COR-002';
 
+    /** Identificador estável da regra de relação inexistente em ActiveQuery literal. */
+    public const QUERY_RELATION_NOT_FOUND = 'NINFA-YII2-COR-003';
+
     /**
      * Avalia o snapshot Yii2 e produz somente findings suportados pelo catálogo atual.
      *
      * `COR-001` promove referências literais de view com path resolvido e arquivo ausente.
      * Quando ProjectContext é fornecido, `COR-002` também valida referências estáticas de
-     * ActionFilter/AccessControl/VerbFilter/AuthMethod. O analisador de behaviors usa
-     * `exists=null` quando herança ou composição dinâmica impede prova segura, e a engine
+     * ActionFilter/AccessControl/VerbFilter/AuthMethod e `COR-003` valida relation paths
+     * literais em `with()`/`joinWith()`/`innerJoinWith()`. Os analisadores especializados
+     * usam `null` quando herança, trait ou expressão dinâmica impede prova segura; a engine
      * ignora esses casos em vez de transformar incerteza em erro.
      *
      * @param Yii2SemanticModel $model Snapshot semântico previamente construído.
@@ -99,6 +104,37 @@ final class Yii2RuleEngine
                     'reference' => $reference['reference'],
                     'behavior_class' => $reference['behavior_class'],
                     'action_inventory_complete' => true,
+                    'autofix' => false,
+                ],
+            );
+        }
+
+        // COR-003 exige ActiveRecord local com herança conclusiva; targets/traits incertos permanecem unknown.
+        foreach ((new Yii2RelationReferenceAnalyzer())->references($context, $model) as $reference) {
+            if ($reference['exists'] !== false || $reference['missing_relation'] === null) {
+                continue;
+            }
+
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::QUERY_RELATION_NOT_FOUND,
+                problem: 'Relação Yii2 referenciada em ActiveQuery não encontrada: ' . $reference['missing_relation'],
+                correction: 'Corrija a relation path ou declare o getter hasOne()/hasMany() correspondente no ActiveRecord.',
+                severity: 'error',
+                confidence: 'high',
+                evidenceType: 'framework-correctness',
+                provenance: ['ninfa:yii2-relation-reference-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'correctness',
+                    'model' => $reference['model'],
+                    'method' => $reference['method'],
+                    'relation_path' => $reference['relation_path'],
+                    'missing_relation' => $reference['missing_relation'],
+                    'resolved_prefix' => $reference['resolved_prefix'],
+                    'relation_inventory_complete' => true,
                     'autofix' => false,
                 ],
             );
