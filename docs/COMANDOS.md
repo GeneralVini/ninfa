@@ -38,17 +38,25 @@ No profile Yii2 existe uma etapa anterior de remediação nativa SAFE. Ela não 
 SAFE nativo atual:
 
 ```text
-NINFA-YII2-DEP-001  Yii::trace() -> Yii::debug()
-NINFA-YII2-DEP-002  Controller::EXIT_CODE_* -> ExitCode::*
-NINFA-YII2-DEP-003  return 0/1 em console action -> ExitCode::*
-NINFA-YII2-MOD-001  find()->where(hash)->one/all -> findOne/findAll
+NINFA-YII2-PERF-001  one()/count() booleano -> exists()/!exists()
+NINFA-YII2-MOD-001   find()->where(hash)->one/all -> findOne/findAll
+NINFA-YII2-DEP-001   Yii::trace() -> Yii::debug()
+NINFA-YII2-DEP-002   Controller::EXIT_CODE_* -> ExitCode::*
+NINFA-YII2-DEP-003   return 0/1 em console action -> ExitCode::*
+NINFA-YII2-DEP-004   Cache::mget/mset/madd() -> multiGet/multiSet/multiAdd()
+NINFA-YII2-DEP-005   Dependency::getHasChanged() -> isChanged()
+NINFA-YII2-DEP-006   BaseObject::className()/static::className() -> ::class
 ```
+
+`PERF-001` só é aplicado quando a comparação inteira representa inequivocamente existência/ausência contra `null`, `0` ou `1`, em chain `ActiveRecord::find()` local comprovada. Quando o mesmo trecho também seria candidato a `MOD-001`, a precedência explícita é `PERF-001 > MOD-001`.
 
 `MOD-001` só é aplicado quando `where()` recebe array associativo literal não vazio com chaves string literais e a classe é comprovadamente ActiveRecord Yii2. Listas, operator format, arrays vazios, spread, variáveis e classes incertas não são alterados.
 
-Patches SAFE são aplicados por offset em ordem reversa, intervalos sobrepostos são rejeitados e a suíte exige idempotência: a segunda aplicação sobre código já corrigido precisa resultar em zero mudanças.
+`DEP-004/005` exigem receiver tipado comprovado. `DEP-006` exige `yii\base\BaseObject` ou subclasse local comprovada, preservando `self::className()`, `parent::className()` e hierarquias externas inconclusivas.
 
-Regras REVIEW/SEMANTIC, como `PERF-001`, `TYPE-001` e `ARCH-001`, nunca são alteradas por `fix` nesta fase.
+Patches SAFE são aplicados por offset em ordem reversa; fora da precedência declarada `PERF-001 > MOD-001`, intervalos sobrepostos são rejeitados. A suíte exige idempotência: a segunda aplicação sobre código já corrigido precisa resultar em zero mudanças.
+
+Regras REVIEW/SEMANTIC, como `SEC-001`, `TYPE-001` e `ARCH-001`, não são alteradas por `fix`.
 
 ## Assist
 
@@ -66,11 +74,15 @@ NINFA-YII2-COR-002   action inexistente em filtros/behaviors estáticos
 NINFA-YII2-COR-003   relation path literal inexistente em with/joinWith/innerJoinWith
 NINFA-YII2-COR-004   atributo inexistente em link literal de hasOne/hasMany
 NINFA-YII2-COR-005   aridade inválida em operator de condition array estática
+NINFA-YII2-SEC-001   igualdade SQL dinâmica simples em where/andWhere/orWhere
 NINFA-YII2-PERF-001  one()/count() usados apenas para testar existência
 NINFA-YII2-MOD-001   shortcut findOne/findAll seguro
 NINFA-YII2-DEP-001   Yii::trace() deprecated
 NINFA-YII2-DEP-002   constante de exit code legada
 NINFA-YII2-DEP-003   magic number 0/1 em console action
+NINFA-YII2-DEP-004   aliases deprecated de Cache multi*
+NINFA-YII2-DEP-005   Dependency::getHasChanged() deprecated
+NINFA-YII2-DEP-006   BaseObject::className() deprecated
 NINFA-YII2-TYPE-001  relation ausente de PHPDoc @property* já adotado pela classe
 NINFA-YII2-ARCH-001  Yii::$app->request/response dentro de controller comprovado
 ```
@@ -80,13 +92,16 @@ Política por família:
 | Família | Severidade atual | Autofix | Observação |
 | --- | --- | --- | --- |
 | `COR-*` | error | não | ausência/contrato objetivo comprovável |
-| `PERF-*` | warning | não | advisory, REVIEW |
+| `SEC-*` | warning | não | security smell REVIEW; exige taint para promoção |
+| `PERF-*` | warning | somente SAFE | otimização com equivalência comprovada |
 | `MOD-*` | warning | somente SAFE | modernização mecânica |
 | `DEP-*` | warning | somente SAFE | API/forma legada com equivalência comprovada |
 | `TYPE-*` | warning | não | PHPDoc semântico, SEMANTIC |
 | `ARCH-*` | warning | não | opinião arquitetural/advisory |
 
-`PERF-001` recomenda `exists()`/`!exists()` somente quando `one()`/`count()` são usados como booleano em chain `ActiveRecord::find()` local comprovável. Uso real do registro/contagem, threshold diferente ou tipo de query incerto não gera finding.
+`SEC-001` reconhece apenas igualdade dinâmica simples em chain `ActiveRecord::find()` comprovada, como `'status = ' . $status` ou `"status = $status"`, e sugere hash condition. O finding é `security-smell`, com `taint_proven=false`, `remediation_risk=review` e `autofix=false`; ele não afirma SQL injection.
+
+`PERF-001` recomenda e corrige `exists()`/`!exists()` somente quando `one()`/`count()` são usados como booleano em chain `ActiveRecord::find()` local comprovável. Uso real do registro/contagem, threshold diferente ou tipo de query incerto não gera finding.
 
 `COR-005` analisa apenas `where()/andWhere()/orWhere()` com condition array literal em ActiveRecord comprovado. Hash conditions, variáveis, spread e receivers incertos permanecem fora da regra.
 
@@ -127,7 +142,7 @@ Semgrep               # SAST/regras common + overlay do profile
 
 Os profiles PHP oficiais são `php-generic`, `yii2`, `yii3` e `glpi-plugin`. `php-generic` usa o baseline comum. Yii2, Yii3 e GLPI Plugin 11 recebem overlays de segurança próprios.
 
-Findings de correctness, performance, modernization, deprecation, PHPDoc ou architecture advisory não migram automaticamente para `security`. Uma regra só é SAST quando existe contrato de segurança e evidência apropriada.
+Findings de correctness, performance, modernization, deprecation, PHPDoc ou architecture advisory não migram automaticamente para `security`. Da mesma forma, `SEC-001` permanece no `assist` enquanto for apenas security smell com `taint_proven=false`. Uma regra só entra no contrato SAST quando existe evidência de segurança apropriada.
 
 No Semgrep:
 
@@ -170,7 +185,10 @@ A suíte Yii2 dedicada inclui:
 tests/yii2-semantic-model.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
+tests/yii2-where-equality.php
 tests/yii2-deprecation-remediation.php
+tests/yii2-typed-deprecation.php
+tests/yii2-classname-deprecation.php
 tests/yii2-find-shortcut.php
 tests/yii2-magic-property.php
 tests/yii2-controller-access.php
