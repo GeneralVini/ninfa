@@ -4,30 +4,37 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Finding.php';
 require_once __DIR__ . '/Yii2SemanticModel.php';
+require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
 
 /**
- * Converte fatos conclusivos do Yii2SemanticModel em findings próprios do Ninfa.
+ * Converte fatos conclusivos das camadas semânticas Yii2 em findings próprios do Ninfa.
  *
- * A engine é deliberadamente menor que o modelo semântico: somente regras cuja
- * evidência e política já foram definidas entram aqui. Fatos desconhecidos ou
- * heurísticos permanecem fora do resultado para limitar falso positivo.
+ * A engine é deliberadamente menor que os analisadores semânticos: somente regras cuja
+ * evidência e política já foram definidas entram aqui. Fatos desconhecidos ou heurísticos
+ * permanecem fora do resultado para limitar falso positivo.
  */
 final class Yii2RuleEngine
 {
     /** Identificador estável da regra de view literal inexistente. */
     public const VIEW_NOT_FOUND = 'NINFA-YII2-COR-001';
 
+    /** Identificador estável da regra de action inexistente referenciada por behavior. */
+    public const BEHAVIOR_ACTION_NOT_FOUND = 'NINFA-YII2-COR-002';
+
     /**
      * Avalia o snapshot Yii2 e produz somente findings suportados pelo catálogo atual.
      *
-     * A primeira regra promove para correctness bloqueante apenas referências
-     * literais cuja resolução convencional produziu path físico e confirmou que
-     * o arquivo não existe. Views dinâmicas/desconhecidas são ignoradas.
+     * `COR-001` promove referências literais de view com path resolvido e arquivo ausente.
+     * Quando ProjectContext é fornecido, `COR-002` também valida referências estáticas de
+     * ActionFilter/AccessControl/VerbFilter/AuthMethod. O analisador de behaviors usa
+     * `exists=null` quando herança ou composição dinâmica impede prova segura, e a engine
+     * ignora esses casos em vez de transformar incerteza em erro.
      *
      * @param Yii2SemanticModel $model Snapshot semântico previamente construído.
-     * @return list<Finding> Findings Yii2 em ordem de controller/ocorrência.
+     * @param ProjectContext|null $context Contexto necessário às regras que leem o source original.
+     * @return list<Finding> Findings Yii2 em ordem estável de regra/controller/ocorrência.
      */
-    public function analyse(Yii2SemanticModel $model): array
+    public function analyse(Yii2SemanticModel $model, ?ProjectContext $context = null): array
     {
         /** @var list<Finding> $findings Findings conclusivos produzidos pelas regras habilitadas. */
         $findings = [];
@@ -61,6 +68,40 @@ final class Yii2RuleEngine
                     ],
                 );
             }
+        }
+
+        if ($context === null) {
+            return $findings;
+        }
+
+        // COR-002 só acusa ausência quando o analisador provou que o inventário de actions está completo.
+        foreach ((new Yii2BehaviorActionAnalyzer())->references($context, $model) as $reference) {
+            if ($reference['exists'] !== false) {
+                continue;
+            }
+
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::BEHAVIOR_ACTION_NOT_FOUND,
+                problem: 'Action Yii2 referenciada em behavior não encontrada: ' . $reference['action'],
+                correction: 'Corrija a referência do behavior ou declare a action correspondente no controller.',
+                severity: 'error',
+                confidence: 'high',
+                evidenceType: 'framework-correctness',
+                provenance: ['ninfa:yii2-behavior-action-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'correctness',
+                    'controller' => $reference['controller'],
+                    'action' => $reference['action'],
+                    'reference' => $reference['reference'],
+                    'behavior_class' => $reference['behavior_class'],
+                    'action_inventory_complete' => true,
+                    'autofix' => false,
+                ],
+            );
         }
 
         return $findings;
