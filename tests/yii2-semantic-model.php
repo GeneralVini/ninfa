@@ -104,7 +104,7 @@ PHP,
 
 namespace app\common\models;
 
-final class Order
+final class Order extends \yii\db\ActiveRecord
 {
     public function getCustomer(): mixed
     {
@@ -114,6 +114,65 @@ final class Order
     public function getItems(): mixed
     {
         return $this->hasMany(OrderItem::class, ['order_id' => 'id']);
+    }
+
+    public function relationQueryExamples(): void
+    {
+        Order::find()->with('customer');
+        Order::find()->with('missing-relation');
+        Order::find()->joinWith('items item');
+        Order::find()->innerJoinWith('customer.address');
+        Order::find()->innerJoinWith('customer.missing-nested');
+        $dynamicRelation = 'runtime-only';
+        Order::find()->with($dynamicRelation);
+        Order::find()->with(['missing-array']);
+    }
+}
+PHP,
+    );
+
+    file_put_contents(
+        $root . '/common/models/Customer.php',
+        <<<'PHP'
+<?php
+
+namespace app\common\models;
+
+final class Customer extends \yii\db\ActiveRecord
+{
+    public function getAddress(): mixed
+    {
+        return $this->hasOne(Address::class, ['id' => 'address_id']);
+    }
+}
+PHP,
+    );
+
+    file_put_contents(
+        $root . '/common/models/Address.php',
+        <<<'PHP'
+<?php
+
+namespace app\common\models;
+
+final class Address extends \yii\db\ActiveRecord
+{
+}
+PHP,
+    );
+
+    file_put_contents(
+        $root . '/common/models/LegacyOrder.php',
+        <<<'PHP'
+<?php
+
+namespace app\common\models;
+
+final class LegacyOrder extends RuntimeBaseRecord
+{
+    public function unresolvedRelationQuery(): void
+    {
+        LegacyOrder::find()->with('missing-on-unknown-base');
     }
 }
 PHP,
@@ -139,14 +198,18 @@ PHP,
     assert($controllers[0]['views'][1]['exists'] === false);
 
     $relations = $model->relations();
-    assert(count($relations) === 2);
-    assert($relations[0]['model'] === 'app\\common\\models\\Order');
-    assert($relations[0]['name'] === 'customer');
+    assert(count($relations) === 3);
+    assert($relations[0]['model'] === 'app\\common\\models\\Customer');
+    assert($relations[0]['name'] === 'address');
     assert($relations[0]['kind'] === 'hasOne');
-    assert($relations[0]['target'] === 'Customer');
-    assert($relations[1]['name'] === 'items');
-    assert($relations[1]['kind'] === 'hasMany');
-    assert($relations[1]['target'] === 'OrderItem');
+    assert($relations[0]['target'] === 'Address');
+    assert($relations[1]['model'] === 'app\\common\\models\\Order');
+    assert($relations[1]['name'] === 'customer');
+    assert($relations[1]['kind'] === 'hasOne');
+    assert($relations[1]['target'] === 'Customer');
+    assert($relations[2]['name'] === 'items');
+    assert($relations[2]['kind'] === 'hasMany');
+    assert($relations[2]['target'] === 'OrderItem');
 
     $serialized = $model->jsonSerialize();
     assert($serialized['capabilities']['redis'] === true);
@@ -160,8 +223,20 @@ PHP,
     assert(!in_array('missing-dynamic-class', array_column($behaviorReferences, 'action'), true));
     assert(!in_array('runtime-only', array_column($behaviorReferences, 'action'), true));
 
+    $relationReferences = (new Yii2RelationReferenceAnalyzer())->references($context, $model);
+    assert(count($relationReferences) === 6);
+    assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === true)) === 3);
+    assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === false)) === 2);
+    assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === null)) === 1);
+    assert(array_column(array_values(array_filter(
+        $relationReferences,
+        static fn (array $reference): bool => $reference['exists'] === false,
+    )), 'missing_relation') === ['missing-relation', 'missing-nested']);
+    assert(!in_array('runtime-only', array_column($relationReferences, 'relation_path'), true));
+    assert(!in_array('missing-array', array_column($relationReferences, 'relation_path'), true));
+
     $yii2Findings = (new Yii2RuleEngine())->analyse($model, $context);
-    assert(count($yii2Findings) === 6);
+    assert(count($yii2Findings) === 8);
     assert($yii2Findings[0]->tool === 'ninfa-yii2');
     assert($yii2Findings[0]->rule === Yii2RuleEngine::VIEW_NOT_FOUND);
     assert($yii2Findings[0]->file === 'frontend/controllers/SiteController.php');
@@ -192,6 +267,25 @@ PHP,
         assert(($finding->metadata['autofix'] ?? null) === false);
     }
 
+    $relationFindings = array_values(array_filter(
+        $yii2Findings,
+        static fn (Finding $finding): bool => $finding->rule === Yii2RuleEngine::QUERY_RELATION_NOT_FOUND,
+    ));
+    assert(count($relationFindings) === 2);
+    assert(array_column(array_map(static fn (Finding $finding): array => $finding->metadata, $relationFindings), 'missing_relation') === [
+        'missing-relation',
+        'missing-nested',
+    ]);
+    foreach ($relationFindings as $finding) {
+        assert($finding->file === 'common/models/Order.php');
+        assert($finding->line > 0);
+        assert($finding->severity === 'error');
+        assert($finding->confidence === 'high');
+        assert(($finding->metadata['category'] ?? null) === 'correctness');
+        assert(($finding->metadata['relation_inventory_complete'] ?? null) === true);
+        assert(($finding->metadata['autofix'] ?? null) === false);
+    }
+
     $configureOutput = [];
     $configureCode = 0;
     exec(
@@ -213,7 +307,7 @@ PHP,
     assert(($semanticIndex['framework_semantics']['capabilities']['mongodb'] ?? null) === true);
     assert(count($semanticIndex['framework_semantics']['controllers'] ?? []) === 1);
 
-    echo "[OK] Yii2 cobre modelo semântico, views, behavior actions, findings nativos e índice externo.\n";
+    echo "[OK] Yii2 cobre modelo semântico, views, behavior actions, ActiveQuery relations, findings nativos e índice externo.\n";
 } finally {
     putenv('NINFA_WORKSPACE_ROOT');
     foreach ([$root, $workspaceRoot] as $directory) {
