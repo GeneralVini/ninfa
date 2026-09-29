@@ -37,6 +37,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-query-condition.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-deprecation-remediation.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-typed-deprecation.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-classname-deprecation.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-find-shortcut.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-magic-property.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-controller-access.php
