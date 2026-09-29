@@ -7,6 +7,7 @@ require_once __DIR__ . '/Yii2SemanticModel.php';
 require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
+require_once __DIR__ . '/Yii2QueryConditionAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
 require_once __DIR__ . '/Yii2DeprecationAnalyzer.php';
 require_once __DIR__ . '/Yii2MagicPropertyAnalyzer.php';
@@ -32,6 +33,9 @@ final class Yii2RuleEngine
     /** Identificador estável da regra de atributo inexistente em link hasOne/hasMany. */
     public const RELATION_LINK_ATTRIBUTE_NOT_FOUND = 'NINFA-YII2-COR-004';
 
+    /** Identificador estável de aridade inválida em condition array de Query Yii2. */
+    public const QUERY_CONDITION_INVALID = 'NINFA-YII2-COR-005';
+
     /** Identificador estável de verificação redundante de existência em query. */
     public const REDUNDANT_EXISTENCE_CHECK = 'NINFA-YII2-PERF-001';
 
@@ -53,10 +57,11 @@ final class Yii2RuleEngine
      * `COR-001` promove referências literais de view com path resolvido e arquivo ausente.
      * Quando ProjectContext é fornecido, `COR-002` valida actions em behaviors/filters,
      * `COR-003` valida relation paths literais de ActiveQuery, `COR-004` valida cada lado
-     * de links literais de `hasOne()`/`hasMany()`, `PERF-001` identifica comparações que
-     * usam `one()`/`count()` apenas para testar existência, `DEP-001..003` expõem
-     * depreciações com replacement mecânico SAFE e `TYPE-001` verifica PHPDoc de relações
-     * apenas em classes que já mantêm contrato `@property*` explícito.
+     * de links literais de `hasOne()`/`hasMany()` e `COR-005` valida aridade de operators
+     * em conditions array estáticas. `PERF-001` identifica comparações que usam
+     * `one()`/`count()` apenas para testar existência, `DEP-001..003` expõem depreciações
+     * com replacement mecânico SAFE e `TYPE-001` verifica PHPDoc de relações somente em
+     * classes que já mantêm contrato `@property*` explícito.
      *
      * @param Yii2SemanticModel $model Snapshot semântico previamente construído.
      * @param ProjectContext|null $context Contexto necessário às regras que leem o source original.
@@ -171,6 +176,35 @@ final class Yii2RuleEngine
             if ($reference['current_exists'] === false) {
                 $findings[] = $this->relationLinkFinding($reference, 'current');
             }
+        }
+
+        // COR-005 só processa condition arrays literais em ActiveRecord::find() comprovado.
+        foreach ((new Yii2QueryConditionAnalyzer())->references($context) as $reference) {
+            $quantifier = $reference['expectation'] === 'exact' ? 'exatamente' : 'ao menos';
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::QUERY_CONDITION_INVALID,
+                problem: 'Operator Yii2 `' . $reference['operator'] . '` em ' . $reference['method'] . '() recebeu '
+                    . $reference['actual_operands'] . ' operandos.',
+                correction: 'Use ' . $quantifier . ' ' . $reference['expected_operands'] . ' operandos para esse operator.',
+                severity: 'error',
+                confidence: 'high',
+                evidenceType: 'framework-correctness',
+                provenance: ['ninfa:yii2-query-condition-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'correctness',
+                    'model' => $reference['model'],
+                    'method' => $reference['method'],
+                    'operator' => $reference['operator'],
+                    'actual_operands' => $reference['actual_operands'],
+                    'expectation' => $reference['expectation'],
+                    'expected_operands' => $reference['expected_operands'],
+                    'autofix' => false,
+                ],
+            );
         }
 
         // PERF-001 é advisory: a equivalência com exists() é comprovada, mas permanece REVIEW.
