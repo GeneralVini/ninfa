@@ -97,7 +97,7 @@ function runAssist(ProjectContext $context, array $configs): int
     // Yii2 preserva fatos e findings próprios separados da saída das ferramentas externas.
     if ($context->profile() === 'yii2') {
         $yii2Semantic = Yii2SemanticModel::fromContext($context);
-        $yii2Findings = (new Yii2RuleEngine())->analyse($yii2Semantic);
+        $yii2Findings = (new Yii2RuleEngine())->analyse($yii2Semantic, $context);
         file_put_contents(
             $dir . '/yii2-semantic.json',
             json_encode(
