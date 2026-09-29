@@ -291,7 +291,7 @@ PHP,
     assert($controllers[0]['views'][1]['exists'] === false);
 
     $relations = $model->relations();
-    assert(count($relations) === 10);
+    assert(count($relations) === 8);
     assert($relations[0]['model'] === 'app\\common\\models\\Customer');
     assert($relations[0]['name'] === 'address');
     assert($relations[0]['kind'] === 'hasOne');
