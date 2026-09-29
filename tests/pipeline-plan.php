@@ -66,6 +66,22 @@ try {
     assert(array_column($plan->fix($genericContext), 'id') === ['ecs', 'rector']);
     assert(array_column($plan->security($genericContext), 'id') === ['composer-audit', 'osv', 'psalm-taint', 'semgrep']);
 
+    $yii2Root = $root . '/yii2';
+    mkdir($yii2Root . '/common', 0775, true);
+    file_put_contents($yii2Root . '/common/Model.php', "<?php final class Model extends \\yii\\db\\ActiveRecord {}\n");
+    file_put_contents($yii2Root . '/composer.json', json_encode([
+        'require' => ['yiisoft/yii2' => '^2.0.53'],
+    ], JSON_THROW_ON_ERROR));
+    $yii2Context = ProjectContext::fromRoot($yii2Root);
+    assert($yii2Context->profile() === 'yii2');
+    assert(array_column($plan->fix($yii2Context), 'id') === ['ecs', 'rector']);
+
+    // A remediação nativa é etapa do entrypoint, não um pseudo-binário no plano externo.
+    $cliSource = (string) file_get_contents(dirname(__DIR__) . '/bin/ninfa');
+    assert(str_contains($cliSource, 'Yii2SafeRemediator'));
+    assert(str_contains($cliSource, "\$operation === 'fix' && \$context->profile() === 'yii2'"));
+    assert(!in_array('yii2-safe-remediation', array_column($plan->fix($yii2Context), 'id'), true));
+
     $recheckingSource = (string) file_get_contents(dirname(__DIR__) . '/src/RecheckingPipelineRunner.php');
     assert(substr_count($recheckingSource, "run('check'") === 1);
     assert(!is_file(dirname(__DIR__) . '/src/FrontendAwarePipelineRunner.php'));
@@ -78,7 +94,7 @@ try {
     assert(str_contains($runnerSource, 'security-report.json'));
     assert(!str_contains($runnerSource, "'dast' =>"));
 
-    echo "[OK] Pipelines GLPI e PHP genérico, frontend unificado, recheck único e security SCA/SAST definidos.\n";
+    echo "[OK] Pipelines GLPI/PHP/Yii2, frontend, fix SAFE nativo, recheck único e security SCA/SAST definidos.\n";
 } finally {
     putenv('NINFA_GLPI_ROOT');
     if (is_dir($root)) {
