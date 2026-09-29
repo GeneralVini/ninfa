@@ -49,6 +49,7 @@ final class Yii2FindShortcutAnalyzer
         $references = [];
         $pattern = '/(?P<class>[^\\s;(){}]+)::find\\s*\\(\\s*\\)\\s*->\\s*where\\s*\\(/';
 
+        // SAFE exige três provas independentes: tipo ActiveRecord, hash string-keyed e terminal one/all imediatamente após where().
         foreach ($files as $file) {
             $source = (string) file_get_contents($file);
             $namespace = $this->namespaceOf($source);
@@ -74,6 +75,7 @@ final class Yii2FindShortcutAnalyzer
                     continue;
                 }
 
+                // O terminal precisa seguir o where sem operações intermediárias, pois elas poderiam mudar a semântica da query.
                 $suffix = substr($source, $array['end'] + 1, 64);
                 if (preg_match('/^\\s*\\)\\s*->\\s*(one|all)\\s*\\(\\s*\\)/', $suffix, $terminalMatch) !== 1) {
                     continue;
@@ -111,6 +113,7 @@ final class Yii2FindShortcutAnalyzer
             return false;
         }
 
+        // Uma única key implícita, spread ou interpolação já muda o contrato para fora do subconjunto aceito por findOne/findAll.
         foreach ($items as $item) {
             if (str_starts_with(ltrim($item), '...')) {
                 return false;
@@ -150,6 +153,8 @@ final class Yii2FindShortcutAnalyzer
         $quote = null;
         $escaped = false;
         $length = strlen($inner);
+
+        // Vírgulas só separam itens quando não estamos dentro de string ou estrutura aninhada.
         for ($i = 0; $i < $length; $i++) {
             $char = $inner[$i];
             if ($quote !== null) {
@@ -394,7 +399,7 @@ final class Yii2FindShortcutAnalyzer
         return $this->isActiveRecord($parent, $classes, $visited);
     }
 
-    /** Extrai namespace declarado no arquivo. */
+    /** Extrai namespace declarado no arquivo para resolver classes locais. */
     private function namespaceOf(string $source): string
     {
         return preg_match('/\\bnamespace\\s+([^;{]+)\\s*[;{]/', $source, $match) === 1
@@ -458,14 +463,14 @@ final class Yii2FindShortcutAnalyzer
         return $namespace === '' ? $trimmed : $namespace . '\\' . $trimmed;
     }
 
-    /** Extrai nome curto de um FQCN. */
+    /** Extrai nome curto de um FQCN para indexação de imports. */
     private function shortName(string $fqcn): string
     {
         $position = strrpos($fqcn, '\\');
         return $position === false ? $fqcn : substr($fqcn, $position + 1);
     }
 
-    /** Converte path absoluto para relativo estável. */
+    /** Converte path absoluto para path relativo estável do consumidor. */
     private function relativePath(string $root, string $file): string
     {
         return str_replace('\\', '/', substr($file, strlen(rtrim($root, DIRECTORY_SEPARATOR)) + 1));
