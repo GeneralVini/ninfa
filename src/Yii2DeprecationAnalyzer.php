@@ -56,7 +56,7 @@ final class Yii2DeprecationAnalyzer
             foreach ($this->exitConstantReferences($source, $relative, $namespace, $uses) as $reference) {
                 $references[] = $reference;
             }
-            foreach ($this->actionReturnReferences($source, $relative, $namespace, $uses, $classes) as $reference) {
+            foreach ($this->actionReturnReferences($source, $relative, $namespace, $classes) as $reference) {
                 $references[] = $reference;
             }
         }
@@ -209,11 +209,10 @@ final class Yii2DeprecationAnalyzer
      * @param string $source Código-fonte completo do arquivo.
      * @param string $file Path relativo usado no finding.
      * @param string $namespace Namespace do arquivo.
-     * @param array<string,string> $uses Imports de classe normalizados por alias.
      * @param array<string,array{parent:string|null}> $classes Índice local de herança.
      * @return list<array{file:string,line:int,rule:'NINFA-YII2-DEP-003',kind:'action-return',problem:string,replacement:string,offset:int,length:int}> Ocorrências encontradas.
      */
-    private function actionReturnReferences(string $source, string $file, string $namespace, array $uses, array $classes): array
+    private function actionReturnReferences(string $source, string $file, string $namespace, array $classes): array
     {
         /** @var list<array{file:string,line:int,rule:'NINFA-YII2-DEP-003',kind:'action-return',problem:string,replacement:string,offset:int,length:int}> $references */
         $references = [];
@@ -371,7 +370,7 @@ final class Yii2DeprecationAnalyzer
             if ($fqcn === '') {
                 continue;
             }
-            $alias = isset($parts[1]) ? trim((string) $parts[1]) : substr($fqcn, (int) strrpos('\\' . $fqcn, '\\'));
+            $alias = isset($parts[1]) ? trim((string) $parts[1]) : $this->shortName($fqcn);
             $imports[$alias] = $fqcn;
         }
         return $imports;
@@ -398,6 +397,18 @@ final class Yii2DeprecationAnalyzer
             return $uses[$first] . ($segments === [] ? '' : '\\' . implode('\\', $segments));
         }
         return $namespace === '' ? $trimmed : $namespace . '\\' . $trimmed;
+    }
+
+    /**
+     * Extrai nome curto de um FQCN sem depender de offsets artificiais.
+     *
+     * @param string $fqcn Nome qualificado sem barra inicial.
+     * @return string Último segmento do nome.
+     */
+    private function shortName(string $fqcn): string
+    {
+        $position = strrpos($fqcn, '\\');
+        return $position === false ? $fqcn : substr($fqcn, $position + 1);
     }
 
     /**
