@@ -82,6 +82,13 @@ Yii2SemanticModel
   │              ├─ link literal de hasOne/hasMany
   │              ├─ attributes() literal
   │              └─ estados tri-state por lado
+  │
+  ├──────────────────────────┐
+  │                          ↓
+  │              Yii2QueryExistenceAnalyzer
+  │              ├─ one() vs null
+  │              ├─ count() vs 0/1
+  │              └─ exists()/!exists() como remediation
   │                          │
   └───────────────┬──────────┘
                   ↓
@@ -262,22 +269,31 @@ A ausência só pode ser afirmada quando o lado possui inventário explícito de
 
 Os lados são independentes: related pode ser conclusivo e current unknown, ou vice-versa. Links dinâmicos são ignorados. Relações seguidas por `via()`/`viaTable()` também ficam fora desta tranche porque a semântica do mapa depende do intermediário.
 
+### `src/Yii2QueryExistenceAnalyzer.php`
+
+Detecta verificações de existência redundantes quando o source usa `one()` ou `count()` apenas para produzir um booleano. A primeira tranche exige uma chain iniciada em `ActiveRecord::find()` de classe local cuja herança termina em base Yii2 conhecida (`db`, `redis` ou `mongodb`).
+
+O analisador normaliza comparações com operandos invertidos e reconhece somente equivalências seguras: `one() !== null`, `one() === null`, `count() !== 0`, `count() === 0`, `count() > 0`, `count() <= 0`, `count() >= 1` e `count() < 1`. Uso real do valor retornado, threshold diferente de 0/1, factory dinâmica e variável de QueryInterface sem tipo comprovável ficam fora do scan.
+
+O resultado preserva método de origem, operador, operando, lado da query, polaridade e replacement `exists()`/`!exists()`. A regra correspondente é advisory e não executa rewrite nesta fase.
+
 ### `src/Yii2RuleEngine.php`
 
-Aplica política sobre fatos conclusivos do `Yii2SemanticModel`, `Yii2BehaviorActionAnalyzer`, `Yii2RelationReferenceAnalyzer` e `Yii2RelationLinkAnalyzer`.
+Aplica política sobre fatos conclusivos do `Yii2SemanticModel`, `Yii2BehaviorActionAnalyzer`, `Yii2RelationReferenceAnalyzer`, `Yii2RelationLinkAnalyzer` e `Yii2QueryExistenceAnalyzer`.
 
 As regras estáveis atuais são:
 
 ```text
-NINFA-YII2-COR-001  view literal resolvida cujo arquivo não existe
-NINFA-YII2-COR-002  action inexistente referenciada por behavior/filter estático
-NINFA-YII2-COR-003  relation path literal inexistente em ActiveQuery
-NINFA-YII2-COR-004  atributo inexistente em link literal de hasOne/hasMany
+NINFA-YII2-COR-001   view literal resolvida cujo arquivo não existe
+NINFA-YII2-COR-002   action inexistente referenciada por behavior/filter estático
+NINFA-YII2-COR-003   relation path literal inexistente em ActiveQuery
+NINFA-YII2-COR-004   atributo inexistente em link literal de hasOne/hasMany
+NINFA-YII2-PERF-001  one()/count() usados apenas para verificar existência
 ```
 
 `COR-004` produz um finding separado por lado inválido do link e preserva `side=related|current`, models, relation name/kind e atributos em metadata. Não existe autofix porque trocar coluna de relação depende de intenção de domínio.
 
-Os findings usam `tool=ninfa-yii2`, `severity=error`, `confidence=high`, `evidence_type=framework-correctness` e metadata específica da evidência. Nenhuma das regras possui autofix.
+`PERF-001` produz `severity=warning`, `confidence=high`, `evidence_type=framework-performance`, `category=performance` e metadata com `replacement=exists()|!exists()`. O autofix permanece `false` e o risco de remediação é `review` até field tests demonstrarem segurança suficiente para rewrite.
 
 A separação model/analisador/engine evita misturar coleta de evidência com política de gate. Casos `unknown` não são promovidos a finding.
 
@@ -392,7 +408,7 @@ Aceita `RunResult` de `security` e grava o schema estruturado com inventário, f
 
 No modo normal gera configs, `lefthook.yml` e `semantic-index.json`. Para Yii2, o índice recebe `framework_semantics` com o snapshot de `Yii2SemanticModel` sem substituir os hints documentais existentes.
 
-Com `--assist`, executa PHPStan/Psalm estruturados, grava evidência bruta e findings no workspace externo. No profile Yii2, `Yii2RuleEngine` recebe também o `ProjectContext`, habilitando `COR-001` a `COR-004`, e grava:
+Com `--assist`, executa PHPStan/Psalm estruturados, grava evidência bruta e findings no workspace externo. No profile Yii2, `Yii2RuleEngine` recebe também o `ProjectContext`, habilitando `COR-001` a `COR-004` e `PERF-001`, e grava:
 
 ```text
 assist/yii2-semantic.json
@@ -428,7 +444,7 @@ setup
 
 `semgrep-rules` depende de `security-tools` e valida/testa a suíte Semgrep. `setup` executa toda a cadeia. Esses targets pertencem ao desenvolvimento do Ninfa, não ao consumidor.
 
-`profile-test` inclui `tests/yii2-semantic-model.php`, que valida capabilities, actions, views, relation paths, links `hasOne/hasMany`, `COR-001` a `COR-004`, casos wildcard/dinâmicos/unknown e persistência do snapshot no workspace.
+`profile-test` inclui `tests/yii2-semantic-model.php`, que valida capabilities, actions, views, relation paths, links `hasOne/hasMany`, `COR-001` a `COR-004`, casos wildcard/dinâmicos/unknown e persistência do snapshot no workspace. Também inclui `tests/yii2-query-existence.php`, dedicado a `PERF-001`, operandos invertidos, herança ActiveRecord local e casos que não devem ser reportados.
 
 ## Política visual
 
@@ -444,9 +460,9 @@ A primeira versão de `Yii2SemanticModel` foi bloqueada pelo próprio guard porq
 
 ## Estado atual
 
-A fundação, SCA estruturado, SAST estruturado e contratos de profile estão implementados para os quatro profiles PHP oficiais. A especialização Yii2 agora possui modelo semântico inicial e quatro regras nativas de correctness em fase `assist`: view literal inexistente, action inexistente em behavior/filter, relation path inexistente em ActiveQuery e atributo inexistente em link literal de relação quando `attributes()` fornece inventário conclusivo.
+A fundação, SCA estruturado, SAST estruturado e contratos de profile estão implementados para os quatro profiles PHP oficiais. A especialização Yii2 possui modelo semântico inicial, quatro regras nativas de correctness e a primeira regra de performance em fase `assist`: `PERF-001` detecta `one()`/`count()` usados apenas como teste de existência em chains ActiveRecord locais comprováveis.
 
-A promoção ao gate de `check` depende de field tests e calibração de falso positivo. O próximo trabalho Yii2 está detalhado em `docs/YII2-ANALYSIS.md`: query patterns/performance, remediações SAFE, PHPDoc mágico, ampliação segura do inventário de schema e hardening Redis/MongoDB.
+A promoção ao gate de `check` depende de field tests e calibração de falso positivo. O próximo trabalho Yii2 está detalhado em `docs/YII2-ANALYSIS.md`: remediações SAFE, PHPDoc mágico, ampliação segura do inventário de schema, expansão de query analysis somente com tipo demonstrável e hardening Redis/MongoDB.
 
 Roadmap de frameworks/ecossistemas:
 
