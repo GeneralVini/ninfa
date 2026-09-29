@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/ProjectContext.php';
 require_once __DIR__ . '/Yii2DeprecationAnalyzer.php';
 require_once __DIR__ . '/Yii2CachingDeprecationAnalyzer.php';
+require_once __DIR__ . '/Yii2ClassNameDeprecationAnalyzer.php';
 require_once __DIR__ . '/Yii2FindShortcutAnalyzer.php';
 
 /**
@@ -38,6 +39,9 @@ final class Yii2SafeRemediator
             $references[] = $this->patchReference($reference);
         }
         foreach ((new Yii2CachingDeprecationAnalyzer())->references($context) as $reference) {
+            $references[] = $this->patchReference($reference);
+        }
+        foreach ((new Yii2ClassNameDeprecationAnalyzer())->references($context) as $reference) {
             $references[] = $this->patchReference($reference);
         }
         foreach ((new Yii2FindShortcutAnalyzer())->references($context) as $reference) {
