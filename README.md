@@ -6,14 +6,14 @@
 
 O MVP possui quatro profiles PHP oficiais:
 
-- **Yii2** — detectado por `yiisoft/yii2`, com overlay SAST próprio e análise semântica nativa em `assist`;
+- **Yii2** — detectado por `yiisoft/yii2`, com overlay SAST próprio, análise semântica nativa e remediação SAFE seletiva;
 - **Yii3** — detectado por sinais consistentes de aplicação/runner e infraestrutura Yii;
 - **GLPI Plugin 11** — profile `glpi-plugin`, com contexto do host GLPI 11 e PHPStan/Psalm em nível 8;
 - **PHP genérico** — profile `php-generic`, para aplicações, bibliotecas e CLIs PHP sem framework reconhecido.
 
 Profiles especializados têm precedência sobre `php-generic`. Um diretório sem evidência real de código PHP não é aceito como projeto genérico.
 
-A linha **Yii 22** é acompanhada como evolução da família Yii2 e não recebe profile separado enquanto não houver necessidade técnica concreta de diferenciar regras/capabilities. **Laravel** é o próximo candidato de profile PHP no roadmap. **Python** permanece feature futura de outro ecossistema (`python-generic`, Django e Flask) e não participa da implementação atual.
+A linha **Yii 22** é acompanhada como evolução da família Yii2 e não recebe profile separado enquanto não houver necessidade técnica concreta de diferenciar regras/capabilities. **Laravel** é o próximo candidato de profile PHP no roadmap. **Python** permanece feature futura de outro ecossistema.
 
 ## Execução rápida
 
@@ -30,7 +30,7 @@ Adicione o CLI ao `PATH`:
 export PATH="/opt/ninfa/bin:$PATH"
 ```
 
-Depois execute diretamente:
+Depois execute:
 
 ```bash
 ninfa check /path/to/project
@@ -49,13 +49,36 @@ Quando `root` é omitido, o Ninfa usa o diretório atual. Não existe etapa obri
 ninfa check /path/to/yii2-app
 ```
 
-O contexto considera estruturas Yii2 simples e Advanced, incluindo `common`, `frontend`, `backend` e `console` quando existentes. O profile de segurança combina o baseline PHP com semântica de Request/Response, DB/Command, HTML, redirects, headers e filesystem do ecossistema Yii2.
+O contexto considera estruturas Yii2 simples e Advanced, incluindo `common`, `frontend`, `backend` e `console` quando existentes. O profile de segurança combina o baseline PHP com semântica de Request/Response, DB/Command, HTML, redirects, headers e filesystem.
 
-Além do overlay SAST, `ninfa assist` possui uma camada semântica nativa em field test. Ela atualmente detecta view literal inexistente (`COR-001`), action inexistente em filtros/behaviors estáticos (`COR-002`), relation path literal inexistente em `with()/joinWith()/innerJoinWith()` (`COR-003`), atributo inexistente em link literal de `hasOne()/hasMany()` quando `attributes()` fornece inventário conclusivo (`COR-004`) e checks redundantes de existência via `one()`/`count()` (`PERF-001`). Referências dinâmicas ou inventários incompletos permanecem `unknown` e não são promovidos a finding.
+Além do overlay SAST, `ninfa assist` possui uma camada semântica nativa em field test. O catálogo atual cobre:
 
-`COR-004` não presume schema de banco pela ausência de uma propriedade no source: `parent::attributes()`, schema runtime, PHPDoc isolado, links dinâmicos e relações via `via()/viaTable()` permanecem fora da negação de atributos nesta tranche. `PERF-001` é advisory de performance (`warning`) e recomenda `exists()`/`!exists()` apenas quando a equivalência é demonstrável em uma chain `ActiveRecord::find()` local; ainda não executa autofix e permanece `review` durante field test. O contrato técnico e os limites das regras estão em [Análise semântica Yii2](docs/YII2-ANALYSIS.md).
+```text
+COR-001   view literal inexistente
+COR-002   action inexistente em filtros/behaviors estáticos
+COR-003   relation path literal inexistente em with/joinWith/innerJoinWith
+COR-004   atributo inexistente em link literal de hasOne/hasMany
+COR-005   aridade inválida em query condition array estática
+PERF-001  one()/count() usados apenas para testar existência
+MOD-001   find()->where(hash)->one/all com shortcut findOne/findAll
+DEP-001   Yii::trace() deprecated
+DEP-002   constante legada de exit code
+DEP-003   return 0/1 em console action
+TYPE-001  relation sem @property* em classe que já mantém esse contrato PHPDoc
+ARCH-001  Yii::$app->request/response dentro de controller comprovado
+```
 
-Yii 22 permanece dentro dessa família. O Ninfa não presume que Yii2 exija Repository, DTO, DDD, Clean Architecture ou Vertical Slice; essas decisões pertencem ao projeto consumidor, não ao scanner.
+A taxonomia é deliberada: `COR-*` representa correctness; `PERF-*` performance; `MOD-*` modernization; `DEP-*` deprecation; `TYPE-*` static-analysis/PHPDoc; `ARCH-*` architecture advisory. Essas famílias não são automaticamente vulnerabilidades.
+
+Referências dinâmicas, herança externa desconhecida, schema runtime e tipos não comprováveis permanecem `unknown` em vez de gerar falso positivo.
+
+`ninfa fix` possui remediação nativa SAFE para Yii2 antes dos fixers externos. Atualmente ela cobre `DEP-001..003` e `MOD-001`. Os patches são aplicados por offsets exatos, sobreposição é rejeitada e a operação precisa ser idempotente. Depois o fluxo normal executa **um único `check` final**.
+
+`PERF-001`, `TYPE-001` e `ARCH-001` permanecem REVIEW/SEMANTIC sem autofix. Em especial, PHPDoc mágico não é tratado como comentário cosmético e não é reescrito automaticamente.
+
+O contrato técnico, limites e exemplos de cada regra estão em [Análise semântica Yii2](docs/YII2-ANALYSIS.md).
+
+Yii 22 permanece dentro dessa família. O Ninfa não presume que Yii2 exija Repository, DTO, DDD, Clean Architecture ou Vertical Slice; decisões arquiteturais pertencem ao projeto consumidor.
 
 ### Yii3
 
@@ -63,11 +86,11 @@ Yii 22 permanece dentro dessa família. O Ninfa não presume que Yii2 exija Repo
 ninfa check /path/to/yii3-app
 ```
 
-Uma dependência `yiisoft/*` isolada não é suficiente para classificar um projeto como Yii3. O overlay SAST considera APIs e convenções específicas de Yii DB, PSR-7/HTTP e saída HTML sem impor um estilo arquitetural ao consumidor.
+Uma dependência `yiisoft/*` isolada não é suficiente para classificar um projeto como Yii3. O overlay SAST considera APIs e convenções específicas de Yii DB, PSR-7/HTTP e saída HTML sem impor estilo arquitetural.
 
 ### GLPI Plugin 11
 
-Quando o plugin está em `<glpi>/plugins/<plugin>`, o host pode ser descoberto automaticamente. Fora dessa árvore, informe:
+Quando o plugin está em `<glpi>/plugins/<plugin>`, o host pode ser descoberto automaticamente. Fora dessa árvore:
 
 ```bash
 NINFA_GLPI_ROOT=/opt/glpi \
@@ -78,9 +101,7 @@ Somente GLPI 11 é aceito e a versão do host precisa ser identificável. O over
 
 ### PHP genérico
 
-O profile `php-generic` é usado somente quando não há correspondência com um profile especializado e existem sinais reais de código PHP.
-
-São suportados projetos Composer e projetos PHP simples sem Composer, por exemplo:
+O profile `php-generic` é usado somente quando não há correspondência com profile especializado e existem sinais reais de código PHP.
 
 ```bash
 ninfa check /path/to/php-library
@@ -99,9 +120,11 @@ ninfa security [root]
 ninfa assist [root]
 ```
 
-`check` executa qualidade, análise estática e testes disponíveis. Findings de PHPStan e Psalm são apresentados pelo renderer visual do Ninfa com arquivo, linha, regra e problema, sem expor como interface principal as tabelas nativas das ferramentas.
+`check` executa qualidade, análise estática e testes disponíveis. Findings de PHPStan e Psalm são apresentados pelo renderer visual do Ninfa com arquivo, linha, regra e problema.
 
-`fix` aplica correções automáticas e executa **um único `check`** ao final. `security` permanece separado. `assist` reutiliza o renderer do `check`, acrescenta orientação de correção e grava auditoria estruturada no workspace externo sem alterar o consumidor.
+`fix` aplica correções automáticas homologadas e executa **um único `check`** ao final. No Yii2, remediações nativas SAFE antecedem ECS/Rector e participam da mesma revalidação final.
+
+`security` permanece separado. `assist` acrescenta orientação de correção e grava auditoria estruturada no workspace externo sem alterar o consumidor.
 
 ## Arquitetura externa
 
@@ -113,7 +136,7 @@ ninfa assist [root]
 
 O workspace é descartável e pode ser redefinido por `NINFA_WORKSPACE_ROOT`, mas não pode ficar dentro do projeto consumidor.
 
-As configurações e artefatos gerados ficam no workspace externo, por exemplo:
+Artefatos gerados incluem, conforme o profile/operação:
 
 ```text
 phpstan.neon
@@ -124,10 +147,12 @@ lefthook.yml
 semantic-index.json
 security-inventory.json
 security-report.json
-glpi-bootstrap.php   # quando aplicável
+glpi-bootstrap.php
+assist/yii2-semantic.json
+assist/yii2-findings.json
 ```
 
-O fluxo público do Ninfa não altera `composer.json` nem copia boilerplate para o consumidor.
+O fluxo público não altera `composer.json` nem copia boilerplate/config persistente para o consumidor.
 
 ## Pipeline de qualidade
 
@@ -143,30 +168,28 @@ Prettier --check # quando aplicável
 PHPUnit          # quando disponível
 ```
 
-`fix` executa apenas hooks corrigíveis e revalida o projeto uma vez ao final.
+`fix` executa apenas correções homologadas e revalida o projeto uma vez ao final.
 
 ## Assistência auditável
-
-`assist` é a camada para findings sem correção mecânica segura:
 
 ```bash
 ninfa assist /path/to/project
 ```
 
-O comando não modifica o projeto. PHPStan e Psalm são executados em formato estruturado, os achados são exibidos com orientação de correção e a evidência completa fica em `/tmp/ninfa/<hash>/assist/`.
+O comando não modifica o projeto. PHPStan/Psalm são executados em formato estruturado; no Yii2, `Yii2RuleEngine` acrescenta findings nativos e preserva `yii2-semantic.json`/`yii2-findings.json`.
 
-No profile Yii2, o mesmo fluxo inclui findings semânticos nativos e preserva `yii2-semantic.json` e `yii2-findings.json` no workspace. A política é conservadora: uma referência só vira erro de correctness quando a ausência pode ser demonstrada; herança, traits, schema runtime e configuração dinâmica mantêm o estado `unknown` quando não há evidência suficiente. Findings `PERF-*` são advisories e não são chamados de vulnerabilidade.
+A política é conservadora: uma referência só vira erro de correctness quando a ausência/violação pode ser demonstrada. Findings performance, modernization, deprecation, PHPDoc e arquitetura conservam sua categoria e risco próprios.
 
 ## Segurança
 
-`security` permanece separado do pipeline comum de qualidade e executa:
+`security` permanece separado do pipeline comum de qualidade:
 
 ```text
 SCA   Composer Audit + OSV
 SAST  Psalm Taint + Semgrep
 ```
 
-DAST não faz parte do pipeline público do Ninfa. Essa capacidade é atendida por outra frente institucional, portanto o projeto evita duplicar operação e especialização em análise dinâmica.
+DAST não faz parte do pipeline público do Ninfa.
 
 A especialização SAST atual é:
 
@@ -182,7 +205,7 @@ Os doze contratos canônicos permanecem independentes de framework: command inje
 
 ### Semgrep
 
-As regras do Ninfa ficam em:
+Regras:
 
 ```text
 security/semgrep/
@@ -193,7 +216,7 @@ security/semgrep/
     └── glpi-plugin-11.yml
 ```
 
-As fixtures usam árvore paralela:
+Fixtures paralelas:
 
 ```text
 security/semgrep-tests/
@@ -204,13 +227,11 @@ security/semgrep-tests/
     └── glpi-plugin-11.php
 ```
 
-O próprio Ninfa valida parsing e comportamento das regras com:
+Validação:
 
 ```bash
 make semgrep-rules
 ```
-
-Esse target executa `semgrep --validate` e `semgrep --test`. Casos de fluxo usam `mode: taint` quando source → sink é a evidência relevante; primitives/misuse permanecem pattern rules quando isso produz sinal melhor.
 
 No gate:
 
@@ -219,52 +240,34 @@ ERROR    bloqueante
 WARNING  hotspot para revisão; não bloqueia sozinho
 ```
 
-Erro do motor ou cobertura parcial inesperada continua bloqueante. Exclusões deliberadas são registradas separadamente e não equivalem a perda de cobertura.
-
-O scan usa os paths detectados pelo `ProjectContext`, inclui arquivos novos ainda não rastreados pelo Git e exclui explicitamente dependências, runtime e assets gerados.
-
-### Saída humana
-
-Toda saída reutiliza `CliStyle`. O padrão permanece:
-
-```bash
-NINFA_COLOR=auto
-```
-
-Também são suportados `NINFA_COLOR=always`, `NINFA_COLOR=never` e `NO_COLOR`. Não existe configuração de cor específica para segurança ou Semgrep.
+Erro do motor ou cobertura parcial inesperada continua bloqueante. Exclusões deliberadas são registradas separadamente.
 
 ### SCA / Composer Audit + OSV
 
-Composer Audit só é executado quando existe `composer.lock`. O Ninfa o chama em modo estruturado e defensivo, com plugins/scripts do consumidor desabilitados e saída JSON:
+Composer Audit é executado quando existe `composer.lock` em modo estruturado/defensivo:
 
 ```text
 composer --no-plugins --no-scripts --no-interaction audit --locked --format=json
 ```
 
-Advisories são normalizados em `Finding` com package, versão resolvida, relação direta/transitiva, escopo runtime/dev, severidade, aliases e proveniência. Pacotes abandonados permanecem identificados separadamente como `dependency-policy`, sem serem apresentados como vulnerabilidade.
+OSV usa o inventário resolvido. Aliases CVE/GHSA/PKSA/OSV são correlacionados preservando proveniência.
 
-OSV consulta o inventário resolvido em `querybatch` usando package + versão do ecossistema Packagist. Os IDs retornados são normalizados e correlacionados com o mesmo componente do inventário. A deduplicação usa aliases CVE/GHSA/PKSA/OSV e preserva as fontes que confirmaram a vulnerabilidade.
-
-`ninfa security` grava no workspace externo:
+`ninfa security` grava:
 
 ```text
 security-inventory.json
 security-report.json
 ```
 
-Falha de rede ou saída inválida de uma fonte é tratada como erro de execução, não como evidência de ausência de vulnerabilidades.
+Falha de rede ou saída inválida é erro de execução, não evidência de ausência de vulnerabilidades.
 
-### DAST / OWASP ZAP
+### DAST
 
-DAST está **desabilitado no pipeline do Ninfa**. `ninfa security` não executa ZAP, mesmo quando `NINFA_DAST` está definido.
-
-O utilitário `scripts/zap-scan.sh` permanece como artefato congelado para referência/uso manual controlado, sem integrar o roadmap ativo.
+DAST está desabilitado no pipeline do Ninfa. `scripts/zap-scan.sh` permanece artefato congelado para referência/uso manual controlado.
 
 ### Interpretação
 
-Um `ninfa security` com exit code 0 significa que as fontes SCA/SAST consultadas não produziram bloqueios e que não houve perda inesperada de cobertura no escopo observado. Não significa “sistema seguro” ou “sem vulnerabilidades”.
-
-A arquitetura detalhada está em [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md).
+Exit code 0 de `ninfa security` significa que as fontes consultadas não produziram bloqueios e não houve perda inesperada de cobertura no escopo observado. Não significa “sistema seguro”.
 
 ## Desenvolvimento do próprio Ninfa
 
@@ -277,7 +280,7 @@ make profile-test
 make setup
 ```
 
-`make environment-check` valida o ambiente do próprio Ninfa sem instalar ou alterar ferramentas no projeto consumidor. `make security-tools` prepara a versão homologada do Semgrep. `make semgrep-rules` valida e testa as regras. `make setup` executa a cadeia completa.
+`make profile-test` inclui os contratos gerais e fixtures Yii2 para correctness, query performance/conditions, deprecations, modernization SAFE, PHPDoc mágico e architecture advisory.
 
 ## Acompanhamento da evolução
 
@@ -293,32 +296,32 @@ make setup
 - [x] Executar Composer Audit em modo defensivo/JSON e normalizar advisories como `Finding` SCA.
 - [x] Integrar OSV em batch a partir do inventário resolvido.
 - [x] Deduplicar aliases CVE/GHSA/PKSA/OSV em vulnerabilidades canônicas.
-- [x] Gerar `security-report.json` consolidado para os resultados SCA.
+- [x] Gerar `security-report.json` consolidado.
 
 ### Etapa 3 — SAST estruturado
 
 - [x] Normalizar Psalm Taint e Semgrep em `Finding` SAST.
 - [x] Distinguir finding, erro, indisponibilidade, não aplicabilidade e cobertura parcial.
 - [x] Registrar cobertura observável.
-- [x] Preservar regra, severidade, confiança, arquivo, linha, mensagem, evidência e proveniência.
-- [x] Separar exclusões deliberadas de skips inesperados no Semgrep.
-- [x] Validar e testar as regras Semgrep com fixtures positivas/negativas.
+- [x] Preservar regra, severidade, confiança, localização, evidência e proveniência.
+- [x] Validar/testar regras Semgrep com fixtures positivas/negativas.
 
 ### Etapa 4 — Contratos SAST e profiles
 
 - [x] Formalizar os 12 contratos SAST comuns.
 - [x] Implementar baseline PHP comum.
-- [x] Implementar `SecurityContract`/overlay do Yii2.
-- [x] Implementar `SecurityContract`/overlay do Yii3.
-- [x] Implementar especializações do GLPI Plugin 11.
-- [x] Manter `php-generic` no baseline comum sem semântica fictícia de framework.
-- [x] Tratar `WARNING` Semgrep como hotspot não bloqueante e `ERROR` como bloqueante.
+- [x] Implementar overlay Yii2.
+- [x] Implementar overlay Yii3.
+- [x] Implementar especializações GLPI Plugin 11.
+- [x] Manter `php-generic` sem semântica fictícia de framework.
+- [x] Tratar `WARNING` Semgrep como hotspot e `ERROR` como bloqueante.
 
 ### Roadmap
 
-- [ ] Acompanhar Yii 22 dentro da família Yii2 e especializar somente quando diferenças concretas exigirem.
-- [ ] Avaliar Laravel como próximo profile PHP após estabilização dos quatro atuais.
-- [ ] Avaliar Python como futuro ecossistema, começando por `python-generic`; Django/Flask somente depois.
+- [ ] Calibrar/promover seletivamente regras nativas Yii2 após field tests reais.
+- [ ] Acompanhar Yii 22 dentro da família Yii2 e especializar somente com diferença concreta.
+- [ ] Avaliar Laravel como próximo profile PHP.
+- [ ] Avaliar Python como futuro ecossistema (`python-generic` antes de Django/Flask).
 - [ ] Avaliar NVD/exploit evidence como enrichment posterior.
 - [ ] Evoluir exposure/reachability e gates apenas com evidência demonstrável.
 
