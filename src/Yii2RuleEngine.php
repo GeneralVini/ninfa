@@ -8,6 +8,7 @@ require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryConditionAnalyzer.php';
+require_once __DIR__ . '/Yii2WhereEqualityAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
 require_once __DIR__ . '/Yii2FindShortcutAnalyzer.php';
 require_once __DIR__ . '/Yii2DeprecationAnalyzer.php';
@@ -39,6 +40,9 @@ final class Yii2RuleEngine
 
     /** Identificador estável de aridade inválida em condition array de Query Yii2. */
     public const QUERY_CONDITION_INVALID = 'NINFA-YII2-COR-005';
+
+    /** Identificador estável de igualdade SQL dinâmica simples em condition Yii2. */
+    public const DYNAMIC_WHERE_EQUALITY = 'NINFA-YII2-SEC-001';
 
     /** Identificador estável de verificação redundante de existência em query. */
     public const REDUNDANT_EXISTENCE_CHECK = 'NINFA-YII2-PERF-001';
@@ -73,10 +77,10 @@ final class Yii2RuleEngine
     /**
      * Avalia o snapshot Yii2 e produz somente findings suportados pelo catálogo atual.
      *
-     * As famílias correctness, performance, modernization, deprecation, static-analysis e
-     * architecture preservam políticas distintas. Apenas evidência conclusiva vira finding;
-     * advisory arquitetural não é promovido a vulnerabilidade e só as transformações marcadas
-     * como SAFE podem participar de `ninfa fix`.
+     * As famílias correctness, security-smell, performance, modernization, deprecation,
+     * static-analysis e architecture preservam políticas distintas. Apenas evidência conclusiva
+     * vira finding; advisory arquitetural não é promovido a vulnerabilidade e só transformações
+     * marcadas como SAFE podem participar de `ninfa fix`.
      *
      * @param Yii2SemanticModel $model Snapshot semântico previamente construído.
      * @param ProjectContext|null $context Contexto necessário às regras que leem o source original.
@@ -215,6 +219,37 @@ final class Yii2RuleEngine
                     'actual_operands' => $reference['actual_operands'],
                     'expectation' => $reference['expectation'],
                     'expected_operands' => $reference['expected_operands'],
+                    'autofix' => false,
+                ],
+            );
+        }
+
+        // SEC-001 descreve um security smell; sem taint proof ele não é promovido a vulnerabilidade nem autofix.
+        foreach ((new Yii2WhereEqualityAnalyzer())->references($context) as $reference) {
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::DYNAMIC_WHERE_EQUALITY,
+                problem: 'Condition Yii2 monta igualdade SQL por ' . ($reference['style'] === 'concat' ? 'concatenação' : 'interpolação')
+                    . ' para a coluna `' . $reference['column'] . '`.',
+                correction: 'Revise a origem do valor e prefira `' . $reference['replacement'] . '` para usar binding/quoting do Query Builder.',
+                severity: 'warning',
+                confidence: 'high',
+                evidenceType: 'framework-security-smell',
+                provenance: ['ninfa:yii2-where-equality-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'security',
+                    'finding_kind' => 'security-smell',
+                    'model' => $reference['model'],
+                    'method' => $reference['method'],
+                    'column' => $reference['column'],
+                    'value_expression' => $reference['value_expression'],
+                    'style' => $reference['style'],
+                    'replacement' => $reference['replacement'],
+                    'taint_proven' => false,
+                    'remediation_risk' => 'review',
                     'autofix' => false,
                 ],
             );
