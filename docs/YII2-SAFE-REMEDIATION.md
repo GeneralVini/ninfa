@@ -2,6 +2,8 @@
 
 Este documento descreve o subconjunto de transformações Yii2 que o Ninfa pode aplicar automaticamente durante `ninfa fix`. Ele complementa `YII2-ANALYSIS.md` e não altera a política de findings de security.
 
+A decisão sobre regras upstream que permanecem SAFE-CANDIDATE, REVIEW ou SEMANTIC é mantida em `YII2-UPSTREAM-RULE-MATRIX.md`; este arquivo documenta apenas o subconjunto já autorizado a modificar o consumidor.
+
 ## Princípio
 
 Uma transformação só entra em `SAFE` quando o Ninfa consegue produzir um replacement mecânico, local e idempotente sem depender de intenção de domínio. Regras de arquitetura, PHPDoc semântico, query rewrites contextuais e evidência de tipo inconclusiva permanecem em `REVIEW` ou `SEMANTIC`.
@@ -12,7 +14,7 @@ O aplicador é `src/Yii2SafeRemediator.php`. Ele recebe patches com `file`, `off
 
 | ID | Transformação | Prova exigida |
 | --- | --- | --- |
-| `NINFA-YII2-PERF-001` | `one()/count()` usados apenas para existência → `exists()/!exists()` | ActiveRecord local comprovado + comparação literal equivalente |
+| `NINFA-YII2-PERF-001` | `one()/count()` usados só como presença/ausência → `exists()/!exists()` | ActiveRecord local comprovado e comparação literal equivalente |
 | `NINFA-YII2-MOD-001` | `find()->where(hash)->one()/all()` → `findOne()/findAll()` | ActiveRecord e hash literal suportado |
 | `NINFA-YII2-DEP-001` | `Yii::trace()` → `Yii::debug()` | chamada global literal |
 | `NINFA-YII2-DEP-002` | `Controller::EXIT_CODE_*` → `yii\console\ExitCode::*` | classe resolve para `yii\console\Controller` |
@@ -21,38 +23,9 @@ O aplicador é `src/Yii2SafeRemediator.php`. Ele recebe patches com `file`, `off
 | `NINFA-YII2-DEP-005` | `Dependency::getHasChanged()` → `isChanged()` | receiver comprovado como `yii\caching\Dependency` ou subclasse local |
 | `NINFA-YII2-DEP-006` | `SomeObject::className()` / `static::className()` → `::class` | classe nomeada ou classe léxica comprovada como `yii\base\BaseObject`/subclasse local |
 
-`PERF-001` é inspirada em `ReplaceExistenceCheckWithExistsRector`; `DEP-004` e `DEP-005` em `ReplaceCacheMultiMethodAliasesRector` e `ReplaceGetHasChangedWithIsChangedRector`; `DEP-006` segue `ReplaceClassnameWithClassRector`, todos de `mspirkov/yii2-rector`. O Ninfa reimplementa os conceitos sob seu próprio contrato de evidência, workspace, testes e idempotência; não depende da API interna do projeto upstream.
+`DEP-004` e `DEP-005` são inspiradas nas regras `ReplaceCacheMultiMethodAliasesRector` e `ReplaceGetHasChangedWithIsChangedRector`; `DEP-006` segue `ReplaceClassnameWithClassRector`, todos de `mspirkov/yii2-rector`. O Ninfa reimplementa os conceitos sob seu próprio contrato de evidência, workspace, testes e idempotência; não depende da API interna do projeto upstream.
 
-## Existência com `exists()`
-
-`src/Yii2QueryExistenceAnalyzer.php` reconhece apenas comparações que respondem inequivocamente “há algum registro?” ou “não há registro?”. O analyzer exige uma chain iniciada em `ActiveRecord::find()` cuja classe local tenha herança comprovada até uma base Yii2 de DB, Redis ou MongoDB.
-
-Exemplos SAFE:
-
-```php
-Order::find()->where(['status' => 1])->one() !== null;
-// -> Order::find()->where(['status' => 1])->exists();
-
-Order::find()->count() === 0;
-// -> !Order::find()->exists();
-
-0 !== Order::find()->count();
-// -> Order::find()->exists();
-```
-
-A evidência contém o intervalo completo da comparação, não apenas o nome `one`/`count`, porque o replacement elimina também operador e literal. Comparações invertidas são normalizadas antes de gerar o patch.
-
-Permanecem intactos:
-
-```text
-count() > 1
-one() usado como valor
-count() usado como quantidade
-classe sem herança ActiveRecord comprovável
-QueryInterface obtido de variável/factory/runtime
-```
-
-Quando `PERF-001` contém internamente uma chain que também seria candidata a `MOD-001`, o remediator aplica precedência explícita a `PERF-001`. O shortcut aninhado é descartado antes da validação de sobreposição; qualquer outra sobreposição entre regras SAFE continua sendo erro e interrompe a escrita.
+`PERF-001` é inspirado em `ReplaceExistenceCheckWithExistsRector`. O analyzer do Ninfa captura a expressão comparativa completa, normaliza operands invertidos e só produz patch quando `one()`/`count()` respondem exatamente a uma pergunta de existência. Quando a mesma chain também é candidata a `MOD-001`, `PERF-001` tem precedência explícita por representar a intenção booleana mais específica.
 
 ## Prova de tipo para caching
 
@@ -108,11 +81,11 @@ Também ficam fora do SAFE classes cujo parent externo impede concluir a cadeia.
 
 ## Relação entre `assist` e `fix`
 
-`PERF-001`, `DEP-004`, `DEP-005` e `DEP-006` usam o mesmo analyzer nos dois fluxos. Cada analyzer produz uma evidência única com localização e dados suficientes para a normalização como `Finding`; os analyzers SAFE também expõem `offset`, `length` e replacement exato para o `fix`.
+`DEP-004` e `DEP-005` usam o mesmo `Yii2CachingDeprecationAnalyzer` nos dois fluxos. `DEP-006` usa `Yii2ClassNameDeprecationAnalyzer` da mesma forma. `PERF-001` reutiliza `Yii2QueryExistenceAnalyzer`, e `MOD-001` reutiliza `Yii2FindShortcutAnalyzer`. Cada analyzer produz evidência única com offsets/replacement suficientes para o finding e para o patch.
 
-No `assist`, `Yii2RuleEngine` normaliza `PERF-001` como performance e as regras `DEP-*` como deprecation, todas com `confidence=high`, `remediation_risk=safe` e `autofix=true` quando o subconjunto seguro foi comprovado.
+No `assist`, `Yii2RuleEngine` apenas normaliza essa evidência como `Finding` com categoria/severidade/confiança e `remediation_risk=safe` quando aplicável.
 
-No `fix`, `Yii2SafeRemediator` reutiliza os mesmos offsets/replacements. Não existe uma segunda implementação da lógica de equivalência ou prova de tipo somente para apresentação de findings.
+No `fix`, `Yii2SafeRemediator` reutiliza os offsets/replacements da mesma evidência. Não existe uma segunda implementação da lógica de prova para apresentação de findings.
 
 Para `profile=yii2`, `bin/ninfa` executa `Yii2SafeRemediator` antes dos fixers externos. Depois, `RecheckingPipelineRunner` mantém o contrato global do Ninfa: um único `check` completo ao final de um `fix` bem-sucedido.
 
@@ -126,16 +99,15 @@ O próprio código do Ninfa continua sujeito ao guard de documentação: classes
 
 ## Testes
 
-As remediações SAFE são cobertas por:
+As remediações de deprecation são cobertas por:
 
 ```text
-tests/yii2-query-existence.php
 tests/yii2-deprecation-remediation.php
 tests/yii2-typed-deprecation.php
 tests/yii2-classname-deprecation.php
 ```
 
-A fixture de existência cobre `one()`/`count()`, operadores invertidos, formas positivas/negadas, thresholds não equivalentes, classe não Yii2, precedência sobre `MOD-001` e idempotência.
+`tests/yii2-query-existence.php` cobre positivos/negados, operands invertidos, thresholds não equivalentes, receiver não Yii2, autofix, idempotência e a precedência `PERF-001 > MOD-001`.
 
 A fixture de caching verifica parâmetros tipados, propriedades tipadas, subclasses locais, variáveis inicializadas com `new`, receivers não comprovados, emissão dos mesmos casos como findings de `assist` e idempotência do `fix`.
 
@@ -143,4 +115,6 @@ A fixture de `className()` cobre classe explícita, `static`, subclasses locais,
 
 ## Limite atual
 
-As tranches de existência, caching e `className()` estão fechadas no contrato atual: detecção, finding e autofix SAFE compartilham a mesma fonte de evidência. Ampliações futuras da prova de tipo — por exemplo unions, hierarquia externa completa, factory/container ou PHPDoc como fonte auxiliar — exigem política explícita de confiança antes de entrarem em autofix.
+As tranches de caching, `className()`, existência e shortcuts estão fechadas no contrato atual: detecção, finding e autofix SAFE compartilham a mesma fonte de evidência. Ampliações futuras da prova de tipo — por exemplo unions, hierarquia externa completa, factory/container ou PHPDoc como fonte auxiliar — exigem política explícita de confiança antes de entrarem em autofix.
+
+Duas ideias upstream permanecem candidatas, não autorizadas: remoção de `Html::encode()` somente com prova forte de `numeric-string`, e conversão de igualdade string em `where()` para array condition somente com AST/query type proof suficiente para demonstrar equivalência. A matriz upstream é a fonte de verdade para esse estado.
