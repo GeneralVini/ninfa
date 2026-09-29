@@ -406,7 +406,9 @@ final class Yii2ModelRulesAnalyzer
                 continue;
             }
 
+            /** @var list<array{name:string,line:int}> $attributes Atributos literais resolvidos para a rule atual. */
             $attributes = [];
+            $attributesValid = true;
             $single = $this->literal($tokens, $items[0][0], $items[0][1]);
             if ($single !== null) {
                 $attributes[] = ['name' => $single['value'], 'line' => $single['line']];
@@ -422,12 +424,12 @@ final class Yii2ModelRulesAnalyzer
                 foreach ($this->segments($tokens, $attrOpen + 1, $attrClose - 1) as [$aStart, $aEnd]) {
                     $literal = $this->literal($tokens, $aStart, $aEnd);
                     if ($literal === null) {
-                        $attributes = [];
+                        $attributesValid = false;
                         break;
                     }
                     $attributes[] = ['name' => $literal['value'], 'line' => $literal['line']];
                 }
-                if ($attributes === []) {
+                if (!$attributesValid || $attributes === []) {
                     continue;
                 }
             }
