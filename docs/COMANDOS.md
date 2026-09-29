@@ -74,6 +74,7 @@ NINFA-YII2-COR-002   action inexistente em filtros/behaviors estáticos
 NINFA-YII2-COR-003   relation path literal inexistente em with/joinWith/innerJoinWith
 NINFA-YII2-COR-004   atributo inexistente em link literal de hasOne/hasMany
 NINFA-YII2-COR-005   aridade inválida em operator de condition array estática
+NINFA-YII2-COR-006   atributo inexistente referenciado por Model::rules()
 NINFA-YII2-SEC-001   igualdade SQL dinâmica simples em where/andWhere/orWhere
 NINFA-YII2-PERF-001  one()/count() usados apenas para testar existência
 NINFA-YII2-MOD-001   shortcut findOne/findAll seguro
@@ -98,6 +99,8 @@ Política por família:
 | `DEP-*` | warning | somente SAFE | API/forma legada com equivalência comprovada |
 | `TYPE-*` | warning | não | PHPDoc semântico, SEMANTIC |
 | `ARCH-*` | warning | não | opinião arquitetural/advisory |
+
+`COR-006` valida apenas atributos literais em `rules()` quando o inventário do Model é conclusivo. O inventário é completo para `attributes()` com lista literal ou para propriedades públicas em cadeia local que termina em `yii\base\Model`. ActiveRecord sem override literal, traits, `attributes()` dinâmico, parent externo e rules dinâmicas permanecem `unknown` e não geram finding.
 
 `SEC-001` reconhece apenas igualdade dinâmica simples em chain `ActiveRecord::find()` comprovada, como `'status = ' . $status` ou `"status = $status"`, e sugere hash condition. O finding é `security-smell`, com `taint_proven=false`, `remediation_risk=review` e `autofix=false`; ele não afirma SQL injection.
 
@@ -185,6 +188,7 @@ A suíte Yii2 dedicada inclui:
 tests/yii2-semantic-model.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
+tests/yii2-model-rules.php
 tests/yii2-where-equality.php
 tests/yii2-deprecation-remediation.php
 tests/yii2-typed-deprecation.php
