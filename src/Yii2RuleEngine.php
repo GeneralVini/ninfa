@@ -8,6 +8,7 @@ require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryConditionAnalyzer.php';
+require_once __DIR__ . '/Yii2ModelRulesAnalyzer.php';
 require_once __DIR__ . '/Yii2WhereEqualityAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
 require_once __DIR__ . '/Yii2FindShortcutAnalyzer.php';
@@ -40,6 +41,9 @@ final class Yii2RuleEngine
 
     /** Identificador estável de aridade inválida em condition array de Query Yii2. */
     public const QUERY_CONDITION_INVALID = 'NINFA-YII2-COR-005';
+
+    /** Identificador estável de atributo inexistente referenciado por Model::rules(). */
+    public const MODEL_RULE_ATTRIBUTE_NOT_FOUND = 'NINFA-YII2-COR-006';
 
     /** Identificador estável de igualdade SQL dinâmica simples em condition Yii2. */
     public const DYNAMIC_WHERE_EQUALITY = 'NINFA-YII2-SEC-001';
@@ -219,6 +223,32 @@ final class Yii2RuleEngine
                     'actual_operands' => $reference['actual_operands'],
                     'expectation' => $reference['expectation'],
                     'expected_operands' => $reference['expected_operands'],
+                    'autofix' => false,
+                ],
+            );
+        }
+
+        // COR-006 só nega atributo quando o analyzer provou um inventário completo do Model.
+        foreach ((new Yii2ModelRulesAnalyzer())->references($context) as $reference) {
+            $validator = $reference['validator'] === null ? '' : ' na regra `' . $reference['validator'] . '`';
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::MODEL_RULE_ATTRIBUTE_NOT_FOUND,
+                problem: 'Atributo Yii2 `' . $reference['attribute'] . '` referenciado em Model::rules() não existe' . $validator . '.',
+                correction: 'Corrija o nome do atributo ou declare-o no contrato estático de attributes()/propriedades públicas do Model.',
+                severity: 'error',
+                confidence: 'high',
+                evidenceType: 'framework-correctness',
+                provenance: ['ninfa:yii2-model-rules-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'correctness',
+                    'model' => $reference['model'],
+                    'attribute' => $reference['attribute'],
+                    'validator' => $reference['validator'],
+                    'attribute_inventory_complete' => true,
                     'autofix' => false,
                 ],
             );
