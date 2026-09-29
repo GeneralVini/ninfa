@@ -155,7 +155,7 @@ ninfa assist /path/to/project
 
 O comando não modifica o projeto. PHPStan e Psalm são executados em formato estruturado, os achados são exibidos com orientação de correção e a evidência completa fica em `/tmp/ninfa/<hash>/assist/`.
 
-No profile Yii2, o mesmo fluxo inclui findings semânticos nativos e preserva `yii2-semantic.json` e `yii2-findings.json` no workspace. A política é conservadora: uma referência só vira erro de correctness quando a ausência pode ser demonstrada; herança/traits/configuração dinâmica mantêm o estado `unknown`.
+No profile Yii2, o mesmo fluxo inclui findings semânticos nativos e preserva `yii2-semantic.json` e `yii2-findings.json` no workspace. A política é conservadora: uma referência só vira erro de correctness quando a ausência pode ser demonstrada; herança, traits, schema runtime e configuração dinâmica mantêm o estado `unknown` quando não há evidência suficiente.
 
 ## Segurança
 
