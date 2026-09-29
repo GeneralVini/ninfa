@@ -53,7 +53,7 @@ ninfa assist /caminho/do/projeto
 
 É a camada separada para achados semânticos de PHPStan/Psalm. Não altera o projeto consumidor. Usa o mesmo renderer visual do `check` e acrescenta a orientação de correção.
 
-No profile Yii2, o `assist` também executa as regras nativas de correctness já promovidas para field test. Atualmente isso inclui:
+No profile Yii2, o `assist` também executa as regras nativas de correctness em field test. Atualmente isso inclui:
 
 ```text
 NINFA-YII2-COR-001  view literal inexistente
