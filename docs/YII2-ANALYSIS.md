@@ -134,7 +134,7 @@ Requisitos atuais:
 
 Hash conditions, spread, variáveis e receivers sem tipo demonstrável ficam fora da negação.
 
-## Performance
+## Performance SAFE
 
 ### PERF-001 — existência via `one()`/`count()`
 
@@ -145,9 +145,9 @@ Order::find()->where(['status' => 1])->one() !== null;
 Order::find()->where(['status' => 1])->count() > 0;
 ```
 
-A orientação é `exists()`/`!exists()`. São reconhecidas as equivalências estritas/relacionais contra `null`, `0` e `1`, inclusive com operands invertidos.
+A transformação é `exists()`/`!exists()`. São reconhecidas somente equivalências estritas/relacionais contra `null`, `0` e `1`, inclusive com operands invertidos. O analyzer exige `ActiveRecord::find()` de classe local cuja herança até Yii2 DB/Redis/MongoDB seja comprovada e produz `offset`, `length` e replacement do comparativo completo.
 
-A regra não reporta quando o valor de `one()` ou `count()` é realmente consumido, quando o threshold não representa existência ou quando o tipo da query não pode ser provado.
+A regra não reporta nem reescreve quando o valor de `one()` ou `count()` é realmente consumido, quando o threshold não representa existência ou quando o tipo da query não pode ser provado.
 
 Contrato:
 
@@ -155,11 +155,11 @@ Contrato:
 category          performance
 severity          warning
 confidence        high
-remediation_risk  review
-autofix           false
+remediation_risk  safe
+autofix           true
 ```
 
-A classificação REVIEW é deliberada: o upstream possui uma transformação Rector, mas o Ninfa ainda mantém essa mudança fora do SAFE enquanto amplia fixtures e field tests.
+Quando `PERF-001` engloba uma chain que também seria candidata a `MOD-001`, o `Yii2SafeRemediator` dá precedência explícita a `PERF-001` e descarta o shortcut aninhado. Outras sobreposições entre patches SAFE continuam sendo erro.
 
 ## Modernization SAFE
 
@@ -313,7 +313,7 @@ Catálogo atual:
 | `NINFA-YII2-COR-003` | correctness | `assist`, error |
 | `NINFA-YII2-COR-004` | correctness | `assist`, error |
 | `NINFA-YII2-COR-005` | correctness | `assist`, error |
-| `NINFA-YII2-PERF-001` | performance | `assist`, warning, REVIEW |
+| `NINFA-YII2-PERF-001` | performance | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-MOD-001` | modernization | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-DEP-001` | deprecation | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-DEP-002` | deprecation | `assist` + `fix`, warning, SAFE |
@@ -328,7 +328,7 @@ Todos usam `Finding`; não existe schema paralelo para Yii2.
 
 ## Remediação SAFE
 
-`src/Yii2SafeRemediator.php` é a única camada nativa autorizada atualmente a alterar código Yii2 diretamente. Ela recebe patches exatos dos analyzers SAFE, agrupa por arquivo, rejeita intervalos sobrepostos e aplica do maior offset para o menor.
+`src/Yii2SafeRemediator.php` é a única camada nativa autorizada atualmente a alterar código Yii2 diretamente. Ela recebe patches exatos dos analyzers SAFE, agrupa por arquivo, resolve apenas a precedência declarada `PERF-001 > MOD-001`, rejeita demais intervalos sobrepostos e aplica do maior offset para o menor.
 
 Atualmente consome:
 
@@ -336,6 +336,7 @@ Atualmente consome:
 Yii2DeprecationAnalyzer
 Yii2CachingDeprecationAnalyzer
 Yii2ClassNameDeprecationAnalyzer
+Yii2QueryExistenceAnalyzer
 Yii2FindShortcutAnalyzer
 ```
 
@@ -400,9 +401,9 @@ assist/findings.json
 
 ### `ninfa fix`
 
-Executa somente remediações nativas marcadas SAFE e os fixers externos existentes. Atualmente são SAFE nativas: `DEP-001..006` e `MOD-001`.
+Executa somente remediações nativas marcadas SAFE e os fixers externos existentes. Atualmente são SAFE nativas: `PERF-001`, `MOD-001` e `DEP-001..006`.
 
-`COR-*`, `PERF-001`, `TYPE-001` e `ARCH-001` não são reescritos automaticamente.
+`COR-*`, `TYPE-001` e `ARCH-001` não são reescritos automaticamente.
 
 ### `ninfa security`
 
