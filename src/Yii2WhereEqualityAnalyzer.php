@@ -102,7 +102,7 @@ final class Yii2WhereEqualityAnalyzer
                     'column' => $condition['column'],
                     'value_expression' => $condition['value_expression'],
                     'style' => $condition['style'],
-                    'replacement' => "['" . $condition['column'] . "' => " . $condition['value_expression'] . ']",
+                    'replacement' => sprintf("['%s' => %s]", $condition['column'], $condition['value_expression']),
                     'offset' => $condition['offset'],
                     'length' => $condition['length'],
                 ];
