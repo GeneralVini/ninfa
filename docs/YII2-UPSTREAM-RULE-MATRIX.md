@@ -29,19 +29,49 @@ A classificação é deliberadamente mais estrita que a mera disponibilidade de 
 | `ReplaceFindWhereOneWithFindOneRector` | `IMPLEMENTED` | `NINFA-YII2-MOD-001` | somente hash literal associativo suportado |
 | `ReplaceFindWhereAllWithFindAllRector` | `IMPLEMENTED` | `NINFA-YII2-MOD-001` | mesma prova do caso `findOne()` |
 | `ReplaceAppRequestResponseWithThisRector` | `PARTIAL` | `NINFA-YII2-ARCH-001` | finding REVIEW; o Ninfa não trata preferência arquitetural como autofix |
+| `ReplaceWhereEqualityConditionWithArrayRector` | `PARTIAL` | `NINFA-YII2-SEC-001` | security smell REVIEW para igualdade dinâmica simples; sem taint proof e sem autofix |
 | `AddPropertyTagsRector` | `PARTIAL` | `NINFA-YII2-TYPE-001` | hoje detecta relação mágica sem tag quando a classe já mantém property tags; não reescreve PHPDoc |
 | `RemoveRedundantPropertyTagsRector` | `SEMANTIC` | — | remover tag pode alterar inferência de IDE/PHPStan/Psalm; requer contrato de tipo forte |
 | `ReplaceGetterWithPropertyRector` | `SEMANTIC` | — | depende de BaseObject, property tag compatível, assinatura do getter e ausência de propriedade pública conflitante |
 | `ReplaceSetterWithPropertyRector` | `SEMANTIC` | — | mesma sensibilidade do getter, com risco adicional de contrato de escrita |
 | `MergeModelRulesRector` | `REVIEW` | — | ordem e agrupamento de validators podem carregar intenção de domínio; não é transformação mecânica universal |
 | `RemoveRedundantHtmlEncodeRector` | `SAFE-CANDIDATE` | — | só deve remover `Html::encode()` quando um engine de tipos provar `numeric-string`; heurística lexical não é suficiente |
-| `ReplaceWhereEqualityConditionWithArrayRector` | `SAFE-CANDIDATE` | — | bom candidato para `where(['col' => $value])`, mas exige AST/query type proof e política explícita para valores `null`, Expression e coerções |
 
-### Critérios para as duas candidatas SAFE restantes
+### Igualdade dinâmica e `SEC-001`
+
+`ReplaceWhereEqualityConditionWithArrayRector` foi incorporada apenas como detector REVIEW no subconjunto cuja forma sintática é demonstrável. `src/Yii2WhereEqualityAnalyzer.php` reconhece chains iniciadas por `ActiveRecord::find()` de classe local comprovada e duas shapes simples:
+
+```php
+Order::find()->where('status = ' . $status);
+Order::find()->andWhere("tenant_id = $tenantId");
+```
+
+O finding `NINFA-YII2-SEC-001` sugere hash condition:
+
+```php
+Order::find()->where(['status' => $status]);
+Order::find()->andWhere(['tenant_id' => $tenantId]);
+```
+
+mas não altera o consumidor. Concatenação/interpolação dinâmica é um **security smell**, não prova de SQL injection: a origem do valor não foi correlacionada com taint. O contrato atual é:
+
+```text
+category          security
+finding_kind      security-smell
+severity          warning
+confidence        high
+taint_proven      false
+remediation_risk  review
+autofix           false
+```
+
+Por isso `SEC-001` permanece em `assist`; `ninfa security` continua reservado ao contrato SCA/SAST até existir correlação de fluxo suficiente para promoção.
+
+A primeira tranche ignora receiver armazenado em variável, expressão composta, SQL com múltiplos predicados, hash condition já segura, strings literais sem valor dinâmico, classes não Yii2 e parents externos inconclusivos. A política é preferir falso negativo temporário a classificar heurística lexical como vulnerabilidade.
+
+### `RemoveRedundantHtmlEncodeRector`
 
 `RemoveRedundantHtmlEncodeRector` não será reimplementada usando nome de variável, regex ou PHPDoc isolado. O upstream remove encode apenas quando o tipo é comprovadamente `numeric-string`; o Ninfa deve exigir evidência de força equivalente antes de autorizar mutação.
-
-`ReplaceWhereEqualityConditionWithArrayRector` também não será promovida diretamente a vulnerabilidade. String/interpolação dinâmica em `where()` pode ser um **security smell**, mas classificação de vulnerabilidade exige evidência adicional de fluxo/taint. A transformação pode ser segura no subconjunto exato de igualdade simples, desde que o Ninfa prove receiver Yii2 Query, shape do AST e equivalência do valor.
 
 ## `yii2-phpstan-rules`: validation/correctness
 
@@ -75,7 +105,7 @@ A classificação é deliberadamente mais estrita que a mera disponibilidade de 
 | Conceito upstream | Decisão Ninfa | Mapping atual / política |
 | --- | --- | --- |
 | `noRedundantExistenceCheck` | `IMPLEMENTED` | `NINFA-YII2-PERF-001` |
-| `noDynamicQueryWhere` | `SAFE-CANDIDATE` | futuro finding de security-smell/modernization; não chamar vulnerabilidade sem taint |
+| `noDynamicQueryWhere` | `PARTIAL` | `NINFA-YII2-SEC-001`; security smell REVIEW sem taint proof |
 | `noControllerActionCallsViaThis` | `REVIEW` | opinião arquitetural útil; não correctness por padrão |
 | `noDbQueriesInActions` | `REVIEW` | advisory arquitetural, não vulnerabilidade automática |
 | `noDbQueriesInControllers` | `REVIEW` | advisory arquitetural, respeitando aplicações Yii2 legadas |
@@ -97,7 +127,7 @@ PHPDoc do próprio Ninfa continua obrigatório e narrativo. Qualquer analyzer no
 
 A sequência recomendada depois das regras já fechadas é:
 
-1. `noDynamicQueryWhere` / `ReplaceWhereEqualityConditionWithArrayRector`: primeiro como finding conservador, depois avaliar autofix somente no subset comprovado;
+1. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção de segurança ou autofix;
 2. ampliar model/config validation (`rules`, `scenarios`, config arrays) usando um inventário de atributos/config properties compartilhado;
 3. melhorar typing com evidência de analyzer externo antes de `RemoveRedundantHtmlEncodeRector`;
 4. aprofundar PHPDoc/magic properties sem autofix;
