@@ -18,8 +18,9 @@ O aplicador é `src/Yii2SafeRemediator.php`. Ele recebe patches com `file`, `off
 | `NINFA-YII2-DEP-003` | `return 0/1` em console action → `ExitCode::*` | herança de console controller comprovada |
 | `NINFA-YII2-DEP-004` | `Cache::mget/mset/madd()` → `multiGet/multiSet/multiAdd()` | receiver comprovado como `yii\caching\Cache` ou subclasse local |
 | `NINFA-YII2-DEP-005` | `Dependency::getHasChanged()` → `isChanged()` | receiver comprovado como `yii\caching\Dependency` ou subclasse local |
+| `NINFA-YII2-DEP-006` | `SomeObject::className()` / `static::className()` → `::class` | classe nomeada ou classe léxica comprovada como `yii\base\BaseObject`/subclasse local |
 
-`DEP-004` e `DEP-005` são inspiradas nas regras `ReplaceCacheMultiMethodAliasesRector` e `ReplaceGetHasChangedWithIsChangedRector` de `mspirkov/yii2-rector`. O Ninfa reimplementa o conceito sob seu próprio contrato de evidência, workspace, testes e idempotência; não depende da API interna do projeto upstream.
+`DEP-004` e `DEP-005` são inspiradas nas regras `ReplaceCacheMultiMethodAliasesRector` e `ReplaceGetHasChangedWithIsChangedRector`; `DEP-006` segue `ReplaceClassnameWithClassRector`, todos de `mspirkov/yii2-rector`. O Ninfa reimplementa os conceitos sob seu próprio contrato de evidência, workspace, testes e idempotência; não depende da API interna do projeto upstream.
 
 ## Prova de tipo para caching
 
@@ -60,9 +61,22 @@ public function run(RuntimeCache $cache): void
 
 A política é preferir falso negativo temporário a alterar método de um objeto cujo contrato não foi comprovado.
 
+## `className()` para `::class`
+
+`src/Yii2ClassNameDeprecationAnalyzer.php` só aceita `className()` sem argumentos. Chamadas em classe nomeada são corrigidas quando o FQCN resolve diretamente para `yii\base\BaseObject` ou para subclasse cuja cadeia local termina nessa base. `static::className()` exige a mesma prova para a classe léxica que contém a chamada.
+
+Por compatibilidade com late static binding, estes dois casos permanecem intocados:
+
+```php
+self::className();
+parent::className();
+```
+
+Também ficam fora do SAFE classes cujo parent externo impede concluir a cadeia. Comentários, PHPDoc, strings, inline HTML e conteúdo de heredoc são mascarados preservando offsets antes da detecção, para que exemplos textuais de `className()` nunca sejam tratados como código.
+
 ## Relação entre `assist` e `fix`
 
-`DEP-004` e `DEP-005` usam o mesmo `Yii2CachingDeprecationAnalyzer` nos dois fluxos. O analyzer produz uma evidência única com `file`, `line`, `rule`, `kind`, `replacement`, `offset` e `length`.
+`DEP-004` e `DEP-005` usam o mesmo `Yii2CachingDeprecationAnalyzer` nos dois fluxos. `DEP-006` usa `Yii2ClassNameDeprecationAnalyzer` da mesma forma. Cada analyzer produz evidência única com `file`, `line`, `rule`, `kind`, `replacement`, `offset` e `length`.
 
 No `assist`, `Yii2RuleEngine` apenas normaliza essa evidência como `Finding` com:
 
@@ -74,7 +88,7 @@ remediation_risk  safe
 autofix           true
 ```
 
-No `fix`, `Yii2SafeRemediator` reutiliza os offsets/replacements da mesma evidência. Não existe uma segunda implementação de prova de tipo para apresentação de findings.
+No `fix`, `Yii2SafeRemediator` reutiliza os offsets/replacements da mesma evidência. Não existe uma segunda implementação da lógica de prova para apresentação de findings.
 
 Para `profile=yii2`, `bin/ninfa` executa `Yii2SafeRemediator` antes dos fixers externos. Depois, `RecheckingPipelineRunner` mantém o contrato global do Ninfa: um único `check` completo ao final de um `fix` bem-sucedido.
 
@@ -93,10 +107,13 @@ As remediações de deprecation são cobertas por:
 ```text
 tests/yii2-deprecation-remediation.php
 tests/yii2-typed-deprecation.php
+tests/yii2-classname-deprecation.php
 ```
 
-A fixture de caching verifica parâmetros tipados, propriedades tipadas, subclasses locais, variáveis inicializadas com `new`, receivers não comprovados, emissão dos mesmos casos como findings de `assist` e idempotência do `fix`. Os testes integram `make profile-test`.
+A fixture de caching verifica parâmetros tipados, propriedades tipadas, subclasses locais, variáveis inicializadas com `new`, receivers não comprovados, emissão dos mesmos casos como findings de `assist` e idempotência do `fix`.
+
+A fixture de `className()` cobre classe explícita, `static`, subclasses locais, `self`/`parent` preservados, parent externo inconclusivo, comentários/strings ignorados, findings de `assist` e idempotência. Todos os testes integram `make profile-test`.
 
 ## Limite atual
 
-A tranche de caching está fechada no contrato atual: detecção, finding e autofix SAFE compartilham a mesma fonte de evidência. Ampliações futuras da prova de tipo — por exemplo unions, promoted properties complexas, factory/container ou PHPDoc como fonte auxiliar — exigem uma política explícita de confiança antes de entrarem em autofix.
+As tranches de caching e `className()` estão fechadas no contrato atual: detecção, finding e autofix SAFE compartilham a mesma fonte de evidência. Ampliações futuras da prova de tipo — por exemplo unions, hierarquia externa completa, factory/container ou PHPDoc como fonte auxiliar — exigem política explícita de confiança antes de entrarem em autofix.
