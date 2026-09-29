@@ -9,8 +9,10 @@ require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryConditionAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
+require_once __DIR__ . '/Yii2FindShortcutAnalyzer.php';
 require_once __DIR__ . '/Yii2DeprecationAnalyzer.php';
 require_once __DIR__ . '/Yii2MagicPropertyAnalyzer.php';
+require_once __DIR__ . '/Yii2ControllerAccessAnalyzer.php';
 
 /**
  * Converte fatos conclusivos das camadas semânticas Yii2 em findings próprios do Ninfa.
@@ -39,6 +41,9 @@ final class Yii2RuleEngine
     /** Identificador estável de verificação redundante de existência em query. */
     public const REDUNDANT_EXISTENCE_CHECK = 'NINFA-YII2-PERF-001';
 
+    /** Identificador estável de shortcut findOne/findAll seguro. */
+    public const FIND_SHORTCUT = 'NINFA-YII2-MOD-001';
+
     /** Identificador estável da substituição deprecated `Yii::trace()` -> `Yii::debug()`. */
     public const TRACE_DEPRECATED = 'NINFA-YII2-DEP-001';
 
@@ -51,17 +56,16 @@ final class Yii2RuleEngine
     /** Identificador estável de relação sem tag de propriedade mágica em PHPDoc já mantido. */
     public const MAGIC_PROPERTY_MISSING = 'NINFA-YII2-TYPE-001';
 
+    /** Identificador advisory para acesso global a request/response dentro de controller. */
+    public const CONTROLLER_GLOBAL_REQUEST_RESPONSE = 'NINFA-YII2-ARCH-001';
+
     /**
      * Avalia o snapshot Yii2 e produz somente findings suportados pelo catálogo atual.
      *
-     * `COR-001` promove referências literais de view com path resolvido e arquivo ausente.
-     * Quando ProjectContext é fornecido, `COR-002` valida actions em behaviors/filters,
-     * `COR-003` valida relation paths literais de ActiveQuery, `COR-004` valida cada lado
-     * de links literais de `hasOne()`/`hasMany()` e `COR-005` valida aridade de operators
-     * em conditions array estáticas. `PERF-001` identifica comparações que usam
-     * `one()`/`count()` apenas para testar existência, `DEP-001..003` expõem depreciações
-     * com replacement mecânico SAFE e `TYPE-001` verifica PHPDoc de relações somente em
-     * classes que já mantêm contrato `@property*` explícito.
+     * As famílias correctness, performance, modernization, deprecation, static-analysis e
+     * architecture preservam políticas distintas. Apenas evidência conclusiva vira finding;
+     * advisory arquitetural não é promovido a vulnerabilidade e só as transformações marcadas
+     * como SAFE podem participar de `ninfa fix`.
      *
      * @param Yii2SemanticModel $model Snapshot semântico previamente construído.
      * @param ProjectContext|null $context Contexto necessário às regras que leem o source original.
@@ -112,7 +116,6 @@ final class Yii2RuleEngine
             if ($reference['exists'] !== false) {
                 continue;
             }
-
             $findings[] = new Finding(
                 tool: 'ninfa-yii2',
                 file: $reference['file'],
@@ -142,7 +145,6 @@ final class Yii2RuleEngine
             if ($reference['exists'] !== false || $reference['missing_relation'] === null) {
                 continue;
             }
-
             $findings[] = new Finding(
                 tool: 'ninfa-yii2',
                 file: $reference['file'],
@@ -236,7 +238,33 @@ final class Yii2RuleEngine
             );
         }
 
-        // DEP-001..003 carregam replacement exato e são os primeiros candidatos de remediação SAFE nativa.
+        // MOD-001 é SAFE somente para hash literal de string keys; outras shapes permanecem intactas.
+        foreach ((new Yii2FindShortcutAnalyzer())->references($context) as $reference) {
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::FIND_SHORTCUT,
+                problem: 'ActiveRecord Yii2 usa find()->where(hash)->' . $reference['terminal'] . '() onde existe shortcut equivalente.',
+                correction: 'Use `' . $reference['replacement'] . '`.',
+                severity: 'warning',
+                confidence: 'high',
+                evidenceType: 'framework-modernization',
+                provenance: ['ninfa:yii2-find-shortcut-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'modernization',
+                    'model' => $reference['model'],
+                    'terminal' => $reference['terminal'],
+                    'replacement_method' => $reference['replacement_method'],
+                    'replacement' => $reference['replacement'],
+                    'remediation_risk' => 'safe',
+                    'autofix' => true,
+                ],
+            );
+        }
+
+        // DEP-001..003 carregam replacement exato e são candidatos de remediação SAFE nativa.
         foreach ((new Yii2DeprecationAnalyzer())->references($context) as $reference) {
             $findings[] = new Finding(
                 tool: 'ninfa-yii2',
@@ -283,6 +311,31 @@ final class Yii2RuleEngine
                     'expected_type' => $reference['expected_type'],
                     'expected_tag' => $reference['expected_tag'],
                     'remediation_risk' => 'semantic',
+                    'autofix' => false,
+                ],
+            );
+        }
+
+        // ARCH-001 é opinião arquitetural útil, não correctness/security; permanece advisory sem autofix.
+        foreach ((new Yii2ControllerAccessAnalyzer())->references($context) as $reference) {
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::CONTROLLER_GLOBAL_REQUEST_RESPONSE,
+                problem: 'Controller Yii2 acessa Yii::$app->' . $reference['property'] . ' apesar de expor a mesma dependência localmente.',
+                correction: 'Considere `' . $reference['replacement'] . '` para reduzir acoplamento global.',
+                severity: 'warning',
+                confidence: 'high',
+                evidenceType: 'framework-architecture',
+                provenance: ['ninfa:yii2-controller-access-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'architecture',
+                    'controller' => $reference['controller'],
+                    'property' => $reference['property'],
+                    'replacement' => $reference['replacement'],
+                    'remediation_risk' => 'review',
                     'autofix' => false,
                 ],
             );
