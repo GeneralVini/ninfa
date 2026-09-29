@@ -9,6 +9,7 @@ require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
 require_once __DIR__ . '/Yii2DeprecationAnalyzer.php';
+require_once __DIR__ . '/Yii2MagicPropertyAnalyzer.php';
 
 /**
  * Converte fatos conclusivos das camadas semânticas Yii2 em findings próprios do Ninfa.
@@ -43,6 +44,9 @@ final class Yii2RuleEngine
     /** Identificador estável de magic numbers retornados por console actions. */
     public const ACTION_EXIT_LITERAL = 'NINFA-YII2-DEP-003';
 
+    /** Identificador estável de relação sem tag de propriedade mágica em PHPDoc já mantido. */
+    public const MAGIC_PROPERTY_MISSING = 'NINFA-YII2-TYPE-001';
+
     /**
      * Avalia o snapshot Yii2 e produz somente findings suportados pelo catálogo atual.
      *
@@ -50,8 +54,9 @@ final class Yii2RuleEngine
      * Quando ProjectContext é fornecido, `COR-002` valida actions em behaviors/filters,
      * `COR-003` valida relation paths literais de ActiveQuery, `COR-004` valida cada lado
      * de links literais de `hasOne()`/`hasMany()`, `PERF-001` identifica comparações que
-     * usam `one()`/`count()` apenas para testar existência e `DEP-001..003` expõem
-     * depreciações com replacement mecânico SAFE. Casos não comprováveis permanecem fora.
+     * usam `one()`/`count()` apenas para testar existência, `DEP-001..003` expõem
+     * depreciações com replacement mecânico SAFE e `TYPE-001` verifica PHPDoc de relações
+     * apenas em classes que já mantêm contrato `@property*` explícito.
      *
      * @param Yii2SemanticModel $model Snapshot semântico previamente construído.
      * @param ProjectContext|null $context Contexto necessário às regras que leem o source original.
@@ -217,6 +222,34 @@ final class Yii2RuleEngine
                     'replacement' => $reference['replacement'],
                     'remediation_risk' => 'safe',
                     'autofix' => true,
+                ],
+            );
+        }
+
+        // TYPE-001 só exige tag quando a classe já mantém um contrato de propriedades mágicas.
+        foreach ((new Yii2MagicPropertyAnalyzer())->references($context, $model) as $reference) {
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::MAGIC_PROPERTY_MISSING,
+                problem: 'PHPDoc Yii2 não documenta a propriedade mágica da relação: $' . $reference['relation'],
+                correction: 'Revise o contrato da classe e considere `' . $reference['expected_tag'] . '`.',
+                severity: 'warning',
+                confidence: 'high',
+                evidenceType: 'framework-static-analysis',
+                provenance: ['ninfa:yii2-magic-property-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'static-analysis',
+                    'model' => $reference['model'],
+                    'relation' => $reference['relation'],
+                    'relation_kind' => $reference['kind'],
+                    'target' => $reference['target'],
+                    'expected_type' => $reference['expected_type'],
+                    'expected_tag' => $reference['expected_tag'],
+                    'remediation_risk' => 'semantic',
+                    'autofix' => false,
                 ],
             );
         }
