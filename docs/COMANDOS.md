@@ -71,6 +71,8 @@ Referências dinâmicas ou cujo inventário de actions/relações não seja conc
 
 `COR-004` só nega atributo quando o ActiveRecord daquele lado declara `attributes()` como lista literal completa ou herda esse contrato de classe local conclusiva. Schema implícito do banco, PHPDoc isolado, `parent::attributes()`, `array_merge()`, links dinâmicos e relações seguidas por `via()`/`viaTable()` não são tratados como prova de ausência.
 
+Nenhuma regra nativa Yii2 dessa tranche executa autofix. `PERF-001` já fornece remediation textual, mas permanece classificada como `review` até field tests reais permitirem decidir se a transformação pode migrar para uma classe SAFE.
+
 A auditoria completa fica no workspace externo:
 
 ```text
