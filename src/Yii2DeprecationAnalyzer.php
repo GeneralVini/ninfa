@@ -102,6 +102,10 @@ final class Yii2DeprecationAnalyzer
     /**
      * Indexa classes locais e parents para provar controllers console através de herança local.
      *
+     * A declaração de classe é delimitada até a primeira chave e o parent é extraído do
+     * tail com uma expressão que não tenta modelar barras invertidas em character classes.
+     * Isso evita ambiguidade de escape PCRE e ainda deixa a resolução real para importsOf().
+     *
      * @param list<string> $files Arquivos PHP candidatos.
      * @return array<string,array{parent:string|null}> Parent resolvido por FQCN local.
      */
@@ -109,18 +113,23 @@ final class Yii2DeprecationAnalyzer
     {
         /** @var array<string,array{parent:string|null}> $classes Metadados mínimos por classe. */
         $classes = [];
+        $pattern = '/\b(?:abstract\s+|final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)(?P<tail>[^{]*)\{/';
+
         foreach ($files as $file) {
             $source = (string) file_get_contents($file);
             $namespace = $this->namespaceOf($source);
             $uses = $this->importsOf($source);
-            if (preg_match_all('/\\b(?:abstract\\s+|final\\s+)?class\\s+([A-Za-z_][A-Za-z0-9_]*)(?:\\s+extends\\s+(\\\\?[A-Za-z_][A-Za-z0-9_\\\\]*))?/', $source, $matches, PREG_SET_ORDER) === 0) {
+            if (preg_match_all($pattern, $source, $matches, PREG_SET_ORDER) === 0) {
                 continue;
             }
 
             foreach ($matches as $match) {
                 $short = (string) $match[1];
                 $class = $namespace === '' ? $short : $namespace . '\\' . $short;
-                $parentRaw = isset($match[2]) ? trim((string) $match[2]) : '';
+                $tail = (string) ($match['tail'] ?? '');
+                $parentRaw = preg_match('/\bextends\s+([^\s{]+)/', $tail, $parentMatch) === 1
+                    ? trim((string) $parentMatch[1])
+                    : '';
                 $classes[$class] = [
                     'parent' => $parentRaw === '' ? null : $this->resolveName($parentRaw, $uses, $namespace),
                 ];
@@ -140,7 +149,7 @@ final class Yii2DeprecationAnalyzer
     {
         /** @var list<array{file:string,line:int,rule:'NINFA-YII2-DEP-001',kind:'trace',problem:string,replacement:string,offset:int,length:int}> $references */
         $references = [];
-        if (preg_match_all('/(?<![A-Za-z0-9_\\\\])(?P<class>\\\\?Yii)::trace(?=\\s*\\()/', $source, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
+        if (preg_match_all('/(?<![A-Za-z0-9_\\])(?P<class>\\?Yii)::trace(?=\s*\()/', $source, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
             return [];
         }
 
@@ -164,6 +173,9 @@ final class Yii2DeprecationAnalyzer
     /**
      * Detecta constantes legadas diretamente resolvidas para `yii\\console\\Controller`.
      *
+     * O token textual anterior a `::` é capturado sem tentar interpretar FQCN no regex;
+     * aliases e namespace são resolvidos depois por resolveName(), que é a fonte de verdade.
+     *
      * @param string $source Código-fonte completo do arquivo.
      * @param string $file Path relativo usado no finding.
      * @param string $namespace Namespace do arquivo.
@@ -174,7 +186,7 @@ final class Yii2DeprecationAnalyzer
     {
         /** @var list<array{file:string,line:int,rule:'NINFA-YII2-DEP-002',kind:'exit-constant',problem:string,replacement:string,offset:int,length:int}> $references */
         $references = [];
-        $pattern = '/(?P<class>\\\\?[A-Za-z_][A-Za-z0-9_\\\\]*)::(?P<constant>EXIT_CODE_NORMAL|EXIT_CODE_ERROR)\\b/';
+        $pattern = '/(?P<class>[^\s;(){}]+)::(?P<constant>EXIT_CODE_NORMAL|EXIT_CODE_ERROR)\b/';
         if (preg_match_all($pattern, $source, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
             return [];
         }
@@ -216,7 +228,7 @@ final class Yii2DeprecationAnalyzer
     {
         /** @var list<array{file:string,line:int,rule:'NINFA-YII2-DEP-003',kind:'action-return',problem:string,replacement:string,offset:int,length:int}> $references */
         $references = [];
-        $classPattern = '/\\b(?:abstract\\s+|final\\s+)?class\\s+([A-Za-z_][A-Za-z0-9_]*)(?:\\s+extends\\s+(\\\\?[A-Za-z_][A-Za-z0-9_\\\\]*))?[^\\{]*\\{/';
+        $classPattern = '/\b(?:abstract\s+|final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)[^\{]*\{/';
         if (preg_match_all($classPattern, $source, $classMatches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
             return [];
         }
@@ -233,7 +245,7 @@ final class Yii2DeprecationAnalyzer
                 continue;
             }
 
-            $methodPattern = '/\\bfunction\\s+(action[A-Z][A-Za-z0-9_]*)\\s*\\([^)]*\\)[^{;]*\\{/';
+            $methodPattern = '/\bfunction\s+(action[A-Z][A-Za-z0-9_]*)\s*\([^)]*\)[^{;]*\{/';
             if (preg_match_all($methodPattern, $classBlock['body'], $methodMatches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
                 continue;
             }
@@ -247,7 +259,7 @@ final class Yii2DeprecationAnalyzer
                 if ($methodBlock === null) {
                     continue;
                 }
-                if (preg_match_all('/\\breturn\\s+(0|1)\\s*;/', $methodBlock['body'], $returns, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
+                if (preg_match_all('/\breturn\s+(0|1)\s*;/', $methodBlock['body'], $returns, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
                     continue;
                 }
 
@@ -337,8 +349,8 @@ final class Yii2DeprecationAnalyzer
      */
     private function namespaceOf(string $source): string
     {
-        return preg_match('/\\bnamespace\\s+([^;{]+)\\s*[;{]/', $source, $match) === 1
-            ? trim((string) $match[1], " \\t\\n\\r\\0\\x0B\\\\")
+        return preg_match('/\bnamespace\s+([^;{]+)\s*[;{]/', $source, $match) === 1
+            ? trim((string) $match[1], " \t\n\r\0\x0B\\")
             : '';
     }
 
@@ -350,13 +362,13 @@ final class Yii2DeprecationAnalyzer
      */
     private function importsOf(string $source): array
     {
-        $classOffset = preg_match('/\\b(?:abstract\\s+|final\\s+)?class\\s+[A-Za-z_]/', $source, $classMatch, PREG_OFFSET_CAPTURE) === 1
+        $classOffset = preg_match('/\b(?:abstract\s+|final\s+)?class\s+[A-Za-z_]/', $source, $classMatch, PREG_OFFSET_CAPTURE) === 1
             ? (int) $classMatch[0][1]
             : strlen($source);
         $prefix = substr($source, 0, $classOffset);
         /** @var array<string,string> $imports Imports normalizados. */
         $imports = [];
-        if (preg_match_all('/\\buse\\s+([^;]+);/', $prefix, $matches) === 0) {
+        if (preg_match_all('/\buse\s+([^;]+);/', $prefix, $matches) === 0) {
             return $imports;
         }
 
@@ -365,8 +377,8 @@ final class Yii2DeprecationAnalyzer
             if (str_contains($import, '{') || str_starts_with(strtolower($import), 'function ') || str_starts_with(strtolower($import), 'const ')) {
                 continue;
             }
-            $parts = preg_split('/\\s+as\\s+/i', $import) ?: [];
-            $fqcn = trim((string) ($parts[0] ?? ''), " \\t\\n\\r\\0\\x0B\\\\");
+            $parts = preg_split('/\s+as\s+/i', $import) ?: [];
+            $fqcn = trim((string) ($parts[0] ?? ''), " \t\n\r\0\x0B\\");
             if ($fqcn === '') {
                 continue;
             }
