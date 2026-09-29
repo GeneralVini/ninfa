@@ -6,7 +6,7 @@
 
 O MVP possui quatro profiles PHP oficiais:
 
-- **Yii2** — detectado por `yiisoft/yii2` e agora com overlay SAST próprio;
+- **Yii2** — detectado por `yiisoft/yii2`, com overlay SAST próprio e análise semântica nativa em `assist`;
 - **Yii3** — detectado por sinais consistentes de aplicação/runner e infraestrutura Yii;
 - **GLPI Plugin 11** — profile `glpi-plugin`, com contexto do host GLPI 11 e PHPStan/Psalm em nível 8;
 - **PHP genérico** — profile `php-generic`, para aplicações, bibliotecas e CLIs PHP sem framework reconhecido.
@@ -50,6 +50,8 @@ ninfa check /path/to/yii2-app
 ```
 
 O contexto considera estruturas Yii2 simples e Advanced, incluindo `common`, `frontend`, `backend` e `console` quando existentes. O profile de segurança combina o baseline PHP com semântica de Request/Response, DB/Command, HTML, redirects, headers e filesystem do ecossistema Yii2.
+
+Além do overlay SAST, `ninfa assist` possui uma camada semântica nativa em field test. Ela atualmente detecta view literal inexistente (`COR-001`), action inexistente em filtros/behaviors estáticos (`COR-002`) e relation path literal inexistente em `with()/joinWith()/innerJoinWith()` (`COR-003`). Referências dinâmicas ou inventários incompletos permanecem `unknown` e não são promovidos a finding.
 
 Yii 22 permanece dentro dessa família. O Ninfa não presume que Yii2 exija Repository, DTO, DDD, Clean Architecture ou Vertical Slice; essas decisões pertencem ao projeto consumidor, não ao scanner.
 
@@ -150,6 +152,8 @@ ninfa assist /path/to/project
 ```
 
 O comando não modifica o projeto. PHPStan e Psalm são executados em formato estruturado, os achados são exibidos com orientação de correção e a evidência completa fica em `/tmp/ninfa/<hash>/assist/`.
+
+No profile Yii2, o mesmo fluxo inclui findings semânticos nativos e preserva `yii2-semantic.json` e `yii2-findings.json` no workspace. A política é conservadora: uma referência só vira erro de correctness quando a ausência pode ser demonstrada; herança/traits/configuração dinâmica mantêm o estado `unknown`.
 
 ## Segurança
 
@@ -322,6 +326,7 @@ make setup
 - [Instalação](docs/INSTALACAO.md)
 - [Integração](docs/INTEGRACAO.md)
 - [Comandos](docs/COMANDOS.md)
+- [Análise semântica Yii2](docs/YII2-ANALYSIS.md)
 - [Profile GLPI](docs/GLPI_PLUGIN.md)
 - [Customização](docs/CUSTOMIZACAO.md)
 - [Cores](docs/CORES.md)
