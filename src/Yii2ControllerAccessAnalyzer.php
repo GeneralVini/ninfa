@@ -48,6 +48,7 @@ final class Yii2ControllerAccessAnalyzer
         /** @var list<array{file:string,line:int,controller:string,property:'request'|'response',replacement:'$this->request'|'$this->response'}> $references */
         $references = [];
 
+        // O advisory só entra depois de provar herança de controller; nome de arquivo/sufixo nunca é usado como evidência suficiente.
         foreach ($files as $file) {
             $source = (string) file_get_contents($file);
             $namespace = $this->namespaceOf($source);
@@ -68,6 +69,7 @@ final class Yii2ControllerAccessAnalyzer
                     continue;
                 }
 
+                // Limitar o match ao bloco balanceado impede que helper adjacente herde falsamente a classificação do controller.
                 if (preg_match_all('/(?:\\\\?Yii)::\\$app->(request|response)\\b/', $block['body'], $propertyMatches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
                     continue;
                 }
@@ -129,6 +131,8 @@ final class Yii2ControllerAccessAnalyzer
         /** @var array<string,array{parent:string|null}> $classes Metadados mínimos por classe. */
         $classes = [];
         $pattern = '/\\b(?:abstract\\s+|final\\s+)?class\\s+([A-Za-z_][A-Za-z0-9_]*)(?P<tail>[^{]*)\\{/';
+
+        // Imports são resolvidos por arquivo antes de seguir herança local; parent externo não vira controller por convenção de nome.
         foreach ($files as $file) {
             $source = (string) file_get_contents($file);
             $namespace = $this->namespaceOf($source);
