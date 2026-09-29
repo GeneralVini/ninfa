@@ -141,6 +141,9 @@ final class Yii2DeprecationAnalyzer
     /**
      * Detecta a API global deprecated `Yii::trace()` com equivalência direta para `Yii::debug()`.
      *
+     * O match começa em `Yii` e deixa eventual barra global anterior intacta. Assim a
+     * mesma replacement serve para `Yii::trace()` e `\\Yii::trace()` sem regex ambíguo.
+     *
      * @param string $source Código-fonte completo do arquivo.
      * @param string $file Path relativo usado no finding.
      * @return list<array{file:string,line:int,rule:'NINFA-YII2-DEP-001',kind:'trace',problem:string,replacement:string,offset:int,length:int}> Ocorrências encontradas.
@@ -149,20 +152,19 @@ final class Yii2DeprecationAnalyzer
     {
         /** @var list<array{file:string,line:int,rule:'NINFA-YII2-DEP-001',kind:'trace',problem:string,replacement:string,offset:int,length:int}> $references */
         $references = [];
-        if (preg_match_all('/(?<![A-Za-z0-9_\\])(?P<class>\\?Yii)::trace(?=\s*\()/', $source, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
+        if (preg_match_all('/\bYii::trace(?=\s*\()/', $source, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
             return [];
         }
 
         foreach ($matches as $match) {
             $offset = (int) $match[0][1];
-            $class = (string) $match['class'][0];
             $references[] = [
                 'file' => $file,
                 'line' => substr_count(substr($source, 0, $offset), "\n") + 1,
                 'rule' => 'NINFA-YII2-DEP-001',
                 'kind' => 'trace',
                 'problem' => 'Yii::trace() está deprecated; Yii2 recomenda Yii::debug().',
-                'replacement' => $class . '::debug',
+                'replacement' => 'Yii::debug',
                 'offset' => $offset,
                 'length' => strlen((string) $match[0][0]),
             ];
