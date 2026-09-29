@@ -11,6 +11,7 @@ require_once __DIR__ . '/Yii2QueryConditionAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
 require_once __DIR__ . '/Yii2FindShortcutAnalyzer.php';
 require_once __DIR__ . '/Yii2DeprecationAnalyzer.php';
+require_once __DIR__ . '/Yii2CachingDeprecationAnalyzer.php';
 require_once __DIR__ . '/Yii2MagicPropertyAnalyzer.php';
 require_once __DIR__ . '/Yii2ControllerAccessAnalyzer.php';
 
@@ -52,6 +53,12 @@ final class Yii2RuleEngine
 
     /** Identificador estável de magic numbers retornados por console actions. */
     public const ACTION_EXIT_LITERAL = 'NINFA-YII2-DEP-003';
+
+    /** Identificador estável de aliases deprecated de métodos de Cache. */
+    public const CACHE_METHOD_DEPRECATED = 'NINFA-YII2-DEP-004';
+
+    /** Identificador estável de Dependency::getHasChanged(). */
+    public const DEPENDENCY_METHOD_DEPRECATED = 'NINFA-YII2-DEP-005';
 
     /** Identificador estável de relação sem tag de propriedade mágica em PHPDoc já mantido. */
     public const MAGIC_PROPERTY_MISSING = 'NINFA-YII2-TYPE-001';
@@ -264,28 +271,12 @@ final class Yii2RuleEngine
             );
         }
 
-        // DEP-001..003 carregam replacement exato e são candidatos de remediação SAFE nativa.
+        // Todas as deprecations SAFE reutilizam a evidência dos analyzers; a engine só normaliza para Finding.
         foreach ((new Yii2DeprecationAnalyzer())->references($context) as $reference) {
-            $findings[] = new Finding(
-                tool: 'ninfa-yii2',
-                file: $reference['file'],
-                line: $reference['line'],
-                rule: $reference['rule'],
-                problem: $reference['problem'],
-                correction: 'Substitua por `' . $reference['replacement'] . '`.',
-                severity: 'warning',
-                confidence: 'high',
-                evidenceType: 'framework-deprecation',
-                provenance: ['ninfa:yii2-deprecation-analyzer'],
-                metadata: [
-                    'framework' => 'yii2',
-                    'category' => 'deprecation',
-                    'kind' => $reference['kind'],
-                    'replacement' => $reference['replacement'],
-                    'remediation_risk' => 'safe',
-                    'autofix' => true,
-                ],
-            );
+            $findings[] = $this->deprecationFinding($reference, 'ninfa:yii2-deprecation-analyzer');
+        }
+        foreach ((new Yii2CachingDeprecationAnalyzer())->references($context) as $reference) {
+            $findings[] = $this->deprecationFinding($reference, 'ninfa:yii2-caching-deprecation-analyzer');
         }
 
         // TYPE-001 só exige tag quando a classe já mantém um contrato de propriedades mágicas.
@@ -342,6 +333,40 @@ final class Yii2RuleEngine
         }
 
         return $findings;
+    }
+
+    /**
+     * Normaliza uma deprecation SAFE já comprovada sem repetir a lógica de detecção.
+     *
+     * O analyzer continua sendo a única fonte de verdade para regra, replacement e offsets;
+     * esta camada apenas converte a evidência em `Finding` para `assist` e auditoria JSON.
+     *
+     * @param array{file:string,line:int,rule:string,kind:string,problem:string,replacement:string,offset:int,length:int} $reference Evidência SAFE do analyzer.
+     * @param string $provenance Identificador da camada que produziu a evidência.
+     * @return Finding Finding de deprecation com autofix explicitamente autorizado.
+     */
+    private function deprecationFinding(array $reference, string $provenance): Finding
+    {
+        return new Finding(
+            tool: 'ninfa-yii2',
+            file: $reference['file'],
+            line: $reference['line'],
+            rule: $reference['rule'],
+            problem: $reference['problem'],
+            correction: 'Substitua por `' . $reference['replacement'] . '`.',
+            severity: 'warning',
+            confidence: 'high',
+            evidenceType: 'framework-deprecation',
+            provenance: [$provenance],
+            metadata: [
+                'framework' => 'yii2',
+                'category' => 'deprecation',
+                'kind' => $reference['kind'],
+                'replacement' => $reference['replacement'],
+                'remediation_risk' => 'safe',
+                'autofix' => true,
+            ],
+        );
     }
 
     /**
