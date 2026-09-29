@@ -67,7 +67,7 @@ final class Yii2WhereEqualityAnalyzer
             $uses = $this->importsOf($source);
 
             foreach ($tokens as $index => $token) {
-                $method = strtolower($token['text']);
+                $method = $token['text'];
                 if ($token['id'] !== T_STRING || !in_array($method, self::WHERE_METHODS, true)) {
                     continue;
                 }
