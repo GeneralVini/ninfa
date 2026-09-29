@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/src/Yii2CachingDeprecationAnalyzer.php';
+require_once dirname(__DIR__) . '/src/Yii2RuleEngine.php';
 require_once dirname(__DIR__) . '/src/Yii2SafeRemediator.php';
 
 $token = bin2hex(random_bytes(4));
@@ -111,6 +112,35 @@ PHP,
         assert($reference['line'] > 0);
         assert($reference['offset'] >= 0);
         assert($reference['length'] > 0);
+    }
+
+    // O mesmo analyzer precisa alimentar `assist`, sem uma segunda implementação de prova de tipo.
+    $model = Yii2SemanticModel::fromContext($context);
+    $findings = (new Yii2RuleEngine())->analyse($model, $context);
+    $cachingFindings = array_values(array_filter(
+        $findings,
+        static fn (Finding $finding): bool => in_array(
+            $finding->rule,
+            [Yii2RuleEngine::CACHE_METHOD_DEPRECATED, Yii2RuleEngine::DEPENDENCY_METHOD_DEPRECATED],
+            true,
+        ),
+    ));
+    assert(count($cachingFindings) === 8);
+    assert(array_count_values(array_map(static fn (Finding $finding): string => $finding->rule, $cachingFindings)) === [
+        'NINFA-YII2-DEP-004' => 5,
+        'NINFA-YII2-DEP-005' => 3,
+    ]);
+    foreach ($cachingFindings as $finding) {
+        assert($finding->file === 'src/CacheConsumer.php');
+        assert($finding->severity === 'warning');
+        assert($finding->confidence === 'high');
+        assert($finding->evidenceType === 'framework-deprecation');
+        assert($finding->provenance === ['ninfa:yii2-caching-deprecation-analyzer']);
+        assert(($finding->metadata['framework'] ?? null) === 'yii2');
+        assert(($finding->metadata['category'] ?? null) === 'deprecation');
+        assert(($finding->metadata['remediation_risk'] ?? null) === 'safe');
+        assert(($finding->metadata['autofix'] ?? null) === true);
+        assert(is_string($finding->metadata['replacement'] ?? null));
     }
 
     $result = (new Yii2SafeRemediator())->apply($context);
