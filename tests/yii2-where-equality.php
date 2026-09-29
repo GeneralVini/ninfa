@@ -80,7 +80,9 @@ PHP,
     assert($context->profile() === 'yii2');
 
     $references = (new Yii2WhereEqualityAnalyzer())->references($context);
-    assert(count($references) === 3);
+    if (count($references) !== 3) {
+        throw new RuntimeException('SEC-001 detector diagnostics: ' . json_encode($references, JSON_UNESCAPED_SLASHES));
+    }
     assert(array_column($references, 'method') === ['where', 'andWhere', 'orWhere']);
     assert(array_column($references, 'column') === ['status', 'tenant_id', 'status']);
     assert(array_column($references, 'style') === ['concat', 'interpolated', 'concat']);
