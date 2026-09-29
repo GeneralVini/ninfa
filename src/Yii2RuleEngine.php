@@ -220,7 +220,7 @@ final class Yii2RuleEngine
             );
         }
 
-        // PERF-001 é advisory: a equivalência com exists() é comprovada, mas permanece REVIEW.
+        // PERF-001 é SAFE somente no subconjunto cuja comparação inteira foi provada e tem patch exato.
         foreach ((new Yii2QueryExistenceAnalyzer())->references($context) as $reference) {
             $findings[] = new Finding(
                 tool: 'ninfa-yii2',
@@ -228,7 +228,7 @@ final class Yii2RuleEngine
                 line: $reference['line'],
                 rule: self::REDUNDANT_EXISTENCE_CHECK,
                 problem: 'Query Yii2 usa ' . $reference['source_method'] . '() apenas para verificar existência.',
-                correction: 'Use ' . $reference['replacement'] . ' na mesma query para evitar carregar/contar dados desnecessários.',
+                correction: 'Use `' . $reference['replacement_code'] . '` para evitar carregar/contar dados desnecessários.',
                 severity: 'warning',
                 confidence: 'high',
                 evidenceType: 'framework-performance',
@@ -243,8 +243,9 @@ final class Yii2RuleEngine
                     'query_on_left' => $reference['query_on_left'],
                     'negated' => $reference['negated'],
                     'replacement' => $reference['replacement'],
-                    'remediation_risk' => 'review',
-                    'autofix' => false,
+                    'replacement_code' => $reference['replacement_code'],
+                    'remediation_risk' => 'safe',
+                    'autofix' => true,
                 ],
             );
         }
