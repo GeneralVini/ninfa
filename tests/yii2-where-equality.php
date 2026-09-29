@@ -85,13 +85,13 @@ PHP,
     assert(array_column($references, 'column') === ['status', 'tenant_id', 'status']);
     assert(array_column($references, 'style') === ['concat', 'interpolated', 'concat']);
     assert(array_column($references, 'replacement') === [
-        "['status' => $status]",
-        "['tenant_id' => $tenantId]",
-        "['status' => $status]",
+        "['status' => \$status]",
+        "['tenant_id' => \$tenantId]",
+        "['status' => \$status]",
     ]);
 
     $source = (string) file_get_contents($root . '/common/models/Order.php');
-    assert(substr($source, $references[0]['offset'], $references[0]['length']) === "'status = ' . $status");
+    assert(substr($source, $references[0]['offset'], $references[0]['length']) === "'status = ' . \$status");
     assert(substr($source, $references[1]['offset'], $references[1]['length']) === '"tenant_id = $tenantId"');
 
     $model = Yii2SemanticModel::fromContext($context);
