@@ -23,8 +23,10 @@ final class Yii2SafeRemediator
      * Aplica todas as remediações SAFE detectadas e retorna um relatório determinístico.
      *
      * Arquivos sem alteração não são regravados. O método falha se um arquivo desaparecer
-     * entre análise e escrita ou se duas regras tentarem editar intervalos sobrepostos,
-     * pois nesses casos os offsets deixam de representar uma mutação inequivocamente segura.
+     * entre análise e escrita ou se duas regras independentes tentarem editar intervalos
+     * sobrepostos. A única precedência explícita é PERF-001 sobre MOD-001: quando o shortcut
+     * de find está contido numa comparação de existência, o rewrite mais amplo para exists()
+     * substitui o shortcut aninhado e evita duas mutações concorrentes do mesmo AST lógico.
      *
      * @param ProjectContext $context Contexto Yii2 cujo root será modificado explicitamente.
      * @return array{changed_files:list<string>,changes:int} Arquivos alterados e total de substituições.
@@ -45,16 +47,27 @@ final class Yii2SafeRemediator
         foreach ((new Yii2ClassNameDeprecationAnalyzer())->references($context) as $reference) {
             $references[] = $this->patchReference($reference);
         }
+
+        /** @var list<array{file:string,offset:int,length:int,replacement:string}> $existencePatches Patches PERF-001 reservados para precedência. */
+        $existencePatches = [];
         foreach ((new Yii2QueryExistenceAnalyzer())->references($context) as $reference) {
-            $references[] = [
+            $patch = [
                 'file' => $reference['file'],
                 'offset' => $reference['offset'],
                 'length' => $reference['length'],
                 'replacement' => $reference['replacement_code'],
             ];
+            $existencePatches[] = $patch;
+            $references[] = $patch;
         }
+
         foreach ((new Yii2FindShortcutAnalyzer())->references($context) as $reference) {
-            $references[] = $this->patchReference($reference);
+            $patch = $this->patchReference($reference);
+            // PERF-001 já contém a chain de MOD-001; manter ambos criaria dois patches sobre o mesmo texto.
+            if ($this->overlapsAny($patch, $existencePatches)) {
+                continue;
+            }
+            $references[] = $patch;
         }
 
         /** @var array<string,list<array{offset:int,length:int,replacement:string}>> $byFile Substituições agrupadas por path relativo. */
@@ -113,6 +126,28 @@ final class Yii2SafeRemediator
             'length' => $reference['length'],
             'replacement' => $reference['replacement'],
         ];
+    }
+
+    /**
+     * Verifica se um patch cruza qualquer intervalo de uma família com precedência explícita.
+     *
+     * @param array{file:string,offset:int,length:int,replacement:string} $candidate Patch candidato.
+     * @param list<array{file:string,offset:int,length:int,replacement:string}> $reserved Patches já reservados.
+     * @return bool True quando os intervalos no mesmo arquivo possuem interseção não vazia.
+     */
+    private function overlapsAny(array $candidate, array $reserved): bool
+    {
+        $candidateEnd = $candidate['offset'] + $candidate['length'];
+        foreach ($reserved as $patch) {
+            if ($patch['file'] !== $candidate['file']) {
+                continue;
+            }
+            $patchEnd = $patch['offset'] + $patch['length'];
+            if ($candidate['offset'] < $patchEnd && $patch['offset'] < $candidateEnd) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
