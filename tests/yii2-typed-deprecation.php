@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/src/Yii2TypedDeprecationAnalyzer.php';
+require_once dirname(__DIR__) . '/src/Yii2CachingDeprecationAnalyzer.php';
 require_once dirname(__DIR__) . '/src/Yii2SafeRemediator.php';
 
 $token = bin2hex(random_bytes(4));
@@ -93,7 +93,7 @@ PHP,
     $context = ProjectContext::fromRoot($root);
     assert($context->profile() === 'yii2');
 
-    $references = (new Yii2TypedDeprecationAnalyzer())->references($context);
+    $references = (new Yii2CachingDeprecationAnalyzer())->references($context);
     assert(count($references) === 8);
     assert(array_count_values(array_column($references, 'rule')) === [
         'NINFA-YII2-DEP-004' => 5,
