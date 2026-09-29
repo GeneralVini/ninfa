@@ -169,7 +169,7 @@ autofix       false
 evidence_type framework-correctness
 ```
 
-No estágio atual as regras são incorporadas ao fluxo de `assist`, que grava `assist/yii2-findings.json` e também inclui os findings no `assist/findings.json`. A promoção para o gate de `check` deve ocorrer apenas depois de field tests em projetos Yii2 reais.
+No estágio atual as quatro regras são incorporadas ao fluxo de `assist` para field test, que grava `assist/yii2-findings.json` e também inclui os findings no `assist/findings.json`. A promoção para o gate de `check` deve ocorrer apenas depois de validação em projetos Yii2 reais.
 
 ## Capabilities de storage
 
