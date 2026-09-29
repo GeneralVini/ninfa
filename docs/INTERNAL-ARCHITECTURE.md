@@ -60,10 +60,20 @@ Yii2SemanticModel
   ├─ controllers/actions
   ├─ referências literais a views
   └─ relações hasOne/hasMany
-  ↓
-Yii2RuleEngine
-  ↓
-Finding[]
+  │
+  ├───────────────┐
+  │               ↓
+  │       Yii2BehaviorActionAnalyzer
+  │       ├─ only/except
+  │       ├─ AuthMethod.optional
+  │       ├─ AccessControl.rules[].actions
+  │       └─ VerbFilter.actions
+  │               │
+  └───────┬───────┘
+          ↓
+    Yii2RuleEngine
+          ↓
+      Finding[]
 ```
 
 Essa camada não substitui PHPStan/Psalm/SAST e não deve ser confundida com `SemanticHints`: o modelo Yii2 deriva fatos do código/Composer, enquanto `SemanticHints` continua documental.
@@ -218,13 +228,26 @@ Constrói um snapshot conservador somente quando `ProjectContext::profile()` é 
 
 Referências calculadas, aliases não resolvidos, `renderFile()` e paths cuja resolução dependeria de runtime permanecem desconhecidos (`null`) em vez de gerar falso positivo. O modelo não produz findings e não decide severidade.
 
+### `src/Yii2BehaviorActionAnalyzer.php`
+
+Analisa referências literais a actions dentro de `Controller::behaviors()` sem executar código do consumidor. O analisador cobre configurações estáticas de `ActionFilter`, filtros de autenticação, `AccessControl` e `VerbFilter`, incluindo `only`, `except`, `optional`, `rules[].actions` e as chaves de `VerbFilter.actions`.
+
+A existência é tri-state: `true` para action conhecida, `false` apenas quando o inventário é conclusivo e a action está ausente, e `null` quando herança ou composição dinâmica impede prova segura. Herança entre controllers locais é percorrida; pais customizados externos, `parent::actions()`, `array_merge()`, spread e retornos indiretos degradam a análise para unknown. Wildcards de filtros não viram IDs concretos.
+
 ### `src/Yii2RuleEngine.php`
 
-Aplica política sobre fatos conclusivos do `Yii2SemanticModel`. A primeira regra estável é `NINFA-YII2-COR-001`, que produz finding de correctness para view literal resolvida cujo arquivo não existe.
+Aplica política sobre fatos conclusivos do `Yii2SemanticModel` e do `Yii2BehaviorActionAnalyzer`.
 
-O finding usa `tool=ninfa-yii2`, `severity=error`, `confidence=high`, `evidence_type=framework-correctness` e metadata com controller/view/path esperado. Não possui autofix.
+As regras estáveis atuais são:
 
-A separação model/engine evita misturar coleta de evidência com política de gate. Novas regras devem reutilizar o modelo antes de criar parsers paralelos.
+```text
+NINFA-YII2-COR-001  view literal resolvida cujo arquivo não existe
+NINFA-YII2-COR-002  action inexistente referenciada por behavior/filter estático
+```
+
+Os findings usam `tool=ninfa-yii2`, `severity=error`, `confidence=high`, `evidence_type=framework-correctness` e metadata específica da evidência. Nenhuma das regras possui autofix.
+
+A separação model/analisador/engine evita misturar coleta de evidência com política de gate. Casos `unknown` não são promovidos a finding.
 
 ## Modelo de resultado
 
@@ -337,7 +360,7 @@ Aceita `RunResult` de `security` e grava o schema estruturado com inventário, f
 
 No modo normal gera configs, `lefthook.yml` e `semantic-index.json`. Para Yii2, o índice recebe `framework_semantics` com o snapshot de `Yii2SemanticModel` sem substituir os hints documentais existentes.
 
-Com `--assist`, executa PHPStan/Psalm estruturados, grava evidência bruta e findings no workspace externo. No profile Yii2 também grava:
+Com `--assist`, executa PHPStan/Psalm estruturados, grava evidência bruta e findings no workspace externo. No profile Yii2, `Yii2RuleEngine` recebe também o `ProjectContext`, habilitando `COR-001` e `COR-002`, e grava:
 
 ```text
 assist/yii2-semantic.json
@@ -371,10 +394,34 @@ profile-test
 setup
 ```
 
-`semgrep-rules` depende de `security-tools` e valida/testa a suíte Semgrep. `setup` executa toda a cadeia. Esses targets pertencem ao repositório do Ninfa e não são copiados para o consumidor.
+`semgrep-rules` depende de `security-tools` e valida/testa a suíte Semgrep. `setup` executa toda a cadeia. Esses targets pertencem ao desenvolvimento do Ninfa, não ao consumidor.
 
-## Testes estruturais
+`profile-test` inclui `tests/yii2-semantic-model.php`, que valida capabilities, actions, views, relações, `COR-001`, referências de action em behaviors para `COR-002`, casos wildcard/dinâmicos e persistência do snapshot no workspace.
 
-`make profile-test` agrega os testes de contratos internos. A suíte Yii2 cobre atualmente modelo semântico, view inexistente, referências de actions em behaviors, wildcards/dinâmicos que devem permanecer desconhecidos e persistência do índice semântico externo.
+## Política visual
 
-O objetivo dos testes internos não é simular todos os frameworks; é proteger invariantes do Ninfa: não modificar consumidor, não promover incerteza a finding, manter schemas e regras documentados e preservar comportamento determinístico.
+`CliStyle` permanece a única abstração de cores/símbolos. `NINFA_COLOR=auto` é o padrão; `always`, `never` e `NO_COLOR` completam o contrato. Não existem configurações específicas por scanner.
+
+## Padrão para PHPDoc e comentários
+
+A documentação deve ficar junto do símbolo/bloco que explica e conter somente fatos sustentados pelo código ou decisão explícita. Métodos/funções nomeadas precisam registrar responsabilidade; collections/shapes devem preservar tipos úteis; comentários de controle devem explicar intenção/invariante, não narrar sintaxe.
+
+`tests/internal-docs.php` aplica o padrão a `src/*.php`. `tests/shell-docs.php` protege scripts shell. Não existe allowlist permanente de dívida documental.
+
+A primeira versão de `Yii2SemanticModel` foi bloqueada pelo próprio guard porque um arquivo com fluxo de controle relevante ainda não possuía comentário local de decisão/invariante. A correção adicionou documentação da invariável; o guard não foi relaxado. Esse comportamento é o modelo para novas regras Yii2.
+
+## Estado atual
+
+A fundação, SCA estruturado, SAST estruturado e contratos de profile estão implementados para os quatro profiles PHP oficiais. A especialização Yii2 agora possui modelo semântico inicial e duas regras nativas de correctness em fase `assist`: view literal inexistente e action inexistente referenciada por behavior/filter estático. A promoção ao gate de `check` depende de field tests e calibração de falso positivo.
+
+O próximo trabalho Yii2 está detalhado em `docs/YII2-ANALYSIS.md`: validação de relações, query patterns, remediações SAFE, PHPDoc mágico e hardening Redis/MongoDB.
+
+Roadmap de frameworks/ecossistemas:
+
+```text
+acompanhar: Yii 22 dentro de yii2
+futuro PHP: Laravel
+futuro: Python → python-generic → Django/Flask
+```
+
+Não antecipar abstrações multilíngues apenas para materializar roadmap.
