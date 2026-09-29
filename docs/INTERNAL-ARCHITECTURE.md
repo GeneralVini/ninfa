@@ -371,34 +371,10 @@ profile-test
 setup
 ```
 
-`semgrep-rules` depende de `security-tools` e valida/testa a suíte Semgrep. `setup` executa toda a cadeia. Esses targets pertencem ao desenvolvimento do Ninfa, não ao consumidor.
+`semgrep-rules` depende de `security-tools` e valida/testa a suíte Semgrep. `setup` executa toda a cadeia. Esses targets pertencem ao repositório do Ninfa e não são copiados para o consumidor.
 
-`profile-test` inclui `tests/yii2-semantic-model.php`, que valida capabilities, actions, views, relações, o primeiro finding nativo e persistência do snapshot no workspace.
+## Testes estruturais
 
-## Política visual
+`make profile-test` agrega os testes de contratos internos. A suíte Yii2 cobre atualmente modelo semântico, view inexistente, referências de actions em behaviors, wildcards/dinâmicos que devem permanecer desconhecidos e persistência do índice semântico externo.
 
-`CliStyle` permanece a única abstração de cores/símbolos. `NINFA_COLOR=auto` é o padrão; `always`, `never` e `NO_COLOR` completam o contrato. Não existem configurações específicas por scanner.
-
-## Padrão para PHPDoc e comentários
-
-A documentação deve ficar junto do símbolo/bloco que explica e conter somente fatos sustentados pelo código ou decisão explícita. Métodos/funções nomeadas precisam registrar responsabilidade; collections/shapes devem preservar tipos úteis; comentários de controle devem explicar intenção/invariante, não narrar sintaxe.
-
-`tests/internal-docs.php` aplica o padrão a `src/*.php`. `tests/shell-docs.php` protege scripts shell. Não existe allowlist permanente de dívida documental.
-
-A primeira versão de `Yii2SemanticModel` foi bloqueada pelo próprio guard porque um arquivo com fluxo de controle relevante ainda não possuía comentário local de decisão/invariante. A correção adicionou documentação da invariável; o guard não foi relaxado. Esse comportamento é o modelo para novas regras Yii2.
-
-## Estado atual
-
-A fundação, SCA estruturado, SAST estruturado e contratos de profile estão implementados para os quatro profiles PHP oficiais. A especialização Yii2 agora possui modelo semântico inicial e a primeira regra nativa de correctness em fase `assist`; a promoção ao gate de `check` depende de CI/field tests e calibração de falso positivo.
-
-O próximo trabalho Yii2 está detalhado em `docs/YII2-ANALYSIS.md`: actions/behaviors, relações, query patterns, remediações SAFE, PHPDoc mágico e hardening Redis/MongoDB.
-
-Roadmap de frameworks/ecossistemas:
-
-```text
-acompanhar: Yii 22 dentro de yii2
-futuro PHP: Laravel
-futuro: Python → python-generic → Django/Flask
-```
-
-Não antecipar abstrações multilíngues apenas para materializar roadmap.
+O objetivo dos testes internos não é simular todos os frameworks; é proteger invariantes do Ninfa: não modificar consumidor, não promover incerteza a finding, manter schemas e regras documentados e preservar comportamento determinístico.
