@@ -1,28 +1,24 @@
 # Arquitetura interna e documentação de código
 
-Este documento descreve o fluxo interno implementado no Ninfa a partir do código atual. Ele não substitui PHPDoc, comentários de shell ou documentação junto ao código: serve como mapa para localizar responsabilidades e evitar que comentários futuros contradigam a implementação.
+Este documento descreve o fluxo interno implementado no Ninfa. Ele não substitui PHPDoc, comentários de shell ou documentação junto ao código: funciona como mapa de responsabilidades e invariantes.
 
 ## Premissa obrigatória de documentação
 
-A documentação interna é parte do contrato de implementação do Ninfa, não um acabamento posterior. Código de produção novo ou alterado deve nascer documentado no mesmo commit.
-
-A unidade mínima de documentação não é o arquivo. Um cabeçalho de classe, módulo ou script não substitui a documentação dos símbolos e blocos internos relevantes.
+Documentação interna é parte do contrato de implementação, não acabamento posterior. Código de produção novo ou alterado deve nascer documentado no mesmo conjunto de mudanças.
 
 Para PHP:
 
-1. toda classe de produção deve possuir PHPDoc com responsabilidade e limites;
-2. todo método ou função nomeada de produção deve possuir PHPDoc descritivo, inclusive métodos privados;
-3. `@param`, `@return`, `@var` e shapes devem preservar informação que o type hint nativo não consegue expressar;
-4. `array` não deve ficar semanticamente sem tipo quando o código conhece o shape, a lista ou os tipos de chave/valor;
-5. acumuladores e estruturas locais não triviais devem receber `@var` quando o tipo não é evidente;
-6. blocos de controle relevantes devem explicar decisão, precedência ou invariável;
-7. exceções relevantes, I/O, arquivos gerados, rede e mutações devem ser documentados junto do método que os executa.
+1. toda classe de produção possui PHPDoc com responsabilidade e limites;
+2. todo método/função nomeada possui PHPDoc descritivo, inclusive private;
+3. `@param`, `@return`, `@var` e shapes preservam informação que o type hint nativo não expressa;
+4. `array` não fica semanticamente sem tipo quando o código conhece seu shape;
+5. acumuladores não triviais recebem `@var` quando necessário;
+6. fluxos relevantes registram decisão/invariante, não narram sintaxe;
+7. I/O, rede, arquivos gerados e mutações são documentados junto do método responsável.
 
-Para shell vale o mesmo princípio em outra sintaxe: cabeçalho, funções e blocos semânticos devem registrar finalidade, efeitos externos, restrições e motivo das validações. JavaScript próprio do Ninfa, quando existir, deve usar JSDoc para módulos/funções e estruturas complexas.
+`tests/internal-docs.php` aplica esse contrato automaticamente a `src/*.php`; não existe allowlist permanente para dívida documental. Shell possui guard correspondente em `tests/shell-docs.php`.
 
-A suíte não mantém allowlist documental para `src/`: arquivos novos entram automaticamente nas verificações.
-
-## Fluxo executável atual
+## Fluxo executável
 
 ```text
 bin/ninfa
@@ -30,7 +26,7 @@ bin/ninfa
 ProjectContext::fromRoot()
   ├─ ProfileDetector
   ├─ Workspace
-  └─ resolução de host GLPI quando profile = glpi-plugin
+  └─ contexto GLPI quando aplicável
   ↓
 RecheckingPipelineRunner
   ↓
@@ -39,7 +35,7 @@ PipelineRunner
   ├─ PipelinePlan
   ├─ ToolResolver
   ├─ ProcessRunner
-  └─ scanners/parsers específicos
+  └─ scanners/parsers
        ↓
     Finding[]
        ↓
@@ -48,82 +44,38 @@ PipelineRunner
     RunResult
 ```
 
-`fix` possui comportamento adicional: `RecheckingPipelineRunner` executa `fix` e, somente se ele terminar com código 0, executa um `check` completo. `assist` não passa por esse runner; o CLI delega ao configurador em modo `--assist`.
+`fix` possui duas particularidades:
 
-O profile Yii2 possui ainda uma fundação semântica própria usada inicialmente por configuração/assistência:
+- no profile Yii2, `bin/ninfa` executa `Yii2SafeRemediator` antes dos fixers externos;
+- depois de um fix bem-sucedido, `RecheckingPipelineRunner` executa exatamente um `check` completo.
 
-```text
-ProjectContext(profile=yii2)
-  ↓
-Yii2SemanticModel
-  ├─ capabilities Redis/MongoDB
-  ├─ controllers/actions
-  ├─ referências literais a views
-  └─ relações hasOne/hasMany
-  │
-  ├───────────────┐
-  │               ↓
-  │       Yii2BehaviorActionAnalyzer
-  │       ├─ only/except
-  │       ├─ AuthMethod.optional
-  │       ├─ AccessControl.rules[].actions
-  │       └─ VerbFilter.actions
-  │
-  ├──────────────────────────┐
-  │                          ↓
-  │              Yii2RelationReferenceAnalyzer
-  │              ├─ with()
-  │              ├─ joinWith()
-  │              └─ innerJoinWith()
-  │
-  ├──────────────────────────┐
-  │                          ↓
-  │              Yii2RelationLinkAnalyzer
-  │              ├─ link literal de hasOne/hasMany
-  │              ├─ attributes() literal
-  │              └─ estados tri-state por lado
-  │
-  ├──────────────────────────┐
-  │                          ↓
-  │              Yii2QueryExistenceAnalyzer
-  │              ├─ one() vs null
-  │              ├─ count() vs 0/1
-  │              └─ exists()/!exists() como remediation
-  │                          │
-  └───────────────┬──────────┘
-                  ↓
-            Yii2RuleEngine
-                  ↓
-              Finding[]
-```
+`assist` não passa pelo pipeline de mutação; é delegado ao configurador em modo auditável.
 
-Essa camada não substitui PHPStan/Psalm/SAST e não deve ser confundida com `SemanticHints`: o modelo Yii2 deriva fatos do código/Composer, enquanto `SemanticHints` continua documental.
-
-## Entrada e contexto do projeto
+## Entrada e contexto
 
 ### `bin/ninfa`
 
-É o entrypoint do CLI. Aceita `check`, `fix`, `security` e `assist`, resolve a raiz informada ou o diretório atual, cria `ProjectContext` e imprime projeto, profile e workspace.
+Entrypoint público para `check`, `fix`, `security` e `assist`. Resolve root, cria `ProjectContext`, apresenta projeto/profile/workspace e delega a execução.
+
+No Yii2, `fix` aplica primeiro remediações nativas marcadas SAFE. Essa etapa não é modelada como pseudo-binário em `PipelinePlan`.
 
 ### `src/ProjectContext.php`
 
-Constrói o contexto imutável. A implementação:
+Materializa fatos básicos e estáveis:
 
-- resolve a raiz com `realpath()`;
-- carrega `composer.json` quando existe;
-- delega a classificação a `ProfileDetector`;
-- mantém separadas constraint PHP declarada e versão real do runtime;
-- escolhe paths analisáveis conforme o profile e somente inclui paths existentes;
-- cria `Workspace` externo;
-- para `glpi-plugin`, exige host GLPI 11 identificável.
+- root real;
+- `composer.json` decodificado;
+- profile;
+- runtime/constraint PHP;
+- paths analisáveis;
+- workspace externo;
+- host/versão GLPI quando aplicável.
 
-`phpVersion()` representa `major.minor` do runtime; `runtimePhpVersion()` preserva `PHP_VERSION`; `phpConstraint()` representa `require.php` quando presente.
+Não carrega inventário semântico Yii2 para evitar virar god object.
 
 ### `src/ProfileDetector.php`
 
-Classifica nesta ordem: GLPI Plugin, Yii2, Yii3 e PHP genérico. GLPI usa sinais estruturais/semânticos. Yii2 depende de `yiisoft/yii2`. Yii3 exige marcador de aplicação/runner + marcador de infraestrutura. O fallback genérico exige código PHP observável.
-
-Os quatro identificadores oficiais atuais são:
+Classifica profiles na política atual:
 
 ```text
 glpi-plugin
@@ -132,19 +84,17 @@ yii3
 php-generic
 ```
 
-Yii 22 continua dentro de `yii2`; não existe detector separado para ele. Laravel/Python não participam do detector atual.
-
-O detector responde somente qual profile se aplica; semântica de segurança pertence a `SecurityContract`.
+Yii 22 permanece dentro da família `yii2` até existir diferença concreta que justifique profile distinto.
 
 ### `src/Workspace.php`
 
-Cria workspace por projeto, por padrão em `<tmp>/ninfa/<hash>`. `NINFA_WORKSPACE_ROOT` pode mudar a base, mas a implementação rejeita base igual ou interna ao consumidor.
+Cria workspace externo, por padrão `<tmp>/ninfa/<hash>`. `NINFA_WORKSPACE_ROOT` pode alterar a base, mas o workspace não pode residir dentro do consumidor.
 
 ## Planejamento e execução
 
 ### `src/PipelinePlan.php`
 
-Define etapas de cada operação:
+Descreve somente ferramentas/etapas externas do pipeline:
 
 ```text
 check
@@ -152,12 +102,11 @@ check
   Rector --dry-run
   PHPStan
   Psalm
-  ESLint      quando aplicável
-  Prettier    quando aplicável
+  ESLint/Prettier quando aplicável
   testes
 
 fix
-  somente etapas marcadas como fixable
+  somente etapas externas fixable
 
 security
   Composer Audit
@@ -166,37 +115,17 @@ security
   Semgrep
 ```
 
-O plano descreve; `PipelineRunner` executa.
-
-As regras nativas Yii2 ainda não foram promovidas ao plano público de `check`: nesta tranche elas entram em `assist` para calibração/field test antes de se tornarem gate. `PERF-001` permanece advisory mesmo dentro de `assist`; a presença do finding não o transforma em vulnerabilidade ou em regra SAST.
+Remediação nativa Yii2 não aparece nesse plano porque não é ferramenta externa.
 
 ### `src/PipelineRunner.php`
 
-Orquestra `check`, `fix` e `security`. Ele:
+Orquestra `check`, `fix` e `security`: gera configs externas, resolve ferramentas, executa sem fail-fast, materializa `ToolResult`, consolida `RunResult` e renderiza via `CliStyle`.
 
-- gera configurações externas;
-- resolve ferramentas/comandos;
-- executa etapas sem fail-fast;
-- preserva o primeiro exit code não zero;
-- materializa `ToolResult`;
-- renderiza resumo usando `CliStyle`.
-
-No modo `security` também cria inventário/relatório, executa OSV e normaliza Psalm Taint/Semgrep.
-
-A política Semgrep é aplicada pelo Ninfa, não por `semgrep --error`:
-
-```text
-severity ERROR    bloqueia
-severity WARNING  hotspot; não bloqueia sozinho
-```
-
-O comando Semgrep usa `--no-git-ignore` para incluir arquivos novos ainda não rastreados dentro dos paths permitidos. `vendor`, `runtime`, `public/assets` e `web/assets` são excluídos explicitamente.
-
-`NINFA_DAST` apenas produz aviso; o runner não chama ZAP.
+No modo security também produz inventário/relatório, executa OSV e normaliza Psalm Taint/Semgrep.
 
 ### `src/RecheckingPipelineRunner.php`
 
-Altera somente `fix`: depois de um fix bem-sucedido, executa exatamente um `check`. Se ainda houver falha, orienta o uso de `ninfa assist`.
+Altera somente o contrato de `fix`: após fix bem-sucedido, executa um e somente um `check`. Falha no fix impede o recheck.
 
 ### `src/ToolResolver.php`
 
@@ -209,115 +138,179 @@ Resolve binários nesta ordem:
 5. `vendor/bin` do Ninfa;
 6. `PATH`.
 
-Se Semgrep não for encontrado, orienta `make security-tools`.
-
-### `src/ProcessRunner.php`
-
-Atualmente reúne `ProcessResult`, `FindingRenderer` e `ProcessRunner`. Esse agrupamento é fato da implementação e não deve ser documentado como arquivos separados até eventual refatoração.
-
-## Configuração e detecção auxiliar
-
 ### `src/ExternalConfigGenerator.php`
 
-Gera no workspace configurações para PHPStan, Psalm, ECS e Rector. Para GLPI Plugin 11 também pode localizar `phpstan-glpi`, gerar bootstrap, adicionar source/stubs do host e configurar `$DB`/exceção Psalm específica.
-
-Nada disso é escrito no consumidor.
-
-### `src/FrontendDetector.php`
-
-Detecta sinais JS/TS e disponibilidade de ESLint/Prettier no consumidor.
+Gera PHPStan, Psalm, ECS e Rector exclusivamente no workspace externo. O consumidor não recebe configuração ou dependência persistente por esse fluxo.
 
 ### `src/LefthookConfigGenerator.php`
 
-Gera `lefthook.yml` no workspace. `pre-commit` chama `ninfa fix`; `pre-push` chama `ninfa check`.
+Gera `lefthook.yml` externo. `pre-commit` chama `ninfa fix`; `pre-push` chama `ninfa check`.
 
-### `src/SemanticHints.php`
-
-Lê documentação do consumidor e extrai sinais documentais. Não percorre AST/call graph e não deve ser usado como prova de reachability.
-
-### `src/Yii2SemanticModel.php`
-
-Constrói um snapshot conservador somente quando `ProjectContext::profile()` é `yii2`. O modelo atualmente:
-
-- detecta `yiisoft/yii2-redis` e `yiisoft/yii2-mongodb` como capabilities, sem criar novos profiles;
-- percorre apenas PHP dentro dos paths já autorizados pelo `ProjectContext`;
-- identifica controllers pelo sufixo `Controller`;
-- normaliza actions `actionXxx()` e chaves literais de `actions()`;
-- registra chamadas literais a `render()`, `renderPartial()`, `renderAjax()` e `renderFile()`;
-- resolve somente a convenção estática segura `controllers/` -> `views/<controller-id>/`;
-- inventaria getters com `hasOne()`/`hasMany()` e alvo `Foo::class` quando literal.
-
-Referências calculadas, aliases não resolvidos, `renderFile()` e paths cuja resolução dependeria de runtime permanecem desconhecidos (`null`) em vez de gerar falso positivo. O modelo não produz findings e não decide severidade.
-
-### `src/Yii2BehaviorActionAnalyzer.php`
-
-Analisa referências literais a actions dentro de `Controller::behaviors()` sem executar código do consumidor. O analisador cobre configurações estáticas de `ActionFilter`, filtros de autenticação, `AccessControl` e `VerbFilter`, incluindo `only`, `except`, `optional`, `rules[].actions` e as chaves de `VerbFilter.actions`.
-
-A existência é tri-state: `true` para action conhecida, `false` apenas quando o inventário é conclusivo e a action está ausente, e `null` quando herança ou composição dinâmica impede prova segura. Herança entre controllers locais é percorrida; pais customizados externos, `parent::actions()`, `array_merge()`, spread e retornos indiretos degradam a análise para unknown. Wildcards de filtros não viram IDs concretos.
-
-### `src/Yii2RelationReferenceAnalyzer.php`
-
-Valida relation paths literais em `Model::find()->with()`, `joinWith()` e `innerJoinWith()` usando o inventário de getters `hasOne()`/`hasMany()` do modelo semântico.
-
-O analisador resolve imports e namespace, combina relações herdadas de parents locais e percorre paths pontuados quando o target intermediário também é conclusivo. Alias literal de `joinWith`, como `items item`, é normalizado apenas para lookup. A existência é tri-state: `false` só aparece quando a origem é ActiveRecord local cuja herança termina em base Yii2 conhecida e o segmento está ausente. Parent externo desconhecido, trait, target intermediário incerto ou expressão dinâmica degradam para `null`/fora do scan.
-
-### `src/Yii2RelationLinkAnalyzer.php`
-
-Valida os dois lados de mapas literais usados no segundo argumento de `hasOne()`/`hasMany()`. A chave é atributo do ActiveRecord relacionado e o valor é atributo do ActiveRecord atual.
-
-A ausência só pode ser afirmada quando o lado possui inventário explícito de atributos. A implementação aceita `attributes()` que retorna lista literal completa e herança local desse contrato. `parent::attributes()`, `array_merge()`, schema implícito de banco, PHPDoc isolado, traits sem override explícito, parent externo e expressões dinâmicas permanecem `unknown`.
-
-Os lados são independentes: related pode ser conclusivo e current unknown, ou vice-versa. Links dinâmicos são ignorados. Relações seguidas por `via()`/`viaTable()` também ficam fora desta tranche porque a semântica do mapa depende do intermediário.
-
-### `src/Yii2QueryExistenceAnalyzer.php`
-
-Detecta verificações de existência redundantes quando o source usa `one()` ou `count()` apenas para produzir um booleano. A primeira tranche exige uma chain iniciada em `ActiveRecord::find()` de classe local cuja herança termina em base Yii2 conhecida (`db`, `redis` ou `mongodb`).
-
-O analisador normaliza comparações com operandos invertidos e reconhece somente equivalências seguras: `one() !== null`, `one() === null`, `count() !== 0`, `count() === 0`, `count() > 0`, `count() <= 0`, `count() >= 1` e `count() < 1`. Uso real do valor retornado, threshold diferente de 0/1, factory dinâmica e variável de QueryInterface sem tipo comprovável ficam fora do scan.
-
-O resultado preserva método de origem, operador, operando, lado da query, polaridade e replacement `exists()`/`!exists()`. A regra correspondente é advisory e não executa rewrite nesta fase.
-
-### `src/Yii2RuleEngine.php`
-
-Aplica política sobre fatos conclusivos do `Yii2SemanticModel`, `Yii2BehaviorActionAnalyzer`, `Yii2RelationReferenceAnalyzer`, `Yii2RelationLinkAnalyzer` e `Yii2QueryExistenceAnalyzer`.
-
-As regras estáveis atuais são:
-
-```text
-NINFA-YII2-COR-001   view literal resolvida cujo arquivo não existe
-NINFA-YII2-COR-002   action inexistente referenciada por behavior/filter estático
-NINFA-YII2-COR-003   relation path literal inexistente em ActiveQuery
-NINFA-YII2-COR-004   atributo inexistente em link literal de hasOne/hasMany
-NINFA-YII2-PERF-001  one()/count() usados apenas para verificar existência
-```
-
-`COR-004` produz um finding separado por lado inválido do link e preserva `side=related|current`, models, relation name/kind e atributos em metadata. Não existe autofix porque trocar coluna de relação depende de intenção de domínio.
-
-`PERF-001` produz `severity=warning`, `confidence=high`, `evidence_type=framework-performance`, `category=performance` e metadata com `replacement=exists()|!exists()`. O autofix permanece `false` e o risco de remediação é `review` até field tests demonstrarem segurança suficiente para rewrite.
-
-A separação model/analisador/engine evita misturar coleta de evidência com política de gate. Casos `unknown` não são promovidos a finding.
-
-## Modelo de resultado
+## Modelo de resultados
 
 ### `src/Finding.php`
 
-Representa achado normalizado com localização, regra, problema, correção, severidade, confiança, tipo de evidência, proveniência e metadata. Não decide sozinho se um finding bloqueia.
+Contrato normalizado de achado: localização, regra, problema, correção, severidade, confiança, tipo de evidência, proveniência e metadata.
 
-Findings nativos Yii2 usam o mesmo contrato; não existe schema paralelo para framework.
+Findings Yii2 usam exatamente esse contrato; não existe schema paralelo por framework.
 
 ### `src/ToolResult.php`
 
-Representa uma etapa e distingue `ok`, `failed`, `error`, `skipped`, `not_applicable`, `unavailable` e `partial`. Preserva findings, duração e coverage.
+Representa uma etapa e distingue `ok`, `failed`, `error`, `skipped`, `not_applicable`, `unavailable` e `partial`.
 
 ### `src/RunResult.php`
 
-Consolida a operação e os resultados das ferramentas. O exit final preserva a primeira falha em ordem de execução.
+Consolida a operação e os resultados das ferramentas, preservando a política de exit code.
 
-## Contratos SAST
+## Fundação semântica Yii2
+
+```text
+ProjectContext(profile=yii2)
+  ↓
+Yii2SemanticModel
+  ├─ Redis/MongoDB capabilities
+  ├─ controllers/actions/views
+  └─ relations hasOne/hasMany
+       │
+       ├─ Yii2BehaviorActionAnalyzer
+       ├─ Yii2RelationReferenceAnalyzer
+       ├─ Yii2RelationLinkAnalyzer
+       ├─ Yii2QueryConditionAnalyzer
+       ├─ Yii2QueryExistenceAnalyzer
+       ├─ Yii2FindShortcutAnalyzer
+       ├─ Yii2DeprecationAnalyzer
+       ├─ Yii2MagicPropertyAnalyzer
+       └─ Yii2ControllerAccessAnalyzer
+                │
+                ↓
+          Yii2RuleEngine
+                │
+                ↓
+            Finding[]
+```
+
+Essa camada não substitui PHPStan/Psalm/SAST e não deve ser confundida com `SemanticHints`: o modelo Yii2 deriva fatos do código/Composer; `SemanticHints` continua documental.
+
+### `src/Yii2SemanticModel.php`
+
+Constrói snapshot conservador somente para `profile=yii2`. Detecta capabilities Redis/MongoDB, controllers/actions, referências literais a views e getters `hasOne()`/`hasMany()` com target literal.
+
+Referências calculadas, aliases sem resolução segura e dependência de runtime permanecem unknown.
+
+### `src/Yii2BehaviorActionAnalyzer.php`
+
+Valida referências literais em `behaviors()` para `only`, `except`, `optional`, `AccessControl.rules[].actions` e `VerbFilter.actions`. Herança local é percorrida; parent customizado externo/composição dinâmica degrada para unknown.
+
+### `src/Yii2RelationReferenceAnalyzer.php`
+
+Valida relation paths literais em `with()`, `joinWith()` e `innerJoinWith()`, inclusive paths pontuados quando cada target intermediário é conclusivo.
+
+### `src/Yii2RelationLinkAnalyzer.php`
+
+Valida related/current de links literais `hasOne()/hasMany()` somente quando `attributes()` fornece inventário estático completo. Schema runtime, PHPDoc isolado e `via()/viaTable()` não são usados como prova negativa.
+
+### `src/Yii2QueryConditionAnalyzer.php`
+
+Valida aridade de operators em condition arrays literais de `where()/andWhere()/orWhere()` iniciados por ActiveRecord local comprovado. Conjunctions literais podem ser percorridas recursivamente. Hash conditions, spread, variáveis e receivers incertos ficam fora.
+
+### `src/Yii2QueryExistenceAnalyzer.php`
+
+Detecta `one()`/`count()` usados apenas para testar existência e produz remediation `exists()`/`!exists()`. A regra é performance/REVIEW e não participa do autofix.
+
+### `src/Yii2FindShortcutAnalyzer.php`
+
+Detecta somente a equivalência segura:
+
+```text
+ActiveRecord::find()->where(hash literal string-keyed)->one()
+  -> ActiveRecord::findOne(hash)
+
+ActiveRecord::find()->where(hash literal string-keyed)->all()
+  -> ActiveRecord::findAll(hash)
+```
+
+O analyzer fornece offset/length/replacement exatos para remediação SAFE. List/operator format/empty array/spread/dynamic condition são preservados.
+
+### `src/Yii2DeprecationAnalyzer.php`
+
+Detecta depreciações mecânicas:
+
+```text
+Yii::trace() -> Yii::debug()
+Controller::EXIT_CODE_* -> ExitCode::*
+return 0/1 em console action -> ExitCode::*
+```
+
+As regras que dependem de tipo só são emitidas quando a herança/classe pode ser resolvida estaticamente.
+
+### `src/Yii2MagicPropertyAnalyzer.php`
+
+Verifica property tags de relations apenas quando a classe já mantém contrato `@property*`. Não autoedita PHPDoc e ignora classes sem essa convenção, magic accessors customizados e property pública nativa de mesmo nome.
+
+### `src/Yii2ControllerAccessAnalyzer.php`
+
+Detecta `Yii::$app->request`/`response` dentro de controller comprovado e sugere `$this->request`/`response`. É architecture advisory/REVIEW, não correctness/security e não possui autofix.
+
+### `src/Yii2RuleEngine.php`
+
+Converte evidências em `Finding` sob IDs próprios:
+
+```text
+COR-001  view ausente
+COR-002  action de behavior/filter ausente
+COR-003  relation path ausente
+COR-004  atributo inválido em link de relation
+COR-005  aridade inválida em query condition
+PERF-001 redundant existence check
+MOD-001  findOne/findAll shortcut seguro
+DEP-001  Yii::trace deprecated
+DEP-002  exit constant deprecated
+DEP-003  magic exit literal em console action
+TYPE-001 magic relation property ausente no PHPDoc já adotado
+ARCH-001 Yii::$app request/response dentro de controller
+```
+
+A engine preserva categoria e risco em metadata. Architecture/performance não são vulnerabilidades por associação.
+
+## Remediação nativa Yii2
+
+### `src/Yii2SafeRemediator.php`
+
+Agrega apenas analyzers SAFE. O contrato é:
+
+1. analyzer prova equivalência e fornece `file`, `offset`, `length`, `replacement`;
+2. remediator agrupa patches por arquivo;
+3. patches sobrepostos são rejeitados;
+4. aplicação ocorre por offset decrescente;
+5. arquivos sem mudança não são regravados;
+6. segunda execução precisa ser idempotente.
+
+SAFE atual:
+
+```text
+Yii2DeprecationAnalyzer
+Yii2FindShortcutAnalyzer
+```
+
+REVIEW/SEMANTIC não entram nessa classe.
+
+## Assist Yii2
+
+`scripts/ninfa-configure.php --assist` executa PHPStan/Psalm estruturados, constrói `Yii2SemanticModel`, executa `Yii2RuleEngine` e grava:
+
+```text
+assist/yii2-semantic.json
+assist/yii2-findings.json
+assist/findings.json
+```
+
+As regras nativas permanecem em field test no `assist` antes de eventual promoção seletiva para `check`.
+
+## Segurança
 
 ### `src/SecurityContract.php`
 
-Resolve os doze contratos canônicos para o profile atual. O baseline é PHP comum; overlays entram somente quando o framework possui semântica própria.
+Resolve os doze contratos canônicos do profile. Baseline/overlay:
 
 ```text
 php-generic  common
@@ -326,150 +319,56 @@ yii3        common + yii3
 glpi-plugin common + glpi-plugin-11
 ```
 
-O overlay Yii2 cobre Request/Response, DB/Command, HTML, redirect, headers, path/filesystem e HTTP-client em nível semântico. Yii 22 permanece nessa família sem branch de profile separada.
-
-O objeto também resolve as configurações Semgrep que `PipelineRunner` deve carregar. Scanners não devem espalhar condicionais de framework quando a informação pertence ao contrato.
-
-Correctness/architecture/performance da nova camada Yii2 não são automaticamente SAST. Uma regra só migra para `security` quando houver contrato de segurança e evidência apropriada.
+Correctness, performance, modernization, deprecation, PHPDoc e architecture advisory do rule engine Yii2 não migram automaticamente para SAST.
 
 ### `src/SemgrepParser.php`
 
-Converte JSON nativo do Semgrep em `Finding` e normaliza cobertura.
-
-Além de `scanned`/`skipped`, separa:
-
-```text
-excluded_by_policy
-unexpected_skips
-errors
-```
-
-Cobertura é `partial` apenas quando há skip inesperado ou erro do mecanismo. Exclusões deliberadas continuam auditáveis sem produzir falso estado de cobertura incompleta.
+Normaliza Semgrep e diferencia scanned/skipped, exclusão deliberada, skip inesperado e erro do mecanismo. `ERROR` é bloqueante; `WARNING` é hotspot.
 
 ### `src/PsalmTaintParser.php`
 
-Normaliza findings de dataflow do Psalm preservando trace quando disponível. Psalm Taint continua motor principal para propagação PHP interprocedural.
+Normaliza findings de dataflow do Psalm preservando trace quando disponível.
 
-## Regras e fixtures Semgrep
-
-Regras:
-
-```text
-security/semgrep/common.yml
-security/semgrep/profiles/yii2.yml
-security/semgrep/profiles/yii3.yml
-security/semgrep/profiles/glpi-plugin-11.yml
-```
-
-Fixtures paralelas:
-
-```text
-security/semgrep-tests/common.php
-security/semgrep-tests/profiles/yii2.php
-security/semgrep-tests/profiles/yii3.php
-security/semgrep-tests/profiles/glpi-plugin-11.php
-```
-
-`make semgrep-rules` executa `--validate` antes de `--test`. `make setup` inclui esse target depois de preparar o Semgrep homologado.
-
-## SCA implementado
+## SCA
 
 ### `src/SecurityInventory.php`
 
-A precedência de versão é:
-
-```text
-composer.lock
-  ↓ fallback quando lock não existe
-vendor/composer/installed.json
-```
-
-Preserva dependências direct/transitive, runtime/dev, runtime PHP, constraint, extensões, profile, paths e contexto GLPI.
+Usa `composer.lock` como fonte primária de versões e `vendor/composer/installed.json` como fallback quando apropriado. Preserva direct/transitive, runtime/dev, PHP runtime/constraint e contexto do profile.
 
 ### `src/ComposerAuditParser.php`
 
-Converte JSON de `composer audit` em `Finding`. Advisories são `sca-advisory`; pacotes abandonados são `dependency-policy`.
+Normaliza advisories do Composer; pacotes abandonados são política de dependência, não vulnerabilidade.
 
 ### `src/OsvClient.php`
 
-Consulta OSV em batch para packages Composer resolvidos, trata paginação, busca registros por ID, ignora `withdrawn` e produz findings correlacionados ao inventário.
+Consulta OSV em batch e produz findings correlacionados ao inventário.
 
 ### `src/ScaFindingDeduplicator.php`
 
-Agrupa findings SCA por IDs/aliases conectados e preserva proveniência/componentes.
+Agrupa aliases CVE/GHSA/PKSA/OSV mantendo proveniência.
 
 ### `src/SecurityReport.php`
 
-Aceita `RunResult` de `security` e grava o schema estruturado com inventário, fontes, findings, vulnerabilidades deduplicadas e exit final.
+Persiste inventário, fontes, findings, vulnerabilidades deduplicadas e exit final.
 
-## Scripts executáveis
+## Testes internos
 
-### `scripts/ninfa-configure.php`
-
-No modo normal gera configs, `lefthook.yml` e `semantic-index.json`. Para Yii2, o índice recebe `framework_semantics` com o snapshot de `Yii2SemanticModel` sem substituir os hints documentais existentes.
-
-Com `--assist`, executa PHPStan/Psalm estruturados, grava evidência bruta e findings no workspace externo. No profile Yii2, `Yii2RuleEngine` recebe também o `ProjectContext`, habilitando `COR-001` a `COR-004` e `PERF-001`, e grava:
+`make profile-test` inclui contratos gerais e a suíte Yii2:
 
 ```text
-assist/yii2-semantic.json
-assist/yii2-findings.json
+tests/yii2-semantic-model.php
+tests/yii2-query-existence.php
+tests/yii2-query-condition.php
+tests/yii2-deprecation-remediation.php
+tests/yii2-find-shortcut.php
+tests/yii2-magic-property.php
+tests/yii2-controller-access.php
 ```
 
-Os findings nativos entram ainda em `assist/findings.json`, usando o mesmo contrato `Finding` das demais fontes.
-
-### `scripts/install-security-tools.sh`
-
-Prepara Semgrep em `.tools/semgrep` com Python >=3.10 e versão fixada por `NINFA_SEMGREP_VERSION` (default atual 1.177.0). Não instala ZAP.
-
-### `scripts/setup-glpi-host.sh`
-
-Prepara host GLPI 11 para uso/teste do profile.
-
-### `scripts/zap-scan.sh`
-
-Wrapper legado/congelado; não integra `ninfa security`.
-
-## Makefile interno
-
-Targets relevantes:
-
-```text
-environment-check
-security-tools
-semgrep-rules
-syntax
-profile-test
-setup
-```
-
-`semgrep-rules` depende de `security-tools` e valida/testa a suíte Semgrep. `setup` executa toda a cadeia. Esses targets pertencem ao desenvolvimento do Ninfa, não ao consumidor.
-
-`profile-test` inclui `tests/yii2-semantic-model.php`, que valida capabilities, actions, views, relation paths, links `hasOne/hasMany`, `COR-001` a `COR-004`, casos wildcard/dinâmicos/unknown e persistência do snapshot no workspace. Também inclui `tests/yii2-query-existence.php`, dedicado a `PERF-001`, operandos invertidos, herança ActiveRecord local e casos que não devem ser reportados.
-
-## Política visual
-
-`CliStyle` permanece a única abstração de cores/símbolos. `NINFA_COLOR=auto` é o padrão; `always`, `never` e `NO_COLOR` completam o contrato. Não existem configurações específicas por scanner.
-
-## Padrão para PHPDoc e comentários
-
-A documentação deve ficar junto do símbolo/bloco que explica e conter somente fatos sustentados pelo código ou decisão explícita. Métodos/funções nomeadas precisam registrar responsabilidade; collections/shapes devem preservar tipos úteis; comentários de controle devem explicar intenção/invariante, não narrar sintaxe.
-
-`tests/internal-docs.php` aplica o padrão a `src/*.php`. `tests/shell-docs.php` protege scripts shell. Não existe allowlist permanente de dívida documental.
-
-A primeira versão de `Yii2SemanticModel` foi bloqueada pelo próprio guard porque um arquivo com fluxo de controle relevante ainda não possuía comentário local de decisão/invariante. A correção adicionou documentação da invariável; o guard não foi relaxado. Esse comportamento é o modelo para novas regras Yii2.
+Remediações SAFE possuem teste de idempotência. Casos dinâmicos/incertos devem aparecer como negative/unknown, nunca ser removidos das fixtures para “fazer o teste passar”.
 
 ## Estado atual
 
-A fundação, SCA estruturado, SAST estruturado e contratos de profile estão implementados para os quatro profiles PHP oficiais. A especialização Yii2 possui modelo semântico inicial, quatro regras nativas de correctness e a primeira regra de performance em fase `assist`: `PERF-001` detecta `one()`/`count()` usados apenas como teste de existência em chains ActiveRecord locais comprováveis.
+O Ninfa possui quatro profiles PHP oficiais, SCA/SAST estruturado e uma camada Yii2 nativa em expansão. A estratégia continua sendo absorver conhecimento útil do ecossistema sem transformar o produto em wrapper de regras externas.
 
-A promoção ao gate de `check` depende de field tests e calibração de falso positivo. O próximo trabalho Yii2 está detalhado em `docs/YII2-ANALYSIS.md`: remediações SAFE, PHPDoc mágico, ampliação segura do inventário de schema, expansão de query analysis somente com tipo demonstrável e hardening Redis/MongoDB.
-
-Roadmap de frameworks/ecossistemas:
-
-```text
-acompanhar: Yii 22 dentro de yii2
-futuro PHP: Laravel
-futuro: Python → python-generic → Django/Flask
-```
-
-Não antecipar abstrações multilíngues apenas para materializar roadmap.
+A promoção de regras nativas para `check` e a ampliação de autofix dependem de evidência de baixo falso positivo em projetos Yii2 reais. A documentação canônica da especialização está em `docs/YII2-ANALYSIS.md`.
