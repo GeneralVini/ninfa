@@ -35,6 +35,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-semantic-model.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-query-existence.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-query-condition.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-where-equality.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-deprecation-remediation.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-typed-deprecation.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-classname-deprecation.php
