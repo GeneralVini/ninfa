@@ -116,6 +116,11 @@ final class Order extends \yii\db\ActiveRecord
         return $this->hasMany(OrderItem::class, ['order_id' => 'id']);
     }
 
+    public function getRuntimeRelation(): mixed
+    {
+        return $this->buildRelationAtRuntime();
+    }
+
     public function relationQueryExamples(): void
     {
         Order::find()->with('customer');
@@ -123,6 +128,7 @@ final class Order extends \yii\db\ActiveRecord
         Order::find()->joinWith('items item');
         Order::find()->innerJoinWith('customer.address');
         Order::find()->innerJoinWith('customer.missing-nested');
+        Order::find()->with('runtimeRelation');
         $dynamicRelation = 'runtime-only';
         Order::find()->with($dynamicRelation);
         Order::find()->with(['missing-array']);
@@ -224,16 +230,22 @@ PHP,
     assert(!in_array('runtime-only', array_column($behaviorReferences, 'action'), true));
 
     $relationReferences = (new Yii2RelationReferenceAnalyzer())->references($context, $model);
-    assert(count($relationReferences) === 6);
+    assert(count($relationReferences) === 7);
     assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === true)) === 3);
     assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === false)) === 2);
-    assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === null)) === 1);
+    assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === null)) === 2);
     assert(array_column(array_values(array_filter(
         $relationReferences,
         static fn (array $reference): bool => $reference['exists'] === false,
     )), 'missing_relation') === ['missing-relation', 'missing-nested']);
     assert(!in_array('runtime-only', array_column($relationReferences, 'relation_path'), true));
     assert(!in_array('missing-array', array_column($relationReferences, 'relation_path'), true));
+    $runtimeGetterReference = array_values(array_filter(
+        $relationReferences,
+        static fn (array $reference): bool => $reference['relation_path'] === 'runtimeRelation',
+    ));
+    assert(count($runtimeGetterReference) === 1);
+    assert($runtimeGetterReference[0]['exists'] === null);
 
     $yii2Findings = (new Yii2RuleEngine())->analyse($model, $context);
     assert(count($yii2Findings) === 8);
