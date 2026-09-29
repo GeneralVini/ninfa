@@ -59,9 +59,12 @@ No profile Yii2, o `assist` também executa as regras nativas de correctness já
 NINFA-YII2-COR-001  view literal inexistente
 NINFA-YII2-COR-002  action inexistente referenciada por filtros/behaviors estáticos
 NINFA-YII2-COR-003  relation path literal inexistente em with/joinWith/innerJoinWith
+NINFA-YII2-COR-004  atributo inexistente em link literal de hasOne/hasMany
 ```
 
 Referências dinâmicas ou cujo inventário de actions/relações não seja conclusivo permanecem `unknown` e não geram finding. Em `COR-003`, parent ActiveRecord externo desconhecido, traits que possam introduzir relações e target intermediário não resolvível impedem a afirmação de ausência.
+
+`COR-004` só nega atributo quando o ActiveRecord daquele lado declara `attributes()` como lista literal completa ou herda esse contrato de classe local conclusiva. Schema implícito do banco, PHPDoc isolado, `parent::attributes()`, `array_merge()`, links dinâmicos e relações seguidas por `via()`/`viaTable()` não são tratados como prova de ausência.
 
 A auditoria completa fica no workspace externo:
 
