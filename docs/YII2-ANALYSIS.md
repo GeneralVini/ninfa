@@ -136,6 +136,40 @@ Requisitos atuais:
 
 Hash conditions, spread, variáveis e receivers sem tipo demonstrável ficam fora da negação.
 
+## Security smell
+
+### SEC-001 — igualdade SQL dinâmica em `where()`
+
+`src/Yii2WhereEqualityAnalyzer.php` incorpora de forma conservadora os conceitos de `noDynamicQueryWhere` e `ReplaceWhereEqualityConditionWithArrayRector`. A primeira tranche reconhece apenas chains iniciadas por `ActiveRecord::find()` de classe local com herança Yii2 comprovada e duas formas simples:
+
+```php
+Order::find()->where('status = ' . $status);
+Order::find()->andWhere("tenant_id = $tenantId");
+```
+
+A orientação é migrar para hash condition para delegar binding/quoting ao Query Builder:
+
+```php
+Order::find()->where(['status' => $status]);
+Order::find()->andWhere(['tenant_id' => $tenantId]);
+```
+
+O finding não afirma SQL injection. A análise comprova a construção dinâmica da igualdade, mas não comprova que `$status` ou `$tenantId` sejam dados não confiáveis. Por isso o contrato é explicitamente de security smell:
+
+```text
+category          security
+finding_kind      security-smell
+severity          warning
+confidence        high
+taint_proven      false
+remediation_risk  review
+autofix           false
+```
+
+Ficam fora desta tranche receivers armazenados em variável, expressions compostas, múltiplos predicados, hash condition já segura, strings literais sem valor dinâmico, classes não Yii2 e herança externa inconclusiva. Exemplos em strings/comentários não são promovidos a finding.
+
+`SEC-001` aparece em `ninfa assist`. Ele não entra automaticamente em `ninfa security` nem em `ninfa fix`; qualquer promoção exige correlação de taint/field test e atualização explícita do contrato de segurança.
+
 ## Performance SAFE
 
 ### PERF-001 — existência via `one()`/`count()`
@@ -297,6 +331,7 @@ Yii2BehaviorActionAnalyzer ------------┤
 Yii2RelationReferenceAnalyzer ---------┤
 Yii2RelationLinkAnalyzer --------------┤
 Yii2QueryConditionAnalyzer ------------┤
+Yii2WhereEqualityAnalyzer -------------┤
 Yii2QueryExistenceAnalyzer ------------┤
 Yii2FindShortcutAnalyzer --------------┤
 Yii2DeprecationAnalyzer ---------------┤
@@ -315,6 +350,7 @@ Catálogo atual:
 | `NINFA-YII2-COR-003` | correctness | `assist`, error |
 | `NINFA-YII2-COR-004` | correctness | `assist`, error |
 | `NINFA-YII2-COR-005` | correctness | `assist`, error |
+| `NINFA-YII2-SEC-001` | security-smell | `assist`, warning, REVIEW |
 | `NINFA-YII2-PERF-001` | performance | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-MOD-001` | modernization | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-DEP-001` | deprecation | `assist` + `fix`, warning, SAFE |
@@ -346,6 +382,8 @@ A operação é idempotente: uma segunda execução sobre o resultado já corrig
 
 No CLI, `ninfa fix` executa a remediação SAFE Yii2 antes dos fixers externos. Depois o fluxo normal de `RecheckingPipelineRunner` preserva o contrato já existente de **um único `check` final**. A remediação nativa não é representada como pseudo-binário em `PipelinePlan`.
 
+`SEC-001` não é consumida por `Yii2SafeRemediator`: a sugestão de hash condition é REVIEW até existir evidência suficiente para uma promoção explícita a SAFE.
+
 ## Capabilities Redis e MongoDB
 
 A presença de `yiisoft/yii2-redis` e `yiisoft/yii2-mongodb` é registrada como capability, mantendo `profile=yii2`. Analyzers que comprovam herança reconhecem bases ActiveRecord de DB, Redis e MongoDB quando aplicável.
@@ -375,6 +413,7 @@ A suíte dedicada inclui:
 tests/yii2-semantic-model.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
+tests/yii2-where-equality.php
 tests/yii2-deprecation-remediation.php
 tests/yii2-typed-deprecation.php
 tests/yii2-classname-deprecation.php
@@ -393,7 +432,7 @@ As regras nativas Yii2 continuam fora do gate principal enquanto correctness/adv
 
 ### `ninfa assist`
 
-É a superfície principal dos findings nativos e preserva:
+É a superfície principal dos findings nativos, incluindo `SEC-001`, e preserva:
 
 ```text
 assist/yii2-semantic.json
@@ -405,11 +444,11 @@ assist/findings.json
 
 Executa somente remediações nativas marcadas SAFE e os fixers externos existentes. Atualmente são SAFE nativas: `PERF-001`, `MOD-001` e `DEP-001..006`.
 
-`COR-*`, `TYPE-001` e `ARCH-001` não são reescritos automaticamente.
+`COR-*`, `SEC-001`, `TYPE-001` e `ARCH-001` não são reescritos automaticamente.
 
 ### `ninfa security`
 
-Continua reservado a SCA/SAST. Performance, modernization, deprecation, PHPDoc e architecture advisory não são tratados como vulnerabilidade.
+Continua reservado a SCA/SAST. `SEC-001` permanece um security smell no `assist` enquanto `taint_proven=false`; não é automaticamente tratado como vulnerabilidade. Performance, modernization, deprecation, PHPDoc e architecture advisory também não são tratados como vulnerabilidade.
 
 ## Proveniência
 
@@ -428,9 +467,9 @@ A matriz de rastreabilidade das regras upstream fica em `docs/YII2-UPSTREAM-RULE
 
 A evolução seguinte prioriza:
 
-1. ampliar field tests das regras já implementadas;
-2. modernizações/deprecations adicionais somente quando a equivalência puder ser provada e testada;
-3. ampliar query analysis com tipo demonstrável, sem substituir PHPStan Reflection por heurística frágil;
+1. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção a `security`/autofix;
+2. ampliar model/config validation (`rules`, `scenarios`, config arrays) usando inventário confiável de atributos/config properties;
+3. melhorar typing com evidência forte antes de `RemoveRedundantHtmlEncodeRector`;
 4. aprofundar PHPDoc/magic properties mantendo `SEMANTIC` sem autofix;
 5. hardening Redis/MongoDB e inventário de schema apenas com fonte forte e auditável;
 6. promover correctness ao `check` somente após calibração de falso positivo.
