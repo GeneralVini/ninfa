@@ -16,17 +16,7 @@ Executa ECS, Rector em dry-run, PHPStan, Psalm e PHPUnit quando disponível. Em 
 
 Os achados de PHPStan e Psalm são capturados em formato estruturado e apresentados pelo renderer do Ninfa, sem depender da tabela nativa de cada ferramenta. O `check` mostra arquivo, linha, regra e o que precisa ser corrigido, mas não sugere alteração semântica.
 
-Exemplo:
-
-```text
-╭─ PHPStan ─────────────────────────────────────────────────────
-│ Arquivo: src/Web/Shared/Layout/Main/layout.php:27
-│ Regra: argument.type
-│
-│ Corrigir:
-│   Parameter #1 $path of function dirname expects string, mixed given
-╰────────────────────────────────────────────────────────────────────────
-```
+As regras nativas Yii2 ainda permanecem em field test no `assist`; não foram promovidas em bloco ao gate de `check`.
 
 ## Fix
 
@@ -34,7 +24,7 @@ Exemplo:
 ninfa fix /caminho/do/projeto
 ```
 
-Executa os fixers disponíveis:
+O fluxo comum executa os fixers aplicáveis:
 
 ```text
 ECS --fix
@@ -43,7 +33,22 @@ ESLint --fix      # frontend
 Prettier --write  # frontend
 ```
 
-Ao terminar, executa `check` novamente. Achados sem correção mecânica permanecem bloqueantes e podem ser detalhados pelo `assist`.
+No profile Yii2 existe uma etapa anterior de remediação nativa SAFE. Ela não é um pseudo-binário de `PipelinePlan`: o CLI executa `Yii2SafeRemediator` antes dos fixers externos e o `RecheckingPipelineRunner` mantém exatamente **um `check` final** para validar o resultado completo.
+
+SAFE nativo atual:
+
+```text
+NINFA-YII2-DEP-001  Yii::trace() -> Yii::debug()
+NINFA-YII2-DEP-002  Controller::EXIT_CODE_* -> ExitCode::*
+NINFA-YII2-DEP-003  return 0/1 em console action -> ExitCode::*
+NINFA-YII2-MOD-001  find()->where(hash)->one/all -> findOne/findAll
+```
+
+`MOD-001` só é aplicado quando `where()` recebe array associativo literal não vazio com chaves string literais e a classe é comprovadamente ActiveRecord Yii2. Listas, operator format, arrays vazios, spread, variáveis e classes incertas não são alterados.
+
+Patches SAFE são aplicados por offset em ordem reversa, intervalos sobrepostos são rejeitados e a suíte exige idempotência: a segunda aplicação sobre código já corrigido precisa resultar em zero mudanças.
+
+Regras REVIEW/SEMANTIC, como `PERF-001`, `TYPE-001` e `ARCH-001`, nunca são alteradas por `fix` nesta fase.
 
 ## Assist
 
@@ -51,27 +56,45 @@ Ao terminar, executa `check` novamente. Achados sem correção mecânica permane
 ninfa assist /caminho/do/projeto
 ```
 
-É a camada separada para achados semânticos de PHPStan/Psalm. Não altera o projeto consumidor. Usa o mesmo renderer visual do `check` e acrescenta a orientação de correção.
+É a camada separada para achados semânticos de PHPStan/Psalm e do profile Yii2. Não altera o projeto consumidor. Usa o renderer do Ninfa e preserva evidência auditável no workspace externo.
 
-No profile Yii2, o `assist` também executa regras nativas em field test. Atualmente isso inclui:
+Catálogo Yii2 atual:
 
 ```text
 NINFA-YII2-COR-001   view literal inexistente
-NINFA-YII2-COR-002   action inexistente referenciada por filtros/behaviors estáticos
+NINFA-YII2-COR-002   action inexistente em filtros/behaviors estáticos
 NINFA-YII2-COR-003   relation path literal inexistente em with/joinWith/innerJoinWith
 NINFA-YII2-COR-004   atributo inexistente em link literal de hasOne/hasMany
+NINFA-YII2-COR-005   aridade inválida em operator de condition array estática
 NINFA-YII2-PERF-001  one()/count() usados apenas para testar existência
+NINFA-YII2-MOD-001   shortcut findOne/findAll seguro
+NINFA-YII2-DEP-001   Yii::trace() deprecated
+NINFA-YII2-DEP-002   constante de exit code legada
+NINFA-YII2-DEP-003   magic number 0/1 em console action
+NINFA-YII2-TYPE-001  relation ausente de PHPDoc @property* já adotado pela classe
+NINFA-YII2-ARCH-001  Yii::$app->request/response dentro de controller comprovado
 ```
 
-As quatro regras `COR-*` são findings de correctness. `PERF-001` é advisory de performance com `severity=warning`: quando uma chain `ActiveRecord::find()` local e comprovável termina em `one()`/`count()` e o resultado é comparado apenas para saber se há registros, o Ninfa recomenda `exists()` ou `!exists()`.
+Política por família:
 
-`PERF-001` reconhece equivalências estritas como `one() !== null`, `one() === null`, `count() > 0`, `count() !== 0`, `count() <= 0`, `count() >= 1` e as formas com os operandos invertidos. Uso de `count()` como número real, `one()` como registro, thresholds diferentes, variáveis de query sem tipo comprovável e factories dinâmicas não geram finding nesta tranche.
+| Família | Severidade atual | Autofix | Observação |
+| --- | --- | --- | --- |
+| `COR-*` | error | não | ausência/contrato objetivo comprovável |
+| `PERF-*` | warning | não | advisory, REVIEW |
+| `MOD-*` | warning | somente SAFE | modernização mecânica |
+| `DEP-*` | warning | somente SAFE | API/forma legada com equivalência comprovada |
+| `TYPE-*` | warning | não | PHPDoc semântico, SEMANTIC |
+| `ARCH-*` | warning | não | opinião arquitetural/advisory |
 
-Referências dinâmicas ou cujo inventário de actions/relações não seja conclusivo permanecem `unknown` e não geram finding. Em `COR-003`, parent ActiveRecord externo desconhecido, traits que possam introduzir relações e target intermediário não resolvível impedem a afirmação de ausência.
+`PERF-001` recomenda `exists()`/`!exists()` somente quando `one()`/`count()` são usados como booleano em chain `ActiveRecord::find()` local comprovável. Uso real do registro/contagem, threshold diferente ou tipo de query incerto não gera finding.
 
-`COR-004` só nega atributo quando o ActiveRecord daquele lado declara `attributes()` como lista literal completa ou herda esse contrato de classe local conclusiva. Schema implícito do banco, PHPDoc isolado, `parent::attributes()`, `array_merge()`, links dinâmicos e relações seguidas por `via()`/`viaTable()` não são tratados como prova de ausência.
+`COR-005` analisa apenas `where()/andWhere()/orWhere()` com condition array literal em ActiveRecord comprovado. Hash conditions, variáveis, spread e receivers incertos permanecem fora da regra.
 
-Nenhuma regra nativa Yii2 dessa tranche executa autofix. `PERF-001` já fornece remediation textual, mas permanece classificada como `review` até field tests reais permitirem decidir se a transformação pode migrar para uma classe SAFE.
+`TYPE-001` só exige property tag quando a própria classe já mantém contrato `@property*`. Classes sem essa convenção, com `__get/__set` customizado ou propriedade pública nativa de mesmo nome são ignoradas. O Ninfa não autoedita PHPDoc semanticamente sensível.
+
+`ARCH-001` é explicitamente arquitetura, não vulnerabilidade: em controller Yii2 comprovado, orienta preferir `$this->request`/`$this->response` a `Yii::$app->request`/`response`.
+
+Referências dinâmicas ou inventários inconclusivos permanecem `unknown` e não geram finding.
 
 A auditoria completa fica no workspace externo:
 
@@ -104,6 +127,8 @@ Semgrep               # SAST/regras common + overlay do profile
 
 Os profiles PHP oficiais são `php-generic`, `yii2`, `yii3` e `glpi-plugin`. `php-generic` usa o baseline comum. Yii2, Yii3 e GLPI Plugin 11 recebem overlays de segurança próprios.
 
+Findings de correctness, performance, modernization, deprecation, PHPDoc ou architecture advisory não migram automaticamente para `security`. Uma regra só é SAST quando existe contrato de segurança e evidência apropriada.
+
 No Semgrep:
 
 ```text
@@ -113,9 +138,9 @@ WARNING  hotspot para revisão, não bloqueia sozinho
 
 Falha do mecanismo ou cobertura parcial inesperada continua sendo erro do gate. Exclusões deliberadas de `vendor`, `runtime` e assets gerados são registradas como política e não são confundidas com perda de cobertura.
 
-O scan inclui arquivos ainda não rastreados pelo Git dentro dos paths permitidos pelo profile. Isso evita que um arquivo PHP recém-criado fique fora da análise apenas porque ainda não passou por `git add`.
+O scan inclui arquivos ainda não rastreados pelo Git dentro dos paths permitidos pelo profile.
 
-DAST não integra o comando. A análise dinâmica foi delegada a uma frente especializada externa. Se `NINFA_DAST=1` for informado, o Ninfa emite aviso e continua sem executar OWASP ZAP.
+DAST não integra o comando. Se `NINFA_DAST=1` for informado, o Ninfa emite aviso e continua sem executar OWASP ZAP.
 
 A saída humana segue `NINFA_COLOR=auto` por padrão. Consulte [CORES.md](CORES.md) para `always`, `never` e `NO_COLOR`.
 
@@ -133,13 +158,23 @@ O comando informa profile, paths, workspace, configs externas, índice semântic
 
 ## Testes do próprio Ninfa
 
-Validação estrutural dos profiles e runners:
+Validação estrutural dos profiles, regras e remediações:
 
 ```bash
 make profile-test
 ```
 
-A suíte inclui `tests/yii2-semantic-model.php` para correctness Yii2 e `tests/yii2-query-existence.php` para `PERF-001`, além dos contratos gerais do pipeline.
+A suíte Yii2 dedicada inclui:
+
+```text
+tests/yii2-semantic-model.php
+tests/yii2-query-existence.php
+tests/yii2-query-condition.php
+tests/yii2-deprecation-remediation.php
+tests/yii2-find-shortcut.php
+tests/yii2-magic-property.php
+tests/yii2-controller-access.php
+```
 
 Validação das regras Semgrep do próprio Ninfa:
 
@@ -159,5 +194,3 @@ O setup completo executa ambos:
 ```bash
 make setup
 ```
-
-As fixtures Semgrep usam árvores paralelas entre `security/semgrep/` e `security/semgrep-tests/`, com casos positivos (`ruleid`) e negativos (`ok`).
