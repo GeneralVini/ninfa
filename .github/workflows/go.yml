@@ -23,16 +23,12 @@ jobs:
           cache-dependency-path: |
             go/go.mod
             go/devtools/go.mod
-      - name: Resolve Go tool lockfiles
+            go/devtools/go.sum
+      - name: Verify Go tool lockfiles
         run: |
           cd go/devtools
-          go mod tidy
-          printf '%s\n' '--- NINFA DEVTOOLS GO.MOD BEGIN ---'
-          cat go.mod
-          printf '%s\n' '--- NINFA DEVTOOLS GO.MOD END ---'
-          printf '%s\n' '--- NINFA DEVTOOLS GO.SUM BEGIN ---'
-          cat go.sum
-          printf '%s\n' '--- NINFA DEVTOOLS GO.SUM END ---'
+          go mod tidy -diff
+          go mod verify
       - name: Go quality checks
         run: make go-fmt-check go-vet go-lint go-test go-build
       - name: Go SAST gate and SARIF
