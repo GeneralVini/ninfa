@@ -8,9 +8,11 @@ GO_TOOLS_STAMP ?= .tools/go/.installed
 NINFA_GO_VERSION ?= dev
 NINFA_GO_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
 
-.PHONY: setup environment-check syntax profile-test security-tools semgrep-rules go-tools go-fmt go-fmt-check go-vet go-lint go-sast go-vuln go-security go-security-report go-test go-build go-check
+.PHONY: setup check environment-check syntax profile-test security-tools semgrep-rules go-tools go-fmt go-fmt-check go-vet go-lint go-sast go-vuln go-security go-security-report go-test go-build go-check
 
 setup: environment-check security-tools syntax semgrep-rules profile-test
+
+check: syntax profile-test semgrep-rules go-check
 
 environment-check:
 	bash scripts/check-environment.sh
