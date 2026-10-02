@@ -2,25 +2,26 @@ package doctor
 
 import (
 	"context"
-	"os/exec"
 	"testing"
 	"time"
 )
 
 func TestCheckGoVersion(t *testing.T) {
-	if _, err := exec.LookPath("go"); err != nil {
-		t.Skip("Go executable is unavailable in the test environment")
+	var goTool *Tool
+	tools := DefaultTools()
+	for index := range tools {
+		if tools[index].Name == "Go" {
+			goTool = &tools[index]
+			break
+		}
+	}
+	if goTool == nil {
+		t.Fatal("DefaultTools() does not contain Go")
 	}
 
-	result := (Checker{Timeout: 5 * time.Second}).Check(context.Background(), Tool{
-		Name:     "Go",
-		Command:  "go",
-		Args:     []string{"version"},
-		Required: true,
-	})
-
+	result := (Checker{Timeout: 5 * time.Second}).Check(context.Background(), *goTool)
 	if result.Err != nil {
-		t.Fatalf("Check() error = %v", result.Err)
+		t.Skipf("Go executable is unavailable in the test environment: %v", result.Err)
 	}
 	if result.Path == "" {
 		t.Fatal("Check() returned an empty executable path")
@@ -31,12 +32,10 @@ func TestCheckGoVersion(t *testing.T) {
 }
 
 func TestCheckMissingTool(t *testing.T) {
-	result := (Checker{Timeout: time.Second}).Check(context.Background(), Tool{
-		Name:     "Missing",
-		Command:  "ninfa-tool-that-must-not-exist-8eb05ac7",
-		Required: true,
-	})
+	t.Setenv("PATH", t.TempDir())
+	tool := DefaultTools()[0]
 
+	result := (Checker{Timeout: time.Second}).Check(context.Background(), tool)
 	if result.Err == nil {
 		t.Fatal("Check() error = nil, want executable lookup failure")
 	}

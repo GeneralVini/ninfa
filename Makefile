@@ -1,10 +1,14 @@
 SEMGREP_BIN ?= .tools/semgrep/bin/semgrep
 GO_DIR ?= go
+GO_DEVTOOLS_DIR ?= $(GO_DIR)/devtools
 GO_BUILD_DIR ?= build
+GO_SECURITY_DIR ?= $(GO_BUILD_DIR)/security
+GO_TOOL_BIN ?= $(abspath .tools/go/bin)
+GO_TOOLS_STAMP ?= .tools/go/.installed
 NINFA_GO_VERSION ?= dev
 NINFA_GO_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
 
-.PHONY: setup environment-check syntax profile-test security-tools semgrep-rules go-fmt go-fmt-check go-vet go-test go-build go-check
+.PHONY: setup environment-check syntax profile-test security-tools semgrep-rules go-tools go-fmt go-fmt-check go-vet go-lint go-sast go-vuln go-security go-security-report go-test go-build go-check
 
 setup: environment-check security-tools syntax semgrep-rules profile-test
 
@@ -41,6 +45,14 @@ profile-test:
 	php tests/legacy-config-policy.php
 	bash tests/glpi-plugin-profile.sh
 
+$(GO_TOOLS_STAMP): $(GO_DEVTOOLS_DIR)/go.mod
+	mkdir -p "$(GO_TOOL_BIN)"
+	cd "$(GO_DEVTOOLS_DIR)" && GOBIN="$(GO_TOOL_BIN)" go install tool
+	mkdir -p "$(dir $(GO_TOOLS_STAMP))"
+	touch "$(GO_TOOLS_STAMP)"
+
+go-tools: $(GO_TOOLS_STAMP)
+
 go-fmt:
 	cd "$(GO_DIR)" && gofmt -w .
 
@@ -54,6 +66,21 @@ go-fmt-check:
 go-vet:
 	cd "$(GO_DIR)" && go vet ./...
 
+go-lint: go-tools
+	cd "$(GO_DIR)" && "$(GO_TOOL_BIN)/staticcheck" ./...
+
+go-sast: go-tools
+	cd "$(GO_DIR)" && "$(GO_TOOL_BIN)/gosec" ./...
+
+go-vuln: go-tools
+	cd "$(GO_DIR)" && "$(GO_TOOL_BIN)/govulncheck" ./...
+
+go-security: go-sast go-vuln
+
+go-security-report: go-tools
+	mkdir -p "$(GO_SECURITY_DIR)"
+	cd "$(GO_DIR)" && "$(GO_TOOL_BIN)/gosec" -fmt=sarif -out="../$(GO_SECURITY_DIR)/gosec.sarif" ./...
+
 go-test:
 	cd "$(GO_DIR)" && go test ./...
 
@@ -63,4 +90,4 @@ go-build:
 		-ldflags "-X github.com/GeneralVini/ninfa/go/internal/version.Version=$(NINFA_GO_VERSION) -X github.com/GeneralVini/ninfa/go/internal/version.Commit=$(NINFA_GO_COMMIT)" \
 		-o "../$(GO_BUILD_DIR)/ninfa-go" ./cmd/ninfa-go
 
-go-check: go-fmt-check go-vet go-test go-build
+go-check: go-fmt-check go-vet go-lint go-sast go-vuln go-test go-build

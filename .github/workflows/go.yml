@@ -3,6 +3,8 @@ name: go-control-plane
 on:
   push:
   pull_request:
+  schedule:
+    - cron: '17 5 * * 1'
 
 permissions:
   contents: read
@@ -18,6 +20,46 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: true
-          cache-dependency-path: go/go.mod
-      - name: Go checks
-        run: make go-check
+          cache-dependency-path: |
+            go/go.mod
+            go/devtools/go.mod
+      - name: Resolve Go tool lockfiles
+        run: |
+          cd go/devtools
+          go mod tidy
+          printf '%s\n' '--- NINFA DEVTOOLS GO.MOD BEGIN ---'
+          cat go.mod
+          printf '%s\n' '--- NINFA DEVTOOLS GO.MOD END ---'
+          printf '%s\n' '--- NINFA DEVTOOLS GO.SUM BEGIN ---'
+          cat go.sum
+          printf '%s\n' '--- NINFA DEVTOOLS GO.SUM END ---'
+      - name: Go quality checks
+        run: make go-fmt-check go-vet go-lint go-test go-build
+      - name: Go SAST gate and SARIF
+        id: gosec
+        if: always()
+        continue-on-error: true
+        run: make go-security-report
+      - name: Go vulnerability gate
+        id: govuln
+        if: always()
+        continue-on-error: true
+        run: make go-vuln
+      - name: Upload gosec SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gosec-sarif
+          path: build/security/gosec.sarif
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Restore Go security gate
+        if: always()
+        env:
+          GOSEC_OUTCOME: ${{ steps.gosec.outcome }}
+          GOVULN_OUTCOME: ${{ steps.govuln.outcome }}
+        run: |
+          if [ "$GOSEC_OUTCOME" != "success" ] || [ "$GOVULN_OUTCOME" != "success" ]; then
+            printf '[ERRO] Security gate failed: gosec=%s govulncheck=%s\n' "$GOSEC_OUTCOME" "$GOVULN_OUTCOME" >&2
+            exit 1
+          fi
