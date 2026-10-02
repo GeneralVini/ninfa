@@ -1,6 +1,10 @@
 SEMGREP_BIN ?= .tools/semgrep/bin/semgrep
+GO_DIR ?= go
+GO_BUILD_DIR ?= build
+NINFA_GO_VERSION ?= dev
+NINFA_GO_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
 
-.PHONY: setup environment-check syntax profile-test security-tools semgrep-rules
+.PHONY: setup environment-check syntax profile-test security-tools semgrep-rules go-fmt go-fmt-check go-vet go-test go-build go-check
 
 setup: environment-check security-tools syntax semgrep-rules profile-test
 
@@ -36,3 +40,27 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/pipeline-runner.php
 	php tests/legacy-config-policy.php
 	bash tests/glpi-plugin-profile.sh
+
+go-fmt:
+	cd "$(GO_DIR)" && gofmt -w .
+
+go-fmt-check:
+	@files="$$(cd "$(GO_DIR)" && gofmt -l .)"; \
+	if [ -n "$$files" ]; then \
+		printf '[ERRO] Arquivos Go fora do gofmt:\n%s\n' "$$files" >&2; \
+		exit 1; \
+	fi
+
+go-vet:
+	cd "$(GO_DIR)" && go vet ./...
+
+go-test:
+	cd "$(GO_DIR)" && go test ./...
+
+go-build:
+	mkdir -p "$(GO_BUILD_DIR)"
+	cd "$(GO_DIR)" && go build -trimpath -buildvcs=false \
+		-ldflags "-X github.com/GeneralVini/ninfa/go/internal/version.Version=$(NINFA_GO_VERSION) -X github.com/GeneralVini/ninfa/go/internal/version.Commit=$(NINFA_GO_COMMIT)" \
+		-o "../$(GO_BUILD_DIR)/ninfa-go" ./cmd/ninfa-go
+
+go-check: go-fmt-check go-vet go-test go-build
