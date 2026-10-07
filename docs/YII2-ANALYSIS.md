@@ -172,6 +172,50 @@ Requisitos atuais:
 
 Hash conditions, spread, variáveis e receivers sem tipo demonstrável ficam fora da negação.
 
+### COR-010 — atributo inexistente em conditions/updates estáticos de ActiveRecord
+
+\`src/Yii2ActiveRecordAttributeAnalyzer.php\` reutiliza o inventário de \`Yii2ModelRulesAnalyzer\`, mas somente para classes marcadas como ActiveRecord **e** com inventário completo.
+
+A tranche cobre keys string literais em:
+
+\`\`\`text
+findOne(condition)
+findAll(condition)
+deleteAll(condition)
+updateAll(attributes, condition)
+updateAllCounters(counters, condition)
+\`\`\`
+
+Exemplo conclusivo:
+
+\`\`\`php
+final class Order extends \yii\db\ActiveRecord
+{
+    public function attributes(): array
+    {
+        return ['id', 'status'];
+    }
+}
+
+Order::updateAll(
+    ['statuz' => 'closed'],
+    ['id' => 1],
+);
+\`\`\`
+
+\`statuz\` produz \`NINFA-YII2-COR-010\`. Já um ActiveRecord que depende apenas do schema runtime não possui inventário suficiente para negar a key e permanece \`unknown\`.
+
+Operator-format arrays, keys dinâmicas, spreads e validação do **tipo do valor** também ficam fora desta tranche. O upstream consegue parte desses type checks via PHPStan Reflection; o Ninfa não fabrica equivalência sem evidência de mesma força.
+
+Contrato:
+
+\`\`\`text
+category          correctness
+severity          error
+confidence        high
+autofix           false
+\`\`\`
+
 ### COR-006 — atributo inexistente em `Model::rules()`
 
 `src/Yii2ModelRulesAnalyzer.php` estabelece um inventário de atributos reutilizável e usa essa prova para validar atributos literais no índice 0 das rules.
@@ -467,6 +511,7 @@ Catálogo atual:
 | `NINFA-YII2-COR-003` | correctness | `assist`, error |
 | `NINFA-YII2-COR-004` | correctness | `assist`, error |
 | `NINFA-YII2-COR-005` | correctness | `assist`, error |
+| `NINFA-YII2-COR-010` | correctness | `assist`, error |
 | `NINFA-YII2-COR-006` | correctness | `assist`, error |
 | `NINFA-YII2-COR-007` | correctness | `assist`, error |
 | `NINFA-YII2-COR-008` | correctness | `assist`, error |
@@ -536,6 +581,8 @@ tests/yii2-view-resolution.php
 tests/yii2-behavior-inheritance.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
+tests/yii2-query-relations.php
+tests/yii2-active-record-attributes.php
 tests/yii2-model-rules.php
 tests/yii2-model-metadata.php
 tests/yii2-where-equality.php
@@ -561,7 +608,7 @@ As regras nativas Yii2 continuam fora do gate principal enquanto correctness/adv
 
 ### `ninfa assist`
 
-É a superfície principal dos findings nativos, incluindo `COR-006..009` e `SEC-001`, e preserva:
+É a superfície principal dos findings nativos, incluindo `COR-006..010` e `SEC-001`, e preserva:
 
 ```text
 assist/yii2-semantic.json
@@ -598,7 +645,7 @@ A matriz de rastreabilidade das regras upstream fica em `docs/YII2-UPSTREAM-RULE
 
 A evolução seguinte prioriza:
 
-1. revisar o pacote 2.4 de ActiveRecord/Query e classificar os gaps restantes sobre a base `COR-003..005`, `PERF-001`, `MOD-001` e `SEC-001`;
+1. desenhar o pacote 2.5 de config arrays/BaseObject sobre um modelo compartilhado de classe/properties/setters/options;
 2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção a `security`/autofix;
 3. avançar ActiveForm/UploadedFile/config arrays apenas quando o tipo do Model/componente for demonstrável;
 4. melhorar typing com evidência forte antes de `RemoveRedundantHtmlEncodeRector`;
