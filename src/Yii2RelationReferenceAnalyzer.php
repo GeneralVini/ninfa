@@ -26,8 +26,9 @@ final class Yii2RelationReferenceAnalyzer
     /**
      * Localiza chamadas literais `Model::find()->with()/joinWith()/innerJoinWith()`.
      *
-     * Apenas strings literais são avaliadas. Arrays, variáveis, closures e demais
-     * expressões permanecem fora desta tranche. Para classes com inventário completo,
+     * Strings literais, arrays literais e argumentos variádicos literais de with()
+     * são avaliados. Variáveis, spreads e expressões dinâmicas permanecem fora. Para
+     * classes com inventário completo,
      * cada segmento pontuado é validado contra as relações observadas, incluindo
      * relações herdadas de parents locais. Aliases de `joinWith`, como `items i`, são
      * normalizados apenas para a resolução e preservados na evidência original.
@@ -97,7 +98,360 @@ final class Yii2RelationReferenceAnalyzer
             }
         }
 
+        // O regex acima cobre a forma simples com primeiro argumento string.
+        // Esta segunda passagem acrescenta arrays e argumentos variádicos sem duplicar
+        // a primeira referência literal já observada.
+        $callPattern = '/(?P<class>\\\\?[A-Za-z_][A-Za-z0-9_\\\\]*)::find\s*\(\s*\)\s*->\s*(?P<method>with|joinWith|innerJoinWith)\s*\(/i';
+        foreach ($files as $file) {
+            $source = (string) file_get_contents($file);
+            $namespace = $this->namespaceOf($source);
+            $uses = $this->importsOf($source);
+            if (preg_match_all($callPattern, $source, $calls, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) === 0) {
+                continue;
+            }
+
+            foreach ($calls as $call) {
+                $rawClass = (string) $call['class'][0];
+                if (in_array(strtolower($rawClass), ['self', 'static', 'parent'], true)) {
+                    continue;
+                }
+
+                $class = $this->resolveName($rawClass, $uses, $namespace);
+                $complete = $this->classInventoryComplete($class, $classes, []);
+                $openingParen = (int) $call[0][1] + strlen((string) $call[0][0]) - 1;
+                $method = (string) $call['method'][0];
+
+                foreach ($this->additionalLiteralPaths($source, $openingParen, $method) as $entry) {
+                    $resolution = $complete
+                        ? $this->resolvePath($class, $entry['path'], $relations, $classes)
+                        : ['exists' => null, 'missing_relation' => null, 'resolved_prefix' => ''];
+
+                    $references[] = [
+                        'file' => $this->relativePath($context->root(), $file),
+                        'line' => substr_count(substr($source, 0, $entry['offset']), "\n") + 1,
+                        'method' => $method,
+                        'model' => $class,
+                        'relation_path' => $entry['path'],
+                        'missing_relation' => $resolution['missing_relation'],
+                        'resolved_prefix' => $resolution['resolved_prefix'],
+                        'exists' => $resolution['exists'],
+                        'relation_inventory_complete' => $complete,
+                    ];
+                }
+            }
+        }
+
+        usort(
+            $references,
+            static fn (array $left, array $right): int => [
+                $left['file'],
+                $left['line'],
+                $left['method'],
+                $left['relation_path'],
+            ] <=> [
+                $right['file'],
+                $right['line'],
+                $right['method'],
+                $right['relation_path'],
+            ],
+        );
+
         return $references;
+    }
+
+    /**
+     * Extrai relation paths adicionais de uma chamada direta de ActiveQuery.
+     *
+     * A primeira string literal simples e ignorada porque ja e coberta pelo regex
+     * principal. with() aceita argumentos variadicos; joinWith()/innerJoinWith()
+     * usam apenas o primeiro argumento. Arrays aceitam valores string ou chaves
+     * string quando o valor e closure/configuracao da relacao.
+     *
+     * @param string $source Codigo-fonte completo.
+     * @param int $openingParen Offset do parentese inicial da chamada.
+     * @param string $method Metodo ActiveQuery observado.
+     * @return list<array{path:string,offset:int}> Paths adicionais com offset absoluto.
+     */
+    private function additionalLiteralPaths(string $source, int $openingParen, string $method): array
+    {
+        $closingParen = $this->matchingDelimiter($source, $openingParen, '(', ')');
+        if ($closingParen === null) {
+            return [];
+        }
+
+        $arguments = $this->topLevelRanges($source, $openingParen + 1, $closingParen - 1);
+        if ($arguments === []) {
+            return [];
+        }
+
+        $isWith = strtolower($method) === 'with';
+        $limit = $isWith ? count($arguments) : 1;
+        /** @var list<array{path:string,offset:int}> $paths */
+        $paths = [];
+
+        for ($index = 0; $index < $limit; $index++) {
+            [$start, $end] = $arguments[$index];
+            $first = $this->nextNonWhitespaceOffset($source, $start, $end);
+            if ($first === null) {
+                continue;
+            }
+
+            if (($source[$first] ?? '') === '[') {
+                foreach ($this->literalArrayEntries($source, $first, $end) as $entry) {
+                    $paths[] = $entry;
+                }
+                continue;
+            }
+
+            // A primeira string simples ja foi retornada pela passagem regex inicial.
+            if ($index === 0) {
+                continue;
+            }
+            $literal = $this->literalRange($source, $start, $end);
+            if ($literal !== null) {
+                $paths[] = $literal;
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Extrai strings de array literal usadas como valores ou chaves de relacao.
+     *
+     * @param string $source Codigo-fonte completo.
+     * @param int $openingBracket Offset do colchete inicial.
+     * @param int $rangeEnd Limite do argumento.
+     * @return list<array{path:string,offset:int}> Entradas literais elegiveis.
+     */
+    private function literalArrayEntries(string $source, int $openingBracket, int $rangeEnd): array
+    {
+        $closingBracket = $this->matchingDelimiter($source, $openingBracket, '[', ']');
+        if ($closingBracket === null || $closingBracket > $rangeEnd) {
+            return [];
+        }
+
+        /** @var list<array{path:string,offset:int}> $entries */
+        $entries = [];
+        foreach ($this->topLevelRanges($source, $openingBracket + 1, $closingBracket - 1) as [$start, $end]) {
+            $arrow = $this->topLevelArrowOffset($source, $start, $end);
+            $literal = $arrow === null
+                ? $this->literalRange($source, $start, $end)
+                : $this->literalRange($source, $start, $arrow - 1);
+            if ($literal !== null) {
+                $entries[] = $literal;
+            }
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Divide uma regiao por virgulas no primeiro nivel preservando offsets absolutos.
+     *
+     * @param string $source Codigo-fonte completo.
+     * @param int $start Inicio inclusivo.
+     * @param int $end Fim inclusivo.
+     * @return list<array{int,int}> Ranges nao vazios.
+     */
+    private function topLevelRanges(string $source, int $start, int $end): array
+    {
+        if ($start > $end) {
+            return [];
+        }
+
+        /** @var list<array{int,int}> $ranges */
+        $ranges = [];
+        $segment = $start;
+        $round = $square = $curly = 0;
+        $quote = null;
+        $escaped = false;
+
+        for ($cursor = $start; $cursor <= $end; $cursor++) {
+            $char = $source[$cursor];
+            if ($quote !== null) {
+                if ($escaped) {
+                    $escaped = false;
+                    continue;
+                }
+                if ($char === '\\') {
+                    $escaped = true;
+                    continue;
+                }
+                if ($char === $quote) {
+                    $quote = null;
+                }
+                continue;
+            }
+            if ($char === "'" || $char === '"') {
+                $quote = $char;
+                continue;
+            }
+            $round += $char === '(' ? 1 : ($char === ')' ? -1 : 0);
+            $square += $char === '[' ? 1 : ($char === ']' ? -1 : 0);
+            $curly += $char === '{' ? 1 : ($char === '}' ? -1 : 0);
+
+            if ($char === ',' && $round === 0 && $square === 0 && $curly === 0) {
+                if ($this->nextNonWhitespaceOffset($source, $segment, $cursor - 1) !== null) {
+                    $ranges[] = [$segment, $cursor - 1];
+                }
+                $segment = $cursor + 1;
+            }
+        }
+
+        if ($this->nextNonWhitespaceOffset($source, $segment, $end) !== null) {
+            $ranges[] = [$segment, $end];
+        }
+        return $ranges;
+    }
+
+    /**
+     * Localiza a seta de array no primeiro nivel de uma regiao.
+     *
+     * @param string $source Codigo-fonte completo.
+     * @param int $start Inicio inclusivo.
+     * @param int $end Fim inclusivo.
+     * @return int|null Offset do sinal de igual da seta.
+     */
+    private function topLevelArrowOffset(string $source, int $start, int $end): ?int
+    {
+        $round = $square = $curly = 0;
+        $quote = null;
+        $escaped = false;
+
+        for ($cursor = $start; $cursor < $end; $cursor++) {
+            $char = $source[$cursor];
+            if ($quote !== null) {
+                if ($escaped) {
+                    $escaped = false;
+                    continue;
+                }
+                if ($char === '\\') {
+                    $escaped = true;
+                    continue;
+                }
+                if ($char === $quote) {
+                    $quote = null;
+                }
+                continue;
+            }
+            if ($char === "'" || $char === '"') {
+                $quote = $char;
+                continue;
+            }
+            $round += $char === '(' ? 1 : ($char === ')' ? -1 : 0);
+            $square += $char === '[' ? 1 : ($char === ']' ? -1 : 0);
+            $curly += $char === '{' ? 1 : ($char === '}' ? -1 : 0);
+            if ($round === 0 && $square === 0 && $curly === 0 && $char === '=' && ($source[$cursor + 1] ?? '') === '>') {
+                return $cursor;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve uma string literal isolada dentro de um range.
+     *
+     * @param string $source Codigo-fonte completo.
+     * @param int $start Inicio inclusivo.
+     * @param int $end Fim inclusivo.
+     * @return array{path:string,offset:int}|null Literal sem interpolacao.
+     */
+    private function literalRange(string $source, int $start, int $end): ?array
+    {
+        $first = $this->nextNonWhitespaceOffset($source, $start, $end);
+        if ($first === null) {
+            return null;
+        }
+
+        $last = $end;
+        while ($last >= $first && ctype_space($source[$last])) {
+            $last--;
+        }
+
+        $quote = $source[$first] ?? '';
+        if (($quote !== "'" && $quote !== '"') || ($source[$last] ?? '') !== $quote || $last <= $first) {
+            return null;
+        }
+
+        $value = substr($source, $first + 1, $last - $first - 1);
+        if ($quote === '"' && str_contains($value, '$')) {
+            return null;
+        }
+        if ($quote === "'") {
+            $value = str_replace("\\'", "'", $value);
+        }
+
+        return ['path' => $value, 'offset' => $first];
+    }
+
+    /**
+     * Busca fechamento balanceado respeitando strings.
+     *
+     * @param string $source Codigo-fonte completo.
+     * @param int $opening Offset da abertura.
+     * @param string $open Delimitador de abertura.
+     * @param string $close Delimitador de fechamento.
+     * @return int|null Offset de fechamento.
+     */
+    private function matchingDelimiter(string $source, int $opening, string $open, string $close): ?int
+    {
+        $depth = 0;
+        $quote = null;
+        $escaped = false;
+
+        for ($cursor = $opening, $length = strlen($source); $cursor < $length; $cursor++) {
+            $char = $source[$cursor];
+            if ($quote !== null) {
+                if ($escaped) {
+                    $escaped = false;
+                    continue;
+                }
+                if (ord($char) === 92) {
+                    $escaped = true;
+                    continue;
+                }
+                if ($char === $quote) {
+                    $quote = null;
+                }
+                continue;
+            }
+
+            if ($char === "'" || $char === '"') {
+                $quote = $char;
+                continue;
+            }
+
+            if ($char === $open) {
+                $depth++;
+            } elseif ($char === $close) {
+                $depth--;
+                if ($depth === 0) {
+                    return $cursor;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Localiza caractere nao-whitespace no range.
+     *
+     * @param string $source Codigo-fonte completo.
+     * @param int $start Inicio inclusivo.
+     * @param int $end Fim inclusivo.
+     * @return int|null Offset encontrado.
+     */
+    private function nextNonWhitespaceOffset(string $source, int $start, int $end): ?int
+    {
+        for ($cursor = $start; $cursor <= $end; $cursor++) {
+            if (!ctype_space($source[$cursor])) {
+                return $cursor;
+            }
+        }
+        return null;
     }
 
     /**

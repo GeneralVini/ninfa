@@ -313,16 +313,16 @@ PHP,
     assert(!in_array('runtime-only', array_column($behaviorReferences, 'action'), true));
 
     $relationReferences = (new Yii2RelationReferenceAnalyzer())->references($context, $model);
-    assert(count($relationReferences) === 7);
+    assert(count($relationReferences) === 8);
     assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === true)) === 3);
-    assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === false)) === 2);
+    assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === false)) === 3);
     assert(count(array_filter($relationReferences, static fn (array $reference): bool => $reference['exists'] === null)) === 2);
     assert(array_column(array_values(array_filter(
         $relationReferences,
         static fn (array $reference): bool => $reference['exists'] === false,
-    )), 'missing_relation') === ['missing-relation', 'missing-nested']);
+    )), 'missing_relation') === ['missing-relation', 'missing-nested', 'missing-array']);
     assert(!in_array('runtime-only', array_column($relationReferences, 'relation_path'), true));
-    assert(!in_array('missing-array', array_column($relationReferences, 'relation_path'), true));
+    assert(in_array('missing-array', array_column($relationReferences, 'relation_path'), true));
     $runtimeGetterReference = array_values(array_filter(
         $relationReferences,
         static fn (array $reference): bool => $reference['relation_path'] === 'runtimeRelation',
@@ -363,7 +363,7 @@ PHP,
     assert($dynamicAttributesLink[0]['current_inventory_complete'] === false);
 
     $yii2Findings = (new Yii2RuleEngine())->analyse($model, $context);
-    assert(count($yii2Findings) === 10);
+    assert(count($yii2Findings) === 11);
     assert($yii2Findings[0]->tool === 'ninfa-yii2');
     assert($yii2Findings[0]->rule === Yii2RuleEngine::VIEW_NOT_FOUND);
     assert($yii2Findings[0]->file === 'frontend/controllers/SiteController.php');
@@ -398,10 +398,11 @@ PHP,
         $yii2Findings,
         static fn (Finding $finding): bool => $finding->rule === Yii2RuleEngine::QUERY_RELATION_NOT_FOUND,
     ));
-    assert(count($relationFindings) === 2);
+    assert(count($relationFindings) === 3);
     assert(array_column(array_map(static fn (Finding $finding): array => $finding->metadata, $relationFindings), 'missing_relation') === [
         'missing-relation',
         'missing-nested',
+        'missing-array',
     ]);
     foreach ($relationFindings as $finding) {
         assert($finding->file === 'common/models/Order.php');

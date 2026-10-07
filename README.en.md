@@ -64,7 +64,7 @@ COR-005   invalid arity in a static query condition array
 COR-006   non-existent attribute in Model::rules()
 COR-007   invalid scenario/attribute in Model::scenarios()
 COR-008   invalid attribute in Model::attributeLabels()
-COR-009   invalid attribute in Model::attributeHints()
+COR-009   non-existent attribute in static ActiveRecord condition/update arrays
 PERF-001  one()/count() used only to test existence
 MOD-001   find()->where(hash)->one/all where findOne/findAll is equivalent
 DEP-001   deprecated Yii::trace()

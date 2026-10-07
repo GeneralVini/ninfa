@@ -83,10 +83,10 @@ A primeira tranche ignora receiver armazenado em variável, expressão composta,
 | `controllerBehaviorActionsValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-002`; inclui subclasses locais comprovadas de ActionFilter/AuthMethod/AccessControl/VerbFilter e AccessRule |
 | `controllerActionsValidation` | `PARTIAL` | inventário de actions já existe; validação de config/class/options pertence ao pacote 2.5 de config arrays |
 | `activeRecordRelationValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-003` |
-| `activeRecordConditionValidation` | `PARTIAL` | `NINFA-YII2-COR-005` cobre aridade de operators literais |
-| `queryConditionValidation` | `PARTIAL` | mesma base de `COR-005`; ampliar tipos/conditions somente com prova segura |
-| `activeQueryWithValidation` | `PARTIAL` | relation paths já cobertos; outras validações dependem de typing adicional |
-| `activeRecordUpdateValuesValidation` | `DEFERRED` | agora pode reutilizar o inventário de atributos quando ele for conclusivo; schema runtime continua `unknown` |
+| `activeRecordConditionValidation` | `PARTIAL` | `COR-010` valida keys de hash condition com inventário ActiveRecord conclusivo; operator arrays continuam em `COR-005` e type checks dependem de typing/schema |
+| `queryConditionValidation` | `PARTIAL` | `NINFA-YII2-COR-005` cobre aridade recursiva de operators literais em `where/andWhere/orWhere`; receivers tipáveis apenas via PHPStan seguem fora |
+| `activeQueryWithValidation` | `PARTIAL` | `COR-003` cobre strings, arrays e argumentos variádicos literais em chains diretas `Model::find()`; query variables/type inference seguem fora |
+| `activeRecordUpdateValuesValidation` | `PARTIAL` | `COR-010` valida keys literais de `updateAll()/updateAllCounters()` quando `attributes()` é conclusivo; value types/schema runtime continuam `unknown` |
 | `baseObjectInstantiationValidation` | `DEFERRED` | útil para config arrays; requer modelagem de setters/properties/configuração Yii2 |
 | `behaviorAttributesValidation` | `DEFERRED` | pode reutilizar o inventário de atributos, mas ainda requer semântica do behavior |
 | `componentBehaviorsValidation` | `PARTIAL` | parser de behaviors já existe para actions; config geral ainda não |
@@ -154,7 +154,7 @@ PHPDoc do próprio Ninfa continua obrigatório e narrativo. Qualquer analyzer no
 
 A sequência recomendada depois das regras já fechadas é:
 
-1. revisar ActiveRecord/Query do pacote 2.4 sobre os contratos já existentes (`COR-003..005`, `PERF-001`, `MOD-001`, `SEC-001`);
+1. modelar config arrays/BaseObject do pacote 2.5 sem duplicar validações pontuais;
 2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção de segurança ou autofix;
 3. avançar config arrays/ActiveForm/UploadedFile somente quando o tipo do Model ou componente for demonstrável;
 4. melhorar typing com evidência de analyzer externo antes de `RemoveRedundantHtmlEncodeRector`;
