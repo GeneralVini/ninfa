@@ -357,3 +357,4 @@ Portuguese:
 - [Security](docs/SEGURANCA.md)
 - [Security architecture](docs/SECURITY-ARCHITECTURE.md)
 - [Internal architecture and code documentation](docs/INTERNAL-ARCHITECTURE.md)
+- [Upstream integration WBS (PT-BR)](docs/EAP-UPSTREAM-INTEGRATION.md)

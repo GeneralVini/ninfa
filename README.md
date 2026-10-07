@@ -350,3 +350,4 @@ O NINFA mantém seus próprios contratos, IDs, políticas de segurança e implem
 - [Segurança](docs/SEGURANCA.md)
 - [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md)
 - [Arquitetura interna e documentação de código](docs/INTERNAL-ARCHITECTURE.md)
+- [EAP de integração upstream](docs/EAP-UPSTREAM-INTEGRATION.md)
