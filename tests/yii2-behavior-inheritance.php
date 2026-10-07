@@ -149,7 +149,7 @@ PHP);
     ));
     $knownActions = array_column($known, 'action');
     sort($knownActions);
-    assert($knownActions === ['existing', 'existing', 'index', 'index']);
+    assert($knownActions === ['existing', 'existing', 'existing', 'index', 'index']);
 
     $findings = array_values(array_filter(
         (new Yii2RuleEngine())->analyse($model, $context),
