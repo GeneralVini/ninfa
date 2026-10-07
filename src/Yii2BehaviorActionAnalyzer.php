@@ -434,6 +434,15 @@ final class Yii2BehaviorActionAnalyzer
             if ($normalized === $expected) {
                 return true;
             }
+            if ($expected === 'yii\\filters\\auth\\authmethod'
+                && str_starts_with($normalized, 'yii\\filters\\auth\\')) {
+                return true;
+            }
+            if ($expected === 'yii\\base\\actionfilter'
+                && str_starts_with($normalized, 'yii\\filters\\')
+                && $normalized !== 'yii\\filters\\accessrule') {
+                return true;
+            }
             if (isset($visited[$normalized])) {
                 return false;
             }
