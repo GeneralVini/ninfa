@@ -381,6 +381,7 @@ final class Yii2BehaviorActionAnalyzer
      * aceitos para controllers sem `use` explícito.
      *
      * @param string $class Classe resolvida ou nome curto literal.
+     * @param array<string,string> $classParents Mapa lowercase FQCN => parent FQCN local.
      * @return 'verb'|'access'|'auth'|'action-filter'|null Família semântica reconhecida.
      */
     private function behaviorKind(string $class, array $classParents): ?string
