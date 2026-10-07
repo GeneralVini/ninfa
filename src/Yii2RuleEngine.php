@@ -9,6 +9,7 @@ require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryConditionAnalyzer.php';
+require_once __DIR__ . '/Yii2ActiveRecordAttributeAnalyzer.php';
 require_once __DIR__ . '/Yii2ModelRulesAnalyzer.php';
 require_once __DIR__ . '/Yii2ModelMetadataAnalyzer.php';
 require_once __DIR__ . '/Yii2WhereEqualityAnalyzer.php';
@@ -43,6 +44,9 @@ final class Yii2RuleEngine
 
     /** Identificador estável de aridade inválida em condition array de Query Yii2. */
     public const QUERY_CONDITION_INVALID = 'NINFA-YII2-COR-005';
+
+    /** Identificador estável de atributo inválido em condition/update de ActiveRecord. */
+    public const ACTIVE_RECORD_ATTRIBUTE_NOT_FOUND = 'NINFA-YII2-COR-010';
 
     /** Identificador estável de atributo/cenário inválido em Model::scenarios(). */
     public const MODEL_SCENARIO_INVALID = 'NINFA-YII2-COR-007';
@@ -264,6 +268,39 @@ final class Yii2RuleEngine
                     'actual_operands' => $reference['actual_operands'],
                     'expectation' => $reference['expectation'],
                     'expected_operands' => $reference['expected_operands'],
+                    'autofix' => false,
+                ],
+            );
+        }
+
+        // COR-010 reutiliza o inventário conclusivo de atributos para static ActiveRecord calls.
+        foreach ((new Yii2ActiveRecordAttributeAnalyzer())->references($context) as $reference) {
+            $roleLabel = match ($reference['role']) {
+                'condition' => 'condition',
+                'attributes' => 'attributes',
+                'counters' => 'counters',
+            };
+
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::ACTIVE_RECORD_ATTRIBUTE_NOT_FOUND,
+                problem: 'Atributo Yii2 ' . $reference['attribute'] . ' não existe em ActiveRecord::'
+                    . $reference['method'] . '() ' . $roleLabel . '.',
+                correction: 'Corrija a chave do array ou declare o atributo em um inventário estático conclusivo do ActiveRecord.',
+                severity: 'error',
+                confidence: 'high',
+                evidenceType: 'framework-correctness',
+                provenance: ['ninfa:yii2-active-record-attribute-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'correctness',
+                    'model' => $reference['model'],
+                    'method' => $reference['method'],
+                    'role' => $reference['role'],
+                    'attribute' => $reference['attribute'],
+                    'attribute_inventory_complete' => true,
                     'autofix' => false,
                 ],
             );
