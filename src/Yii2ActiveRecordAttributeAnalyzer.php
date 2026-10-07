@@ -56,6 +56,7 @@ final class Yii2ActiveRecordAttributeAnalyzer
         $inventories = (new Yii2ModelRulesAnalyzer())->inventories($context);
         /** @var array<string,array{attributes:list<string>}> $activeRecords Inventários conclusivos por FQCN. */
         $activeRecords = [];
+        // Só ActiveRecords com inventário conclusivo permitem provar ausência de atributo.
         foreach ($inventories as $class => $inventory) {
             if ($inventory['active_record'] && $inventory['complete']) {
                 $activeRecords[$class] = ['attributes' => $inventory['attributes']];
@@ -98,6 +99,7 @@ final class Yii2ActiveRecordAttributeAnalyzer
                 }
                 $arguments = $this->topLevelRanges($source, $openingParen + 1, $closingParen - 1);
 
+                // Cada argumento é validado isoladamente; ausência/dinamismo em um não contamina os demais.
                 foreach ($rules as $rule) {
                     $range = $arguments[$rule['index']] ?? null;
                     if ($range === null) {
@@ -168,6 +170,7 @@ final class Yii2ActiveRecordAttributeAnalyzer
 
         /** @var list<array{name:string,offset:int}> $keys */
         $keys = [];
+        // Apenas entries hash com key string literal entram; operator arrays e keys dinâmicas ficam unknown.
         foreach ($this->topLevelRanges($source, $openingBracket + 1, $closingBracket - 1) as [$start, $end]) {
             $first = $this->nextNonWhitespaceOffset($source, $start, $end);
             if ($first === null || substr($source, $first, 3) === '...') {
