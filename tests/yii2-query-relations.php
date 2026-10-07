@@ -80,9 +80,10 @@ PHP);
         'missing-join',
         'missing-key',
         'missing-variadic',
+        'missing-after-dynamic',
     ]);
 
-    assert(!in_array('missing-after-dynamic', array_column($references, 'relation_path'), true));
+    assert(in_array('missing-after-dynamic', array_column($references, 'relation_path'), true));
     assert(in_array('items', array_column($references, 'relation_path'), true));
     assert(in_array('items i', array_column($references, 'relation_path'), true));
 
@@ -90,7 +91,7 @@ PHP);
         (new Yii2RuleEngine())->analyse($model, $context),
         static fn (Finding $finding): bool => $finding->rule === Yii2RuleEngine::QUERY_RELATION_NOT_FOUND,
     ));
-    assert(count($findings) === 5);
+    assert(count($findings) === 6);
     foreach ($findings as $finding) {
         assert($finding->severity === 'error');
         assert($finding->confidence === 'high');
