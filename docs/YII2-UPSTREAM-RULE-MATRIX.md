@@ -77,9 +77,9 @@ A primeira tranche ignora receiver armazenado em variável, expressão composta,
 
 | Conceito upstream | Decisão Ninfa | Mapping atual / direção |
 | --- | --- | --- |
-| `controllerViewExistenceValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-001` |
-| `viewRenderExistenceValidation` | `PARTIAL` | ampliar `COR-001` quando houver resolução estática segura fora de controller |
-| `nestedViewExistenceValidation` | `PARTIAL` | mesma família de resolução de views; referências dinâmicas continuam `unknown` |
+| `controllerViewExistenceValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-001`; convenção, aliases e view paths explícitos |
+| `viewRenderExistenceValidation` | `PARTIAL` | `COR-001` cobre `Yii::$app->view/getView()->render()` quando o path é resolvível; receivers apenas tipáveis por PHPStan seguem fora |
+| `nestedViewExistenceValidation` | `PARTIAL` | `COR-001` cobre `$this->render()` em arquivos sob views/Views; expressões não literais e contexto relativo dinâmico ficam `unknown` |
 | `controllerBehaviorActionsValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-002` |
 | `controllerActionsValidation` | `PARTIAL` | inventário de actions já existe; ampliar referências objetivas sem inventar reachability |
 | `activeRecordRelationValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-003` |
@@ -154,7 +154,7 @@ PHPDoc do próprio Ninfa continua obrigatório e narrativo. Qualquer analyzer no
 
 A sequência recomendada depois das regras já fechadas é:
 
-1. ampliar a resolução de views (`View::render()`, nested views e aliases) apenas quando o path for demonstrável;
+1. revisar controllers/actions/behaviors restantes do pacote 2.2 sem duplicar `COR-002` já implementado;
 2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção de segurança ou autofix;
 3. avançar config arrays/ActiveForm/UploadedFile somente quando o tipo do Model ou componente for demonstrável;
 4. melhorar typing com evidência de analyzer externo antes de `RemoveRedundantHtmlEncodeRector`;
