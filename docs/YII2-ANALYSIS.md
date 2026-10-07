@@ -58,9 +58,39 @@ O modo normal de `scripts/ninfa-configure.php` persiste esse snapshot em `semant
 
 ### COR-001 — view literal inexistente
 
-`NINFA-YII2-COR-001` cobre referências literais resolvíveis pela convenção estática `controllers/` → `views/<controller-id>/` em `render()`, `renderPartial()` e `renderAjax()`.
+`NINFA-YII2-COR-001` usa `src/Yii2ViewReferenceAnalyzer.php` para resolver somente referências literais cuja origem e path podem ser demonstrados sem executar o consumidor.
 
-O finding só existe quando o path foi resolvido e o arquivo foi comprovadamente ausente. Alias, `renderFile()`, nomes calculados, paths absolutos e resolução dependente de runtime não são negados.
+A cobertura inclui:
+
+```text
+Controller::$this->render()/renderPartial()/renderAjax()
+$this->render() em arquivos sob views/Views
+Yii::$app->view->render()
+Yii::$app->getView()->render()
+```
+
+Para controllers, a convenção física `controllers|Controllers` → `views|Views` preserva subdiretórios e o controller ID. Em nested views, nomes relativos são resolvidos a partir do diretório da view atual e nomes iniciados por `/` usam a raiz de views daquele contexto.
+
+Aliases e view paths customizados exigem configuração externa explícita, evitando inferir configuração runtime:
+
+```bash
+export NINFA_YII2_VIEW_ALIASES_JSON='{"@app":"/srv/app/frontend","@shared":"/srv/app/shared/views"}'
+export NINFA_YII2_VIEW_PATHS_JSON='{"App\\Frontend\\Controllers":"/srv/app/resources/frontend/views"}'
+export NINFA_YII2_VIEW_EXTENSIONS='php,twig'
+```
+
+Paths relativos nessas variáveis são ancorados na raiz do consumidor. `//...` só é resolvido quando `@app` foi explicitamente configurado. Alias desconhecido, receiver arbitrário, string calculada, traversal e contexto relativo substituído por terceiro argumento permanecem `unknown`.
+
+`renderFile()` permanece fora de `COR-001`: seu contrato é path de arquivo, não nome de view, e será tratado separadamente se houver ganho real.
+
+Contrato:
+
+```text
+category          correctness
+severity          error
+confidence        high
+autofix           false
+```
 
 ### COR-002 — action inexistente em behaviors/filters
 
@@ -498,6 +528,7 @@ A suíte dedicada inclui:
 
 ```text
 tests/yii2-semantic-model.php
+tests/yii2-view-resolution.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
 tests/yii2-model-rules.php
@@ -562,7 +593,7 @@ A matriz de rastreabilidade das regras upstream fica em `docs/YII2-UPSTREAM-RULE
 
 A evolução seguinte prioriza:
 
-1. ampliar a resolução de views (`View::render()`, nested views, aliases e paths configuráveis) somente com path estático demonstrável;
+1. revisar o pacote 2.2 de controllers/actions/behaviors, fechando gaps objetivos sem duplicar `COR-002`;
 2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção a `security`/autofix;
 3. avançar ActiveForm/UploadedFile/config arrays apenas quando o tipo do Model/componente for demonstrável;
 4. melhorar typing com evidência forte antes de `RemoveRedundantHtmlEncodeRector`;

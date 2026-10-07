@@ -150,6 +150,8 @@ Estados permitidos:
 
 ### 2.1 Views
 
+**Estado:** concluído nesta tranche para resolução estática conservadora; diferenças que dependem de type inference superior permanecem `PARTIAL` na matriz.
+
 Objetivo: consolidar a família de existência/resolução de views sem executar código do consumidor.
 
 Cobertura a avaliar:
@@ -751,4 +753,4 @@ Um item implementado só é considerado concluído quando aplicável:
 | 7.0 Engenharia/release | planejado |
 | 8.0 Gate final | pendente |
 
-A próxima execução recomendada é o pacote **2.1 — Views**, revisando `View::render()`, nested views, aliases e paths configuráveis antes do Gate 4.0.
+A próxima execução recomendada é o pacote **2.2 — Controllers, actions e behaviors**, revisando gaps objetivos além de `COR-002` antes de avançar para ActiveRecord/Query.

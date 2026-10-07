@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Finding.php';
 require_once __DIR__ . '/Yii2SemanticModel.php';
+require_once __DIR__ . '/Yii2ViewReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2BehaviorActionAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
@@ -105,39 +106,69 @@ final class Yii2RuleEngine
         /** @var list<Finding> $findings Findings conclusivos produzidos pelas regras habilitadas. */
         $findings = [];
 
-        // A engine só promove evidência conclusiva; `exists=null` representa resolução deliberadamente desconhecida.
-        foreach ($model->controllers() as $controller) {
-            foreach ($controller['views'] as $view) {
-                if ($view['exists'] !== false || $view['resolved_path'] === null) {
-                    continue;
-                }
+        // Sem ProjectContext preserva compatibilidade com o snapshot; com contexto usa o resolver ampliado e configurável.
+        if ($context === null) {
+            foreach ($model->controllers() as $controller) {
+                foreach ($controller['views'] as $view) {
+                    if ($view['exists'] !== false || $view['resolved_path'] === null) {
+                        continue;
+                    }
 
-                $findings[] = new Finding(
-                    tool: 'ninfa-yii2',
-                    file: $controller['file'],
-                    line: $view['line'],
-                    rule: self::VIEW_NOT_FOUND,
-                    problem: 'View Yii2 literal não encontrada: ' . $view['name'],
-                    correction: 'Crie a view esperada ou corrija a referência para um arquivo existente.',
-                    severity: 'error',
-                    confidence: 'high',
-                    evidenceType: 'framework-correctness',
-                    provenance: ['ninfa:yii2-semantic-model'],
-                    metadata: [
-                        'framework' => 'yii2',
-                        'category' => 'correctness',
-                        'controller' => $controller['class'],
-                        'controller_id' => $controller['id'],
-                        'view' => $view['name'],
-                        'expected_path' => $view['resolved_path'],
-                        'autofix' => false,
-                    ],
-                );
+                    $findings[] = new Finding(
+                        tool: 'ninfa-yii2',
+                        file: $controller['file'],
+                        line: $view['line'],
+                        rule: self::VIEW_NOT_FOUND,
+                        problem: 'View Yii2 literal não encontrada: ' . $view['name'],
+                        correction: 'Crie a view esperada ou corrija a referência para um arquivo existente.',
+                        severity: 'error',
+                        confidence: 'high',
+                        evidenceType: 'framework-correctness',
+                        provenance: ['ninfa:yii2-semantic-model'],
+                        metadata: [
+                            'framework' => 'yii2',
+                            'category' => 'correctness',
+                            'controller' => $controller['class'],
+                            'controller_id' => $controller['id'],
+                            'view' => $view['name'],
+                            'expected_path' => $view['resolved_path'],
+                            'autofix' => false,
+                        ],
+                    );
+                }
             }
+
+            return $findings;
         }
 
-        if ($context === null) {
-            return $findings;
+        // COR-001 ampliado resolve controller, nested view e receivers Yii::$app->view comprovados.
+        foreach ((new Yii2ViewReferenceAnalyzer())->references($context, $model) as $reference) {
+            if ($reference['exists']) {
+                continue;
+            }
+
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: self::VIEW_NOT_FOUND,
+                problem: 'View Yii2 literal não encontrada: ' . $reference['view'],
+                correction: 'Crie a view esperada ou corrija a referência/configuração para um arquivo existente.',
+                severity: 'error',
+                confidence: 'high',
+                evidenceType: 'framework-correctness',
+                provenance: ['ninfa:yii2-view-reference-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'correctness',
+                    'view' => $reference['view'],
+                    'method' => $reference['method'],
+                    'view_context' => $reference['context'],
+                    'resolution_source' => $reference['source'],
+                    'expected_path' => $reference['resolved_path'],
+                    'autofix' => false,
+                ],
+            );
         }
 
         // COR-002 só acusa ausência quando o analisador provou que o inventário de actions está completo.
