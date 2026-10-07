@@ -8,11 +8,11 @@ GO_TOOLS_STAMP ?= .tools/go/.installed
 NINFA_GO_VERSION ?= dev
 NINFA_GO_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf unknown)
 
-.PHONY: setup check environment-check syntax profile-test security-tools semgrep-rules go-tools go-fmt go-fmt-check go-vet go-lint go-sast go-vuln go-security go-security-report go-test go-build go-check
+.PHONY: setup check environment-check syntax profile-test language-check security-tools semgrep-rules go-tools go-fmt go-fmt-check go-vet go-lint go-sast go-vuln go-security go-security-report go-test go-build go-check
 
 setup: environment-check security-tools syntax semgrep-rules profile-test
 
-check: syntax profile-test semgrep-rules go-check
+check: syntax profile-test language-check semgrep-rules go-check
 
 environment-check:
 	bash scripts/check-environment.sh
@@ -27,6 +27,9 @@ semgrep-rules: security-tools
 
 syntax:
 	find src scripts tests bin -type f \( -name '*.php' -o -path 'bin/ninfa' \) -print0 | xargs -0 -n1 php -l
+
+language-check:
+	php scripts/check-engineering-language.php
 
 profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/project-context.php

@@ -3,29 +3,29 @@
 declare(strict_types=1);
 
 /**
- * Protege a premissa de documentação interna do código de produção do Ninfa.
+ * Guards Ninfa's internal documentation requirements for production code.
  *
- * Não existe mais allowlist de dívida documental para `src/`: toda classe e
- * todo método/função nomeada precisam de PHPDoc narrativo; arrays em contratos
- * precisam preservar genéricos/shapes; acumuladores vazios precisam de `@var`.
- * Arquivos com fluxo de controle relevante também precisam conter comentários
- * de intenção/invariante além dos PHPDocs de símbolo.
+ * There is no permanent documentation-debt allowlist for `src/`: every class
+ * and every named method/function requires narrative PHPDoc; array contracts
+ * preserve generics/shapes; empty array accumulators require a nearby `@var`.
+ * Files with relevant control flow also require local comments that explain
+ * intent or invariants in addition to symbol-level PHPDoc.
  *
- * Shell possui guard específico em `tests/shell-docs.php`. JavaScript próprio,
- * quando surgir, entra automaticamente no requisito mínimo de JSDoc.
+ * Shell has its own guard in `tests/shell-docs.php`. Future first-party
+ * JavaScript modules automatically enter the minimum JSDoc requirement.
  */
 
-/** @var string $root Raiz física do repositório Ninfa. */
+/** @var string $root Physical root of the Ninfa repository. */
 $root = dirname(__DIR__);
-/** @var list<string> $errors Violações documentais encontradas durante o guard. */
+/** @var list<string> $errors Documentation violations found by this guard. */
 $errors = [];
 
 /**
- * Converte um path absoluto em path relativo ao repositório para diagnóstico.
+ * Converts an absolute path to a repository-relative path for diagnostics.
  *
- * @param string $root Raiz física do repositório.
- * @param string $file Path absoluto ou já relativo.
- * @return string Path relativo quando o prefixo do repositório estiver presente.
+ * @param string $root Physical repository root.
+ * @param string $file Absolute or already-relative path.
+ * @return string Relative path when the repository prefix is present.
  */
 function docsRelativePath(string $root, string $file): string
 {
@@ -34,10 +34,10 @@ function docsRelativePath(string $root, string $file): string
 }
 
 /**
- * Verifica se o PHPDoc possui explicação narrativa além de tags de tipo.
+ * Checks whether PHPDoc contains narrative text beyond type tags.
  *
- * @param string $docBlock Token T_DOC_COMMENT bruto.
- * @return bool True quando existe ao menos uma linha descritiva significativa.
+ * @param string $docBlock Raw T_DOC_COMMENT token.
+ * @return bool True when at least one meaningful descriptive line exists.
  */
 function docsHasNarrative(string $docBlock): bool
 {
@@ -57,19 +57,19 @@ function docsHasNarrative(string $docBlock): bool
 }
 
 /**
- * Localiza o PHPDoc imediatamente associado a uma declaração PHP tokenizada.
+ * Finds the PHPDoc immediately associated with a tokenized PHP declaration.
  *
- * Modificadores de visibilidade/static/final/readonly podem existir entre o
- * docblock e a declaração; qualquer outro token significativo interrompe a
- * associação para não reutilizar comentário pertencente ao símbolo anterior.
+ * Visibility/static/final/readonly modifiers may appear between the docblock
+ * and declaration. Any other meaningful token breaks the association so a
+ * comment from the previous symbol cannot be reused accidentally.
  *
- * @param array<int,array{0:int,1:string,2:int}|string> $tokens Tokens de `token_get_all()`.
- * @param int $index Índice do token da declaração.
- * @return string|null PHPDoc associado ou null.
+ * @param array<int,array{0:int,1:string,2:int}|string> $tokens Tokens returned by `token_get_all()`.
+ * @param int $index Declaration token index.
+ * @return string|null Associated PHPDoc or null.
  */
 function docsPreviousPhpDoc(array $tokens, int $index): ?string
 {
-    /** @var list<int> $skippable Tokens permitidos entre PHPDoc e declaração. */
+    /** @var list<int> $skippable Tokens allowed between PHPDoc and declaration. */
     $skippable = [T_WHITESPACE, T_FINAL, T_ABSTRACT, T_PUBLIC, T_PROTECTED, T_PRIVATE, T_STATIC];
     if (defined('T_READONLY')) {
         $skippable[] = T_READONLY;
@@ -95,11 +95,11 @@ function docsPreviousPhpDoc(array $tokens, int $index): ?string
 }
 
 /**
- * Extrai nome e assinatura textual de método/função; closures retornam null.
+ * Extracts the textual name and signature of a method/function; closures return null.
  *
- * @param array<int,array{0:int,1:string,2:int}|string> $tokens Tokens PHP.
- * @param int $functionIndex Índice do token T_FUNCTION.
- * @return array{name:string,signature:string}|null Metadados do símbolo nomeado.
+ * @param array<int,array{0:int,1:string,2:int}|string> $tokens PHP tokens.
+ * @param int $functionIndex Index of the T_FUNCTION token.
+ * @return array{name:string,signature:string}|null Named-symbol metadata.
  */
 function docsNamedCallable(array $tokens, int $functionIndex): ?array
 {
@@ -126,11 +126,11 @@ function docsNamedCallable(array $tokens, int $functionIndex): ?array
 }
 
 /**
- * Exige PHPDoc narrativo em todas as classes declaradas pelo arquivo.
+ * Requires narrative PHPDoc on every class declared by the file.
  *
- * @param string $root Raiz usada para mensagens relativas.
- * @param string $file Arquivo PHP de produção.
- * @param list<string> $errors Acumulador mutável de violações.
+ * @param string $root Root used to produce relative diagnostics.
+ * @param string $file Production PHP file.
+ * @param list<string> $errors Mutable violation accumulator.
  */
 function assertDocumentedClasses(string $root, string $file, array &$errors): void
 {
@@ -142,26 +142,27 @@ function assertDocumentedClasses(string $root, string $file, array &$errors): vo
         }
 
         $docBlock = docsPreviousPhpDoc($tokens, $index);
-        $label = docsRelativePath($root, $file) . ': classe na linha ' . $token[2];
+        $label = docsRelativePath($root, $file) . ': class at line ' . $token[2];
         if ($docBlock === null) {
-            $errors[] = $label . ' sem PHPDoc associado.';
+            $errors[] = $label . ' has no associated PHPDoc.';
             continue;
         }
         if (!docsHasNarrative($docBlock)) {
-            $errors[] = $label . ' possui PHPDoc sem descrição factual.';
+            $errors[] = $label . ' has PHPDoc without a factual description.';
         }
     }
 }
 
 /**
- * Exige PHPDoc descritivo em todos os métodos/funções nomeados de produção.
+ * Requires descriptive PHPDoc on all named production methods/functions.
  *
- * Quando a assinatura usa `array`, o docblock precisa preservar genérico/shape
- * por `@param` e/ou `@return`; apenas repetir `array` não atende ao contrato.
+ * When a signature uses `array`, the docblock must preserve generic/shape
+ * information with `@param` and/or `@return`; repeating `array` alone does
+ * not satisfy the contract.
  *
- * @param string $root Raiz usada para mensagens relativas.
- * @param string $file Arquivo PHP submetido ao padrão estrito.
- * @param list<string> $errors Acumulador mutável de violações.
+ * @param string $root Root used to produce relative diagnostics.
+ * @param string $file PHP file subject to the strict documentation standard.
+ * @param list<string> $errors Mutable violation accumulator.
  */
 function assertStrictNamedCallables(string $root, string $file, array &$errors): void
 {
@@ -177,14 +178,14 @@ function assertStrictNamedCallables(string $root, string $file, array &$errors):
             continue;
         }
 
-        $label = docsRelativePath($root, $file) . '::' . $metadata['name'] . '() linha ' . $token[2];
+        $label = docsRelativePath($root, $file) . '::' . $metadata['name'] . '() line ' . $token[2];
         $docBlock = docsPreviousPhpDoc($tokens, $index);
         if ($docBlock === null) {
-            $errors[] = $label . ': função/método sem PHPDoc associado.';
+            $errors[] = $label . ': named function/method has no associated PHPDoc.';
             continue;
         }
         if (!docsHasNarrative($docBlock)) {
-            $errors[] = $label . ': PHPDoc deve explicar responsabilidade/contrato, não apenas tags.';
+            $errors[] = $label . ': PHPDoc must explain responsibility/contract, not only type tags.';
         }
 
         $signature = $metadata['signature'];
@@ -192,29 +193,29 @@ function assertStrictNamedCallables(string $root, string $file, array &$errors):
         $hasArrayReturn = preg_match('/:\s*\??array\b/', $signature) === 1;
 
         if ($hasArrayParameter && preg_match('/@param\s+(?:array|list)(?:<|\{)/', $docBlock) !== 1) {
-            $errors[] = $label . ': parâmetro array deve preservar tipo genérico/shape em @param.';
+            $errors[] = $label . ': array parameter must preserve a generic/shape type in @param.';
         }
         if ($hasArrayReturn && preg_match('/@return\s+(?:array|list)(?:<|\{)/', $docBlock) !== 1) {
-            $errors[] = $label . ': retorno array deve preservar tipo genérico/shape em @return.';
+            $errors[] = $label . ': array return must preserve a generic/shape type in @return.';
         }
     }
 }
 
 /**
- * Exige `@var` próximo de acumuladores locais iniciados como array vazio.
+ * Requires a nearby `@var` for local accumulators initialized as empty arrays.
  *
- * A regra cobre o padrão `$nome = [];`, comum em mapas/listas acumuladas. Shapes
- * extensos podem usar docblock multilinha nas linhas imediatamente anteriores.
+ * The rule covers the common `$name = [];` pattern used by accumulating maps
+ * and lists. Large shapes may use a multiline docblock immediately above.
  *
- * @param string $root Raiz usada para mensagens relativas.
- * @param string $file Arquivo PHP submetido ao padrão estrito.
- * @param list<string> $errors Acumulador mutável de violações.
+ * @param string $root Root used to produce relative diagnostics.
+ * @param string $file PHP file subject to the strict documentation standard.
+ * @param list<string> $errors Mutable violation accumulator.
  */
 function assertTypedEmptyArrayAccumulators(string $root, string $file, array &$errors): void
 {
     $lines = file($file, FILE_IGNORE_NEW_LINES);
     if (!is_array($lines)) {
-        $errors[] = docsRelativePath($root, $file) . ': não foi possível ler o arquivo.';
+        $errors[] = docsRelativePath($root, $file) . ': unable to read file.';
         return;
     }
 
@@ -230,28 +231,28 @@ function assertTypedEmptyArrayAccumulators(string $root, string $file, array &$e
             continue;
         }
 
-        $errors[] = docsRelativePath($root, $file) . ': acumulador $' . $variable
-            . ' na linha ' . ($index + 1) . ' sem @var de tipo/shape próximo.';
+        $errors[] = docsRelativePath($root, $file) . ': accumulator $' . $variable
+            . ' at line ' . ($index + 1) . ' has no nearby @var type/shape.';
     }
 }
 
 /**
- * Exige evidência de documentação interna quando o arquivo contém fluxo complexo.
+ * Requires evidence of local documentation when a file contains complex control flow.
  *
- * Não tenta provar qualidade semântica do comentário. O objetivo é impedir que
- * arquivos com vários `if/foreach/try/match` tenham apenas PHPDoc de cabeçalho e
- * nenhum comentário local sobre decisões, precedências ou invariantes.
+ * This check does not attempt to prove semantic comment quality. It prevents files
+ * with several `if/foreach/try/match` constructs from containing only symbol-level
+ * PHPDoc and no local explanation of decisions, precedence or invariants.
  *
- * @param string $root Raiz usada para mensagens relativas.
- * @param string $file Arquivo PHP de produção.
- * @param list<string> $errors Acumulador mutável de violações.
+ * @param string $root Root used to produce relative diagnostics.
+ * @param string $file Production PHP file.
+ * @param list<string> $errors Mutable violation accumulator.
  */
 function assertSemanticBlockComments(string $root, string $file, array &$errors): void
 {
     $tokens = token_get_all((string) file_get_contents($file));
     $controlCount = 0;
     $localNarrativeComments = 0;
-    /** @var list<int> $controlTokens Tokens que indicam decisões/iterações relevantes. */
+    /** @var list<int> $controlTokens Tokens that represent relevant decisions/iterations. */
     $controlTokens = [T_IF, T_FOREACH, T_FOR, T_WHILE, T_TRY, T_SWITCH];
     if (defined('T_MATCH')) {
         $controlTokens[] = T_MATCH;
@@ -274,31 +275,31 @@ function assertSemanticBlockComments(string $root, string $file, array &$errors)
 
     if ($controlCount >= 3 && $localNarrativeComments === 0) {
         $errors[] = docsRelativePath($root, $file)
-            . ': possui fluxo de controle relevante sem comentário local de decisão/invariante.';
+            . ': contains relevant control flow without a local decision/invariant comment.';
     }
 }
 
 /**
- * Exige um docblock de arquivo nas primeiras linhas de entrypoint/config PHP.
+ * Requires a file-level docblock near the top of executable/configuration PHP files.
  *
- * @param string $root Raiz usada para mensagens relativas.
- * @param string $file Arquivo PHP executável/configuração.
- * @param list<string> $errors Acumulador mutável de violações.
+ * @param string $root Root used to produce relative diagnostics.
+ * @param string $file Executable/configuration PHP file.
+ * @param list<string> $errors Mutable violation accumulator.
  */
 function assertPhpHeader(string $root, string $file, array &$errors): void
 {
     $prefix = substr((string) file_get_contents($file), 0, 4096);
     if (!str_contains($prefix, '/**')) {
-        $errors[] = docsRelativePath($root, $file) . ': cabeçalho PHPDoc ausente.';
+        $errors[] = docsRelativePath($root, $file) . ': file-level PHPDoc header is missing.';
     }
 }
 
 /**
- * Lista arquivos recursivamente pelas extensões informadas.
+ * Lists files recursively for the requested extensions.
  *
- * @param string $directory Diretório base.
- * @param list<string> $extensions Extensões sem ponto, em lowercase.
- * @return list<string> Paths absolutos ordenados.
+ * @param string $directory Base directory.
+ * @param list<string> $extensions Lowercase extensions without a leading dot.
+ * @return list<string> Sorted absolute paths.
  */
 function docsFilesByExtension(string $directory, array $extensions): array
 {
@@ -321,22 +322,21 @@ function docsFilesByExtension(string $directory, array $extensions): array
 }
 
 /**
- * Verifica JSDoc mínimo em módulos JavaScript próprios quando eles existirem.
+ * Checks minimum JSDoc requirements for first-party JavaScript modules when present.
  *
- * Todo módulo precisa iniciar com um bloco JSDoc de arquivo. Funções declaradas
- * por `function` precisam de JSDoc imediatamente anterior; arrow functions
- * continuam sob revisão humana até existir primeiro módulo real e um parser JS
- * dedicado no projeto.
+ * Every module must start with a file-level JSDoc block. Functions declared with
+ * `function` require nearby JSDoc. Arrow functions remain subject to human review
+ * until the repository has a real first-party JS module and a dedicated parser.
  *
- * @param string $root Raiz usada para mensagens relativas.
- * @param string $file Módulo JS/MJS/CJS próprio do Ninfa.
- * @param list<string> $errors Acumulador mutável de violações.
+ * @param string $root Root used to produce relative diagnostics.
+ * @param string $file First-party JS/MJS/CJS module.
+ * @param list<string> $errors Mutable violation accumulator.
  */
 function assertJavaScriptDocs(string $root, string $file, array &$errors): void
 {
     $source = (string) file_get_contents($file);
     if (!str_starts_with(ltrim($source), '/**')) {
-        $errors[] = docsRelativePath($root, $file) . ': módulo JavaScript deve iniciar com JSDoc.';
+        $errors[] = docsRelativePath($root, $file) . ': JavaScript module must start with JSDoc.';
     }
 
     $lines = preg_split('/\R/', $source) ?: [];
@@ -347,12 +347,12 @@ function assertJavaScriptDocs(string $root, string $file, array &$errors): void
 
         $prefix = implode("\n", array_slice($lines, max(0, $index - 12), min(12, $index)));
         if (!str_contains($prefix, '/**') || !str_contains($prefix, '*/')) {
-            $errors[] = docsRelativePath($root, $file) . ': função JS na linha ' . ($index + 1) . ' sem JSDoc próximo.';
+            $errors[] = docsRelativePath($root, $file) . ': JS function at line ' . ($index + 1) . ' has no nearby JSDoc.';
         }
     }
 }
 
-/** @var list<string> $srcFiles Todos os arquivos PHP de produção sujeitos ao padrão estrito. */
+/** @var list<string> $srcFiles All production PHP files subject to the strict standard. */
 $srcFiles = glob($root . '/src/*.php') ?: [];
 sort($srcFiles);
 foreach ($srcFiles as $file) {
@@ -362,7 +362,7 @@ foreach ($srcFiles as $file) {
     assertSemanticBlockComments($root, $file, $errors);
 }
 
-// Entrypoints/configurações precisam explicar finalidade global além dos símbolos internos.
+// Entrypoints/configuration files explain their global purpose in addition to internal symbols.
 foreach ([
     $root . '/bin/ninfa',
     $root . '/scripts/ninfa-configure.php',
@@ -372,12 +372,12 @@ foreach ([
     assertPhpHeader($root, $file, $errors);
 }
 
-// O configurador possui função de produção nomeada e segue o mesmo padrão estrito de src/.
+// The configurator contains named production functions and follows the same strict src/ standard.
 assertStrictNamedCallables($root, $root . '/scripts/ninfa-configure.php', $errors);
 assertTypedEmptyArrayAccumulators($root, $root . '/scripts/ninfa-configure.php', $errors);
 assertSemanticBlockComments($root, $root . '/scripts/ninfa-configure.php', $errors);
 
-// JavaScript próprio futuro entra automaticamente na premissa, sem depender de checklist manual.
+// Future first-party JavaScript automatically enters the documentation contract.
 foreach ([$root . '/src', $root . '/scripts', $root . '/bin'] as $directory) {
     foreach (docsFilesByExtension($directory, ['js', 'mjs', 'cjs']) as $file) {
         assertJavaScriptDocs($root, $file, $errors);
@@ -385,8 +385,8 @@ foreach ([$root . '/src', $root . '/scripts', $root . '/bin'] as $directory) {
 }
 
 if ($errors !== []) {
-    fwrite(STDERR, "[ERRO] Premissa de documentação interna não atendida:\n- " . implode("\n- ", $errors) . "\n");
+    fwrite(STDERR, "[ERROR] Internal documentation requirements were not met:\n- " . implode("\n- ", $errors) . "\n");
     exit(1);
 }
 
-echo '[OK] Documentação estrita aplicada a todos os arquivos de src/; allowlist documental: 0.' . PHP_EOL;
+echo '[OK] Strict documentation requirements apply to every src/ file; documentation allowlist: 0.' . PHP_EOL;

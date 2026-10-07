@@ -3,38 +3,38 @@
 declare(strict_types=1);
 
 /**
- * Representa um achado normalizado produzido por uma ferramenta ou fonte.
+ * Represents a normalized finding produced by a tool or evidence source.
  *
- * O contrato preserva localização, regra, problema, correção opcional e
- * atributos de segurança como severidade, confiança, tipo de evidência,
- * proveniência e metadata específica. A serialização omite campos opcionais
- * ausentes, mas sempre inclui tool, file, line, rule, problem e correction.
+ * The contract preserves location, rule, problem, optional remediation and
+ * security attributes such as severity, confidence, evidence type, provenance
+ * and source-specific metadata. Serialization omits absent optional fields but
+ * always includes tool, file, line, rule, problem and correction.
  *
- * Esta classe não calcula prioridade, não deduplica advisories e não decide
- * se o achado bloqueia a execução; essas responsabilidades ficam em camadas
- * superiores.
+ * This class does not calculate priority, deduplicate advisories or decide
+ * whether a finding blocks execution. Those responsibilities belong to higher
+ * orchestration layers.
  */
 final class Finding implements JsonSerializable
 {
     /**
-     * Cria um achado normalizado preservando evidência e metadata sem interpretá-las.
+     * Creates a normalized finding while preserving evidence and metadata.
      *
-     * `tool` e `rule` são identificadores obrigatórios porque permitem rastrear
-     * a origem e a regra mesmo quando não existe localização de arquivo. Linha 0
-     * é aceita para achados sem localização textual, como advisories SCA.
+     * `tool` and `rule` are mandatory identifiers because they preserve
+     * traceability even when no file location exists. Line zero is accepted for
+     * findings without a textual location, such as SCA advisories.
      *
-     * @param string $tool Identificador estável da ferramenta/fonte que produziu o achado.
-     * @param string $file Arquivo relativo ou artefato lógico associado ao achado.
-     * @param int $line Linha 1-based quando conhecida; 0 representa ausência de linha.
-     * @param string $rule Identificador da regra/advisory na fonte de origem.
-     * @param string $problem Descrição normalizada do problema observado.
-     * @param string $correction Orientação opcional de correção/remediação.
-     * @param string|null $severity Severidade técnica quando fornecida pela origem.
-     * @param string|null $confidence Confiança atribuída à evidência normalizada.
-     * @param string|null $evidenceType Categoria da evidência, por exemplo `sca-advisory`.
-     * @param list<string> $provenance Cadeia de fontes/IDs que sustentam o achado.
-     * @param array<string,mixed> $metadata Dados específicos que não cabem no núcleo do contrato.
-     * @throws InvalidArgumentException Quando tool/rule estão vazios ou a linha é negativa.
+     * @param string $tool Stable identifier of the tool/source that produced the finding.
+     * @param string $file Relative file or logical artifact associated with the finding.
+     * @param int $line One-based line when known; 0 represents no textual line.
+     * @param string $rule Rule/advisory identifier from the originating source.
+     * @param string $problem Normalized description of the observed problem.
+     * @param string $correction Optional remediation guidance.
+     * @param string|null $severity Technical severity when supplied by the source.
+     * @param string|null $confidence Confidence assigned to the normalized evidence.
+     * @param string|null $evidenceType Evidence category, for example `sca-advisory`.
+     * @param list<string> $provenance Source/identifier chain supporting the finding.
+     * @param array<string,mixed> $metadata Source-specific data outside the core contract.
+     * @throws InvalidArgumentException When tool/rule are empty or line is negative.
      */
     public function __construct(
         public readonly string $tool,
@@ -49,28 +49,29 @@ final class Finding implements JsonSerializable
         public readonly array $provenance = [],
         public readonly array $metadata = [],
     ) {
-        // Sem origem e regra não há identidade mínima para auditoria do finding.
+        // A finding needs both a source and a rule to retain minimum audit identity.
         if ($this->tool === '' || $this->rule === '') {
-            throw new InvalidArgumentException('Finding exige tool e rule.');
+            throw new InvalidArgumentException('Finding requires non-empty tool and rule identifiers.');
         }
-        // Linha zero representa ausência de localização; valores negativos são inválidos.
+
+        // Line zero represents no textual location; negative values are invalid.
         if ($this->line < 0) {
-            throw new InvalidArgumentException('Linha do finding não pode ser negativa.');
+            throw new InvalidArgumentException('Finding line cannot be negative.');
         }
     }
 
     /**
-     * Converte o finding para o schema JSON comum sem inventar campos ausentes.
+     * Converts the finding to the common JSON schema without inventing absent fields.
      *
-     * Campos nucleares permanecem sempre presentes. Severidade, confiança,
-     * evidence type, proveniência e metadata só entram quando possuem valor,
-     * reduzindo ambiguidade entre `null` e informação efetivamente observada.
+     * Core fields are always present. Severity, confidence, evidence type,
+     * provenance and metadata are emitted only when they have a value, preserving
+     * the distinction between missing information and an explicitly observed value.
      *
-     * @return array<string,mixed> Representação serializável do achado.
+     * @return array<string,mixed> Serializable finding representation.
      */
     public function jsonSerialize(): array
     {
-        /** @var array<string,mixed> $data Campos normalizados que serão serializados. */
+        /** @var array<string,mixed> $data Normalized fields that will be serialized. */
         $data = [
             'tool' => $this->tool,
             'file' => $this->file,
@@ -80,7 +81,7 @@ final class Finding implements JsonSerializable
             'correction' => $this->correction,
         ];
 
-        // A serialização preserva a diferença entre atributo não informado e valor textual.
+        // Serialization preserves the difference between an absent attribute and textual data.
         if ($this->severity !== null) {
             $data['severity'] = $this->severity;
         }

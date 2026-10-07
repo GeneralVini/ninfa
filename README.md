@@ -338,3 +338,7 @@ make setup
 - [Segurança](docs/SEGURANCA.md)
 - [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md)
 - [Arquitetura interna e documentação de código](docs/INTERNAL-ARCHITECTURE.md)
+- [Engineering language policy](docs/development/language-policy.md)
+- [Documentation standards](docs/development/documentation-standards.md)
+- [Coding standards](docs/development/coding-standards.md)
+- [Contributing](CONTRIBUTING.md)

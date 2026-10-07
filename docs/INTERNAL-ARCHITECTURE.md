@@ -1,5 +1,7 @@
 # Arquitetura interna e documentação de código
 
+> **Engineering language status:** this is a legacy PT-BR engineering document. New and materially changed code documentation follows [Engineering Language Policy](development/language-policy.md) and must be written in English. This document will be migrated incrementally.
+
 Este documento descreve o fluxo interno implementado no Ninfa. Ele não substitui PHPDoc, comentários de shell ou documentação junto ao código: funciona como mapa de responsabilidades e invariantes.
 
 ## Premissa obrigatória de documentação
