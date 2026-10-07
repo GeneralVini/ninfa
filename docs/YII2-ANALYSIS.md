@@ -181,6 +181,43 @@ autofix           false
 
 O Ninfa não tenta decidir automaticamente se a correção é renomear a rule ou adicionar um atributo ao Model, porque isso depende de intenção de domínio.
 
+
+### COR-007 — cenários e atributos inválidos em `Model::scenarios()`
+
+`src/Yii2ModelMetadataAnalyzer.php` reutiliza o mesmo inventário conclusivo de atributos usado por `COR-006`. A tranche valida somente `return [...]` literal com nomes de cenário literais e listas literais de atributos.
+
+O prefixo `!` do Yii2 é preservado como sintaxe de cenário, mas removido apenas para o lookup do atributo:
+
+```php
+public function scenarios(): array
+{
+    return [
+        'create' => ['name', '!email', 'misspelled'],
+    ];
+}
+```
+
+`misspelled` só produz finding quando o inventário do Model é completo. Nome de cenário vazio e atributo literal vazio também são inválidos. Valor de cenário dinâmico, item dinâmico ou retorno indireto permanece `unknown`.
+
+Contrato:
+
+```text
+category          correctness
+severity          error
+confidence        high
+autofix           false
+```
+
+A cobertura permanece `PARTIAL` em relação ao upstream porque o Ninfa ainda não tenta provar, por type inference, que expressões não literais são definitivamente não-array ou não-string.
+
+### COR-008 — atributo inválido em `Model::attributeLabels()`
+
+`NINFA-YII2-COR-008` valida chaves string literais de `attributeLabels()` quando o inventário do Model é conclusivo. Chave vazia ou atributo comprovadamente ausente gera finding; chave dinâmica e retorno não literal permanecem `unknown`.
+
+### COR-009 — atributo inválido em `Model::attributeHints()`
+
+`NINFA-YII2-COR-009` aplica o mesmo contrato de `COR-008` a `attributeHints()`: somente chave literal e inventário conclusivo permitem afirmar ausência. Labels e hints não possuem autofix porque decidir entre corrigir a chave ou alterar o contrato do Model exige intenção de domínio.
+
 ## Security smell
 
 ### SEC-001 — igualdade SQL dinâmica em `where()`
@@ -397,6 +434,9 @@ Catálogo atual:
 | `NINFA-YII2-COR-004` | correctness | `assist`, error |
 | `NINFA-YII2-COR-005` | correctness | `assist`, error |
 | `NINFA-YII2-COR-006` | correctness | `assist`, error |
+| `NINFA-YII2-COR-007` | correctness | `assist`, error |
+| `NINFA-YII2-COR-008` | correctness | `assist`, error |
+| `NINFA-YII2-COR-009` | correctness | `assist`, error |
 | `NINFA-YII2-SEC-001` | security-smell | `assist`, warning, REVIEW |
 | `NINFA-YII2-PERF-001` | performance | `assist` + `fix`, warning, SAFE |
 | `NINFA-YII2-MOD-001` | modernization | `assist` + `fix`, warning, SAFE |
@@ -461,6 +501,7 @@ tests/yii2-semantic-model.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
 tests/yii2-model-rules.php
+tests/yii2-model-metadata.php
 tests/yii2-where-equality.php
 tests/yii2-deprecation-remediation.php
 tests/yii2-typed-deprecation.php
@@ -472,6 +513,8 @@ tests/yii2-controller-access.php
 
 `tests/yii2-model-rules.php` cobre propriedades públicas, herança local, `attributes()` literal de ActiveRecord, atributos inválidos, ActiveRecord runtime, traits, `attributes()` dinâmico e `rules()` dinâmica.
 
+`tests/yii2-model-metadata.php` cobre `scenarios()`, prefixo unsafe `!`, nomes vazios, labels/hints válidos e inválidos, retorno dinâmico e ActiveRecord com schema runtime inconclusivo.
+
 Todos integram `make profile-test`.
 
 ## Relação com os comandos
@@ -482,7 +525,7 @@ As regras nativas Yii2 continuam fora do gate principal enquanto correctness/adv
 
 ### `ninfa assist`
 
-É a superfície principal dos findings nativos, incluindo `COR-006` e `SEC-001`, e preserva:
+É a superfície principal dos findings nativos, incluindo `COR-006..009` e `SEC-001`, e preserva:
 
 ```text
 assist/yii2-semantic.json
@@ -519,7 +562,7 @@ A matriz de rastreabilidade das regras upstream fica em `docs/YII2-UPSTREAM-RULE
 
 A evolução seguinte prioriza:
 
-1. reutilizar o inventário de Model em `scenarios()`, `attributeLabels()` e `attributeHints()`;
+1. ampliar a resolução de views (`View::render()`, nested views, aliases e paths configuráveis) somente com path estático demonstrável;
 2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção a `security`/autofix;
 3. avançar ActiveForm/UploadedFile/config arrays apenas quando o tipo do Model/componente for demonstrável;
 4. melhorar typing com evidência forte antes de `RemoveRedundantHtmlEncodeRector`;

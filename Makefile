@@ -46,6 +46,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-query-existence.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-query-condition.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-model-rules.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-model-metadata.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-where-equality.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-deprecation-remediation.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-typed-deprecation.php

@@ -9,6 +9,7 @@ require_once __DIR__ . '/Yii2RelationReferenceAnalyzer.php';
 require_once __DIR__ . '/Yii2RelationLinkAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryConditionAnalyzer.php';
 require_once __DIR__ . '/Yii2ModelRulesAnalyzer.php';
+require_once __DIR__ . '/Yii2ModelMetadataAnalyzer.php';
 require_once __DIR__ . '/Yii2WhereEqualityAnalyzer.php';
 require_once __DIR__ . '/Yii2QueryExistenceAnalyzer.php';
 require_once __DIR__ . '/Yii2FindShortcutAnalyzer.php';
@@ -41,6 +42,15 @@ final class Yii2RuleEngine
 
     /** Identificador estável de aridade inválida em condition array de Query Yii2. */
     public const QUERY_CONDITION_INVALID = 'NINFA-YII2-COR-005';
+
+    /** Identificador estável de atributo/cenário inválido em Model::scenarios(). */
+    public const MODEL_SCENARIO_INVALID = 'NINFA-YII2-COR-007';
+
+    /** Identificador estável de atributo inválido em Model::attributeLabels(). */
+    public const MODEL_ATTRIBUTE_LABEL_INVALID = 'NINFA-YII2-COR-008';
+
+    /** Identificador estável de atributo inválido em Model::attributeHints(). */
+    public const MODEL_ATTRIBUTE_HINT_INVALID = 'NINFA-YII2-COR-009';
 
     /** Identificador estável de atributo inexistente referenciado por Model::rules(). */
     public const MODEL_RULE_ATTRIBUTE_NOT_FOUND = 'NINFA-YII2-COR-006';
@@ -248,6 +258,63 @@ final class Yii2RuleEngine
                     'model' => $reference['model'],
                     'attribute' => $reference['attribute'],
                     'validator' => $reference['validator'],
+                    'attribute_inventory_complete' => true,
+                    'autofix' => false,
+                ],
+            );
+        }
+
+        // COR-007..009 reutilizam o mesmo inventário conclusivo de COR-006 para metadata literal de Model.
+        foreach ((new Yii2ModelMetadataAnalyzer())->references($context) as $reference) {
+            $rule = match ($reference['kind']) {
+                'scenario-name', 'scenario-attribute' => self::MODEL_SCENARIO_INVALID,
+                'attribute-label' => self::MODEL_ATTRIBUTE_LABEL_INVALID,
+                'attribute-hint' => self::MODEL_ATTRIBUTE_HINT_INVALID,
+                default => throw new LogicException('Evidência Yii2 Model metadata desconhecida: ' . $reference['kind']),
+            };
+
+            if ($reference['kind'] === 'scenario-name') {
+                $problem = 'Model::scenarios() declara nome de cenário vazio.';
+                $correction = 'Defina um nome de cenário literal não vazio.';
+            } elseif ($reference['kind'] === 'scenario-attribute') {
+                $scenario = $reference['scenario'] ?? '';
+                $problem = $reference['reason'] === 'empty'
+                    ? 'Model::scenarios() referencia atributo vazio no cenário ' . $scenario . '.'
+                    : 'Atributo Yii2 ' . $reference['name'] . ' referenciado em Model::scenarios() não existe no cenário ' . $scenario . '.';
+                $correction = 'Corrija o atributo do cenário ou declare-o no contrato estático do Model.';
+            } elseif ($reference['kind'] === 'attribute-label') {
+                $problem = $reference['reason'] === 'empty'
+                    ? 'Model::attributeLabels() contém nome de atributo vazio.'
+                    : 'Atributo Yii2 ' . $reference['name'] . ' referenciado em Model::attributeLabels() não existe.';
+                $correction = 'Corrija a chave do label ou declare o atributo no contrato estático do Model.';
+            } else {
+                $problem = $reference['reason'] === 'empty'
+                    ? 'Model::attributeHints() contém nome de atributo vazio.'
+                    : 'Atributo Yii2 ' . $reference['name'] . ' referenciado em Model::attributeHints() não existe.';
+                $correction = 'Corrija a chave do hint ou declare o atributo no contrato estático do Model.';
+            }
+
+            $findings[] = new Finding(
+                tool: 'ninfa-yii2',
+                file: $reference['file'],
+                line: $reference['line'],
+                rule: $rule,
+                problem: $problem,
+                correction: $correction,
+                severity: 'error',
+                confidence: 'high',
+                evidenceType: 'framework-correctness',
+                provenance: ['ninfa:yii2-model-metadata-analyzer'],
+                metadata: [
+                    'framework' => 'yii2',
+                    'category' => 'correctness',
+                    'model' => $reference['model'],
+                    'method' => $reference['method'],
+                    'kind' => $reference['kind'],
+                    'attribute' => $reference['name'],
+                    'raw_name' => $reference['raw_name'],
+                    'scenario' => $reference['scenario'],
+                    'reason' => $reference['reason'],
                     'attribute_inventory_complete' => true,
                     'autofix' => false,
                 ],

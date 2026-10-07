@@ -200,6 +200,8 @@ Consolidar:
 
 ### 2.3 Models — prioridade imediata
 
+**Estado:** concluído nesta tranche para existência de atributos em `rules()`, `scenarios()`, `attributeLabels()` e `attributeHints()`; validações dinâmicas/tipadas adicionais permanecem classificadas na matriz.
+
 Aproveitar o inventário de atributos já introduzido por `Yii2ModelRulesAnalyzer`.
 
 Entregas:
@@ -741,7 +743,7 @@ Um item implementado só é considerado concluído quando aplicável:
 | Pacote | Estado |
 | --- | --- |
 | 1.0 Governança e baseline | iniciado |
-| 2.0 yii2-phpstan-rules | em andamento |
+| 2.0 yii2-phpstan-rules | em andamento — pacote 2.3 concluído |
 | 3.0 yii2-rector | avançado |
 | 4.0 Gate Yii2 v1 | pendente |
 | 5.0 Foxy hardening | planejado |
@@ -749,4 +751,4 @@ Um item implementado só é considerado concluído quando aplicável:
 | 7.0 Engenharia/release | planejado |
 | 8.0 Gate final | pendente |
 
-A próxima execução recomendada é o pacote **2.3 — Models**, começando por `scenarios()`, `attributeLabels()` e `attributeHints()`, seguido da revisão objetiva de gaps de views antes do Gate 4.0.
+A próxima execução recomendada é o pacote **2.1 — Views**, revisando `View::render()`, nested views, aliases e paths configuráveis antes do Gate 4.0.

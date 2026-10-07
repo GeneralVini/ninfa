@@ -91,10 +91,10 @@ A primeira tranche ignora receiver armazenado em variável, expressão composta,
 | `behaviorAttributesValidation` | `DEFERRED` | pode reutilizar o inventário de atributos, mas ainda requer semântica do behavior |
 | `componentBehaviorsValidation` | `PARTIAL` | parser de behaviors já existe para actions; config geral ainda não |
 | `htmlActiveAttributeValidation` | `DEFERRED` | inventário de Model existe; falta resolver o tipo do model no ponto de uso |
-| `modelAttributeHintsValidation` | `SAFE-CANDIDATE` | inventário compartilhado concluído; falta parser de `attributeHints()` |
-| `modelAttributeLabelsValidation` | `SAFE-CANDIDATE` | inventário compartilhado concluído; falta parser de `attributeLabels()` |
+| `modelAttributeHintsValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-009` valida chaves literais vazias/inexistentes com inventário conclusivo |
+| `modelAttributeLabelsValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-008` valida chaves literais vazias/inexistentes com inventário conclusivo |
 | `modelRulesValidation` | `PARTIAL` | `NINFA-YII2-COR-006` valida atributos literais ausentes; opções/validators ainda não |
-| `modelScenariosValidation` | `SAFE-CANDIDATE` | inventário compartilhado já permite validar nomes literais; parser ainda pendente |
+| `modelScenariosValidation` | `PARTIAL` | `NINFA-YII2-COR-007` valida cenário vazio e atributos literais vazios/inexistentes; shapes/tipos dinâmicos permanecem fora |
 | `uploadedFileInstanceValidation` | `DEFERRED` | exige type/data-flow suficiente para evitar falso positivo |
 | `widgetPropertiesValidation` | `DEFERRED` | exige resolução confiável de classe/config properties |
 | `yiiCreateObjectValidation` | `DEFERRED` | candidato futuro do modelo de config arrays/DI |
@@ -154,7 +154,7 @@ PHPDoc do próprio Ninfa continua obrigatório e narrativo. Qualquer analyzer no
 
 A sequência recomendada depois das regras já fechadas é:
 
-1. ampliar a família Model sobre o inventário compartilhado: `scenarios()`, `attributeLabels()` e `attributeHints()`;
+1. ampliar a resolução de views (`View::render()`, nested views e aliases) apenas quando o path for demonstrável;
 2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção de segurança ou autofix;
 3. avançar config arrays/ActiveForm/UploadedFile somente quando o tipo do Model ou componente for demonstrável;
 4. melhorar typing com evidência de analyzer externo antes de `RemoveRedundantHtmlEncodeRector`;
