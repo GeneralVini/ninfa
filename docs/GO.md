@@ -1,3 +1,5 @@
+[Português](GO.md) | [English](GO.en.md)
+
 # Go no Ninfa
 
 ## Estado

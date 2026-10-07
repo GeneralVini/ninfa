@@ -1,3 +1,5 @@
+[Português](SECURITY-ARCHITECTURE.md) | [English](SECURITY-ARCHITECTURE.en.md)
+
 # Arquitetura de segurança
 
 Este documento registra a direção arquitetural de `ninfa security`, o que está implementado e os limites de evolução. O README é o painel rápido; este arquivo preserva contratos, responsabilidades e critérios de expansão.

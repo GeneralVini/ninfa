@@ -1,3 +1,5 @@
+[Português](README.md) | [English](README.en.md)
+
 # Ninfa
 
 **Ninfa** é uma esteira externa de qualidade e segurança para projetos PHP. O estado atual é **MVP experimental / 0.1.0-alpha**, destinado a testes controlados em projetos reais.
