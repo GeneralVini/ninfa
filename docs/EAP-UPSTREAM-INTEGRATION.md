@@ -231,6 +231,8 @@ Preferência de design: IDs separados quando as regras representarem contratos d
 
 ### 2.4 ActiveRecord / Query
 
+**Estado:** concluído nesta tranche para relation paths literais ampliados, aridade de conditions, existence/find shortcuts e keys de ActiveRecord com inventário conclusivo. Type checks e schema runtime permanecem `PARTIAL`/`unknown` conforme a matriz.
+
 Revisar e consolidar:
 
 - relation existence/path;
@@ -248,6 +250,7 @@ Mapeamentos já existentes:
 COR-003
 COR-004
 COR-005
+COR-010
 PERF-001
 MOD-001
 SEC-001
@@ -747,7 +750,7 @@ Um item implementado só é considerado concluído quando aplicável:
 | Pacote | Estado |
 | --- | --- |
 | 1.0 Governança e baseline | iniciado |
-| 2.0 yii2-phpstan-rules | em andamento — pacotes 2.1, 2.2 e 2.3 concluídos |
+| 2.0 yii2-phpstan-rules | em andamento — pacotes 2.1, 2.2, 2.3 e 2.4 concluídos |
 | 3.0 yii2-rector | avançado |
 | 4.0 Gate Yii2 v1 | pendente |
 | 5.0 Foxy hardening | planejado |
@@ -755,4 +758,4 @@ Um item implementado só é considerado concluído quando aplicável:
 | 7.0 Engenharia/release | planejado |
 | 8.0 Gate final | pendente |
 
-A próxima execução recomendada é o pacote **2.4 — ActiveRecord / Query**, revisando gaps objetivos sobre as regras já existentes antes dos pacotes de config arrays e forms.
+A próxima execução recomendada é o pacote **2.5 — Config arrays / BaseObject**, criando primeiro o modelo compartilhado de configuração antes de ampliar rules específicas.
