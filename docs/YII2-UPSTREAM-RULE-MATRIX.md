@@ -80,8 +80,8 @@ A primeira tranche ignora receiver armazenado em variável, expressão composta,
 | `controllerViewExistenceValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-001`; convenção, aliases e view paths explícitos |
 | `viewRenderExistenceValidation` | `PARTIAL` | `COR-001` cobre `Yii::$app->view/getView()->render()` quando o path é resolvível; receivers apenas tipáveis por PHPStan seguem fora |
 | `nestedViewExistenceValidation` | `PARTIAL` | `COR-001` cobre `$this->render()` em arquivos sob views/Views; expressões não literais e contexto relativo dinâmico ficam `unknown` |
-| `controllerBehaviorActionsValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-002` |
-| `controllerActionsValidation` | `PARTIAL` | inventário de actions já existe; ampliar referências objetivas sem inventar reachability |
+| `controllerBehaviorActionsValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-002`; inclui subclasses locais comprovadas de ActionFilter/AuthMethod/AccessControl/VerbFilter e AccessRule |
+| `controllerActionsValidation` | `PARTIAL` | inventário de actions já existe; validação de config/class/options pertence ao pacote 2.5 de config arrays |
 | `activeRecordRelationValidation` | `IMPLEMENTED` | `NINFA-YII2-COR-003` |
 | `activeRecordConditionValidation` | `PARTIAL` | `NINFA-YII2-COR-005` cobre aridade de operators literais |
 | `queryConditionValidation` | `PARTIAL` | mesma base de `COR-005`; ampliar tipos/conditions somente com prova segura |
@@ -154,7 +154,7 @@ PHPDoc do próprio Ninfa continua obrigatório e narrativo. Qualquer analyzer no
 
 A sequência recomendada depois das regras já fechadas é:
 
-1. revisar controllers/actions/behaviors restantes do pacote 2.2 sem duplicar `COR-002` já implementado;
+1. revisar ActiveRecord/Query do pacote 2.4 sobre os contratos já existentes (`COR-003..005`, `PERF-001`, `MOD-001`, `SEC-001`);
 2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção de segurança ou autofix;
 3. avançar config arrays/ActiveForm/UploadedFile somente quando o tipo do Model ou componente for demonstrável;
 4. melhorar typing com evidência de analyzer externo antes de `RemoveRedundantHtmlEncodeRector`;
