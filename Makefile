@@ -47,6 +47,8 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-view-resolution.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-query-existence.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-query-condition.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-query-relations.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-active-record-attributes.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-model-rules.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-model-metadata.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-where-equality.php
