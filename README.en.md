@@ -327,6 +327,16 @@ make setup
 - [ ] Evaluate NVD/exploit evidence as later enrichment.
 - [ ] Evolve exposure/reachability and gates only with demonstrable evidence.
 
+## Projects that have greatly helped NINFA
+
+NINFA has benefited greatly from the ideas, practices, and accumulated experience in these projects, which are important references for the evolution of Yii2 semantic analysis, safe remediation, and pipeline hardening:
+
+- [mspirkov/yii2-phpstan-rules](https://github.com/mspirkov/yii2-phpstan-rules) — a major reference for static validation, Yii2 semantics, and quality rules;
+- [mspirkov/yii2-rector](https://github.com/mspirkov/yii2-rector) — a major reference for Yii2 modernization and safe transformations;
+- [php-forge/foxy](https://github.com/php-forge/foxy) — a major reference for defensive tooling practices, dependency auditing, failure recovery, and operational robustness.
+
+NINFA keeps its own contracts, IDs, security policies, and implementations while explicitly recognizing the substantial conceptual contribution of these projects.
+
 ## Documentation
 
 English:
