@@ -75,12 +75,12 @@ PHP);
     sort($names);
 
     assert($names === [
+        'missing-after-dynamic',
         'missing-array',
         'missing-inner',
         'missing-join',
         'missing-key',
         'missing-variadic',
-        'missing-after-dynamic',
     ]);
 
     assert(in_array('missing-after-dynamic', array_column($references, 'relation_path'), true));
