@@ -44,6 +44,7 @@ final class Yii2ModelMetadataAnalyzer
         $inventories = $this->inventoryAnalyzer->inventories($context);
         /** @var array<string,array<string,array{attributes:list<string>}>> $targetsByFile Models conclusivos agrupados por arquivo. */
         $targetsByFile = [];
+        // Só Models com inventário conclusivo podem sustentar uma afirmação de atributo ausente.
         foreach ($inventories as $class => $inventory) {
             if (!$inventory['complete']) {
                 continue;
@@ -67,6 +68,7 @@ final class Yii2ModelMetadataAnalyzer
                 }
                 $attributes = $targets[$class]['attributes'];
 
+                // Metadata dinâmica nunca é convertida em ausência; somente literais entram no contrato.
                 foreach ($methods['scenarios'] ?? [] as $entry) {
                     $scenario = $entry['key'];
                     if ($scenario === '') {
