@@ -104,6 +104,8 @@ AccessControl.rules[].actions
 VerbFilter.actions (chaves)
 ```
 
+Além das classes oficiais, o analyzer percorre herança **local e demonstrável** para reconhecer subclasses customizadas de `ActionFilter`, `AuthMethod`, `AccessControl`, `VerbFilter` e `AccessRule`. A cadeia é resolvida apenas a partir de classes presentes nos paths analisáveis; parent externo desconhecido não é presumido como filter Yii2.
+
 A existência é tri-state:
 
 ```text
@@ -112,7 +114,9 @@ false  inventário conclusivo e action ausente
 null   herança/composição dinâmica impede provar ausência
 ```
 
-Wildcards, classe de behavior dinâmica, `parent::actions()`, spreads, `array_merge()` e retornos indiretos degradam para `unknown`.
+Wildcards de `only/except/optional`, classe de behavior dinâmica, `parent::actions()`, spreads, `array_merge()`, retorno indireto e herança externa não demonstrável degradam para `unknown`.
+
+A validação estrutural de `Controller::actions()` (classe Action, propriedades/options e tipos) não pertence a `COR-002`; ela permanece no pacote de config arrays/BaseObject para não misturar **referência a action** com **validade da configuração da action**.
 
 ### COR-003 — relation path inexistente em ActiveQuery
 
@@ -529,6 +533,7 @@ A suíte dedicada inclui:
 ```text
 tests/yii2-semantic-model.php
 tests/yii2-view-resolution.php
+tests/yii2-behavior-inheritance.php
 tests/yii2-query-existence.php
 tests/yii2-query-condition.php
 tests/yii2-model-rules.php
@@ -593,7 +598,7 @@ A matriz de rastreabilidade das regras upstream fica em `docs/YII2-UPSTREAM-RULE
 
 A evolução seguinte prioriza:
 
-1. revisar o pacote 2.2 de controllers/actions/behaviors, fechando gaps objetivos sem duplicar `COR-002`;
+1. revisar o pacote 2.4 de ActiveRecord/Query e classificar os gaps restantes sobre a base `COR-003..005`, `PERF-001`, `MOD-001` e `SEC-001`;
 2. correlacionar `SEC-001` com evidência de taint/field tests antes de qualquer promoção a `security`/autofix;
 3. avançar ActiveForm/UploadedFile/config arrays apenas quando o tipo do Model/componente for demonstrável;
 4. melhorar typing com evidência forte antes de `RemoveRedundantHtmlEncodeRector`;

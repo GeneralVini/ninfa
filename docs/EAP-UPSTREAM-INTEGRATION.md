@@ -185,6 +185,8 @@ dinâmico/inconclusivo   → unknown
 
 ### 2.2 Controllers, actions e behaviors
 
+**Estado:** concluído para referências de actions em behaviors; subclasses locais comprovadas de filtros/rules são reconhecidas. Validação estrutural de `actions()`/config objects permanece no pacote 2.5.
+
 Consolidar:
 
 - `actions()`;
@@ -745,7 +747,7 @@ Um item implementado só é considerado concluído quando aplicável:
 | Pacote | Estado |
 | --- | --- |
 | 1.0 Governança e baseline | iniciado |
-| 2.0 yii2-phpstan-rules | em andamento — pacote 2.3 concluído |
+| 2.0 yii2-phpstan-rules | em andamento — pacotes 2.1, 2.2 e 2.3 concluídos |
 | 3.0 yii2-rector | avançado |
 | 4.0 Gate Yii2 v1 | pendente |
 | 5.0 Foxy hardening | planejado |
@@ -753,4 +755,4 @@ Um item implementado só é considerado concluído quando aplicável:
 | 7.0 Engenharia/release | planejado |
 | 8.0 Gate final | pendente |
 
-A próxima execução recomendada é o pacote **2.2 — Controllers, actions e behaviors**, revisando gaps objetivos além de `COR-002` antes de avançar para ActiveRecord/Query.
+A próxima execução recomendada é o pacote **2.4 — ActiveRecord / Query**, revisando gaps objetivos sobre as regras já existentes antes dos pacotes de config arrays e forms.

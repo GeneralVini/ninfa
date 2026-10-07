@@ -44,6 +44,8 @@ final class Yii2BehaviorActionAnalyzer
         $references = [];
         /** @var array<string,array{actions:list<string>,file:string}> $controllersByClass Inventário indexado para herança local. */
         $controllersByClass = [];
+        /** @var array<string,string> $classParents Herança local comprovada para behaviors/rules customizados. */
+        $classParents = $this->localClassParents($context);
 
         foreach ($model->controllers() as $controller) {
             $controllersByClass[$controller['class']] = [
@@ -80,7 +82,7 @@ final class Yii2BehaviorActionAnalyzer
 
             // A coleta de referências independe da completude; apenas o campo `exists`
             // vira null quando não há prova suficiente de ausência da action.
-            foreach ($this->behaviorReferences($array, $uses, $namespace) as $reference) {
+            foreach ($this->behaviorReferences($array, $uses, $namespace, $classParents) as $reference) {
                 $exists = $inventoryComplete ? in_array($reference['action'], $knownActions, true) : null;
                 $references[] = [
                     'controller' => $controller['class'],
@@ -221,9 +223,10 @@ final class Yii2BehaviorActionAnalyzer
      * @param array<string,mixed> $array Nó raiz do array estático retornado.
      * @param array<string,string> $uses Imports simples do arquivo controller.
      * @param string $namespace Namespace declarado pelo controller.
+     * @param array<string,string> $classParents Mapa local classe => parent resolvido.
      * @return list<array{action:string,line:int,reference:string,behavior_class:string}> Referências literais reconhecidas.
      */
-    private function behaviorReferences(array $array, array $uses, string $namespace): array
+    private function behaviorReferences(array $array, array $uses, string $namespace, array $classParents): array
     {
         /** @var list<array{action:string,line:int,reference:string,behavior_class:string}> $references */
         $references = [];
@@ -245,7 +248,7 @@ final class Yii2BehaviorActionAnalyzer
                 continue;
             }
 
-            $kind = $this->behaviorKind($behaviorClass);
+            $kind = $this->behaviorKind($behaviorClass, $classParents);
             if ($kind === null) {
                 continue;
             }
@@ -300,7 +303,7 @@ final class Yii2BehaviorActionAnalyzer
             if ($kind === 'access') {
                 $rulesNode = $fields['rules'] ?? null;
                 if (is_array($rulesNode)) {
-                    foreach ($this->accessRuleReferences($rulesNode, $uses, $namespace, $behaviorClass) as $reference) {
+                    foreach ($this->accessRuleReferences($rulesNode, $uses, $namespace, $behaviorClass, $classParents) as $reference) {
                         $references[] = $reference;
                     }
                 }
@@ -321,6 +324,7 @@ final class Yii2BehaviorActionAnalyzer
      * @param array<string,string> $uses Imports simples do arquivo.
      * @param string $namespace Namespace do controller.
      * @param string $behaviorClass Classe AccessControl dona das regras.
+     * @param array<string,string> $classParents Mapa local usado para reconhecer subclasses de AccessRule.
      * @return list<array{action:string,line:int,reference:string,behavior_class:string}> Referências de regras de acesso.
      */
     private function accessRuleReferences(
@@ -328,6 +332,7 @@ final class Yii2BehaviorActionAnalyzer
         array $uses,
         string $namespace,
         string $behaviorClass,
+        array $classParents,
     ): array {
         /** @var list<array{action:string,line:int,reference:string,behavior_class:string}> $references */
         $references = [];
@@ -345,7 +350,7 @@ final class Yii2BehaviorActionAnalyzer
             $classNode = $fields['__class'] ?? $fields['class'] ?? null;
             if (is_array($classNode)) {
                 $ruleClass = $this->classNameFromNode($classNode, $uses, $namespace);
-                if ($ruleClass === null || strtolower($this->shortClassName($ruleClass)) !== 'accessrule') {
+                if ($ruleClass === null || !$this->isClassOrSubclassOf($ruleClass, 'yii\\filters\\AccessRule', $classParents)) {
                     continue;
                 }
             }
@@ -376,31 +381,157 @@ final class Yii2BehaviorActionAnalyzer
      * aceitos para controllers sem `use` explícito.
      *
      * @param string $class Classe resolvida ou nome curto literal.
+     * @param array<string,string> $classParents Mapa lowercase FQCN => parent FQCN local.
      * @return 'verb'|'access'|'auth'|'action-filter'|null Família semântica reconhecida.
      */
-    private function behaviorKind(string $class): ?string
+    private function behaviorKind(string $class, array $classParents): ?string
     {
-        $normalized = strtolower(ltrim($class, '\\'));
-        $short = strtolower($this->shortClassName($normalized));
-
-        if ($short === 'verbfilter') {
+        if ($this->isClassOrSubclassOf($class, 'yii\\filters\\VerbFilter', $classParents)) {
             return 'verb';
         }
-        if ($short === 'accesscontrol') {
+        if ($this->isClassOrSubclassOf($class, 'yii\\filters\\AccessControl', $classParents)) {
             return 'access';
         }
-        if (str_starts_with($normalized, 'yii\\filters\\auth\\')
-            || in_array($short, ['authmethod', 'compositeauth', 'httpbasicauth', 'httpbearerauth', 'queryparamauth'], true)) {
+        if ($this->isClassOrSubclassOf($class, 'yii\\filters\\auth\\AuthMethod', $classParents)) {
             return 'auth';
         }
-        if ($normalized === 'yii\\base\\actionfilter' || str_starts_with($normalized, 'yii\\filters\\')) {
+        if ($this->isClassOrSubclassOf($class, 'yii\\base\\ActionFilter', $classParents)) {
             return 'action-filter';
         }
-        if (in_array($short, ['actionfilter', 'ajaxfilter', 'cors', 'contentnegotiator', 'hostcontrol', 'pagecache', 'ratelimiter'], true)) {
+
+        // Classes oficiais conhecidas continuam reconhecidas mesmo fora do mapa local.
+        $normalized = strtolower(ltrim($class, '\\'));
+        if (str_starts_with($normalized, 'yii\\filters\\auth\\')) {
+            return 'auth';
+        }
+        if (str_starts_with($normalized, 'yii\\filters\\')) {
             return 'action-filter';
         }
 
         return null;
+    }
+
+    /**
+     * Verifica herança local até uma classe-base Yii2 conhecida.
+     *
+     * O mapa não tenta carregar autoload/vendor: uma classe customizada só é
+     * classificada quando toda a cadeia necessária é observável no consumidor.
+     * Ciclos e parents externos não conhecidos encerram a prova como false.
+     *
+     * @param string $class Classe candidata.
+     * @param string $expectedBase Classe-base canônica do Yii2.
+     * @param array<string,string> $classParents Mapa local classe => parent.
+     * @return bool True somente quando igualdade/herança pode ser demonstrada.
+     */
+    private function isClassOrSubclassOf(string $class, string $expectedBase, array $classParents): bool
+    {
+        $current = ltrim($class, '\\');
+        $expected = strtolower(ltrim($expectedBase, '\\'));
+        /** @var array<string,bool> $visited Proteção contra ciclos locais. */
+        $visited = [];
+
+        while ($current !== '') {
+            $normalized = strtolower($current);
+            if ($normalized === $expected) {
+                return true;
+            }
+            if ($expected === 'yii\\filters\\auth\\authmethod'
+                && str_starts_with($normalized, 'yii\\filters\\auth\\')) {
+                return true;
+            }
+            if ($expected === 'yii\\base\\actionfilter'
+                && str_starts_with($normalized, 'yii\\filters\\')
+                && $normalized !== 'yii\\filters\\accessrule') {
+                return true;
+            }
+            if (isset($visited[$normalized])) {
+                return false;
+            }
+            $visited[$normalized] = true;
+
+            $parent = $classParents[$normalized] ?? null;
+            if ($parent === null) {
+                return false;
+            }
+            $current = $parent;
+        }
+
+        return false;
+    }
+
+    /**
+     * Indexa classes locais e seus parents sem executar autoload do consumidor.
+     *
+     * Arquivos com múltiplos namespaces são ignorados porque o resolver textual
+     * simples não conseguiria associar imports com segurança a cada declaração.
+     *
+     * @param ProjectContext $context Contexto que limita a árvore analisável.
+     * @return array<string,string> Mapa lowercase FQCN => parent FQCN resolvido.
+     */
+    private function localClassParents(ProjectContext $context): array
+    {
+        /** @var array<string,string> $parents */
+        $parents = [];
+
+        foreach ($this->phpFiles($context) as $file) {
+            $source = (string) file_get_contents($file);
+            if (preg_match_all('/\\bnamespace\\s+([^;{]+)[;{]/', $source, $namespaceMatches) > 1) {
+                continue;
+            }
+
+            $namespace = $this->namespaceName($source);
+            $uses = $this->useMap($source);
+            if (preg_match_all(
+                '/\\b(?:abstract\\s+|final\\s+)?class\\s+([A-Za-z_][A-Za-z0-9_]*)\\s+extends\\s+([^\\s{]+)/',
+                $source,
+                $matches,
+                PREG_SET_ORDER,
+            ) === 0) {
+                continue;
+            }
+
+            foreach ($matches as $match) {
+                $class = $namespace === '' ? $match[1] : $namespace . '\\' . $match[1];
+                $parent = $this->resolveName($match[2], $uses, $namespace);
+                $parents[strtolower(ltrim($class, '\\'))] = ltrim($parent, '\\');
+            }
+        }
+
+        return $parents;
+    }
+
+    /**
+     * Lista arquivos PHP somente dentro dos paths permitidos pelo profile.
+     *
+     * @param ProjectContext $context Contexto do consumidor.
+     * @return list<string> Paths absolutos ordenados.
+     */
+    private function phpFiles(ProjectContext $context): array
+    {
+        /** @var list<string> $files */
+        $files = [];
+        foreach ($context->paths() as $path) {
+            $absolute = $context->root() . '/' . $path;
+            if (is_file($absolute) && strtolower(pathinfo($absolute, PATHINFO_EXTENSION)) === 'php') {
+                $files[] = $absolute;
+                continue;
+            }
+            if (!is_dir($absolute)) {
+                continue;
+            }
+
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($absolute, FilesystemIterator::SKIP_DOTS),
+            );
+            foreach ($iterator as $item) {
+                if ($item->isFile() && strtolower($item->getExtension()) === 'php') {
+                    $files[] = $item->getPathname();
+                }
+            }
+        }
+
+        sort($files);
+        return array_values(array_unique($files));
     }
 
     /**
