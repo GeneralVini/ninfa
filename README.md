@@ -65,6 +65,7 @@ COR-006   atributo inexistente em Model::rules()
 COR-007   cenário/atributo inválido em Model::scenarios()
 COR-008   atributo inválido em Model::attributeLabels()
 COR-009   atributo inválido em Model::attributeHints()
+COR-010   atributo inexistente em condition/update estático de ActiveRecord
 PERF-001  one()/count() usados apenas para testar existência
 MOD-001   find()->where(hash)->one/all com shortcut findOne/findAll
 DEP-001   Yii::trace() deprecated
