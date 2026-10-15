@@ -24,6 +24,7 @@ file_put_contents($host . '/src/autoload/constants.php', "<?php define('GLPI_VER
 file_put_contents($host . '/inc/includes.php', "<?php\n");
 file_put_contents($plugin . '/composer.json', '{"name":"test/example","type":"glpi-plugin","require":{"php":">=8.2"}}');
 file_put_contents($plugin . '/src/Example.php', "<?php namespace GlpiPlugin\\Example; final class Example {}\n");
+file_put_contents($plugin . '/src/Profile.php', "<?php class PluginExampleProfile { public function getTabNameForItem(): array { return []; } }\n");
 file_put_contents($plugin . '/hook.php', "<?php\nfunction plugin_example_install(): bool { return true; }\nfunction plugin_example_uninstall(): bool { return true; }\n");
 
 /**
@@ -57,6 +58,7 @@ function plugin_init_example(): void
 {
     global $PLUGIN_HOOKS;
     $PLUGIN_HOOKS['csrf_compliant']['example'] = true;
+    Plugin::registerClass('PluginExampleProfile', ['addtabon' => ['Profile']]);
 }
 function plugin_version_example(): array { return ['version' => '1.0.0']; }
 PHP;
@@ -79,6 +81,11 @@ PHP;
     assert(count($clean->toolResults) === 6);
     assert(is_file($context->workspace()->file('check/glpi-semantic.json')));
     assert(is_file($context->workspace()->file('check/glpi-findings.json')));
+    // O check público exporta classes e registerClass sem alterar o estado do gate.
+    $glpiFacts = json_decode((string) file_get_contents($context->workspace()->file('check/glpi-semantic.json')), true, 512, JSON_THROW_ON_ERROR);
+    assert(isset($glpiFacts['class_declarations']['pluginexampleprofile']));
+    assert(count($glpiFacts['class_registrations']) === 1);
+    assert($glpiFacts['class_registrations'][0]['declared'] === true);
 
     // Warning de COR-003 é observável, mas não é security nem erro bloqueante.
     $warning = str_replace(
