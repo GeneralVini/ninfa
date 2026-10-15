@@ -45,7 +45,8 @@ try {
     unlink($plugin . '/hook.php');
     $findings = (new GlpiPluginRuleEngine())->analyse(GlpiPluginSemanticModel::fromContext($context));
     assert(count($findings) === 2);
-    assert($findings[1]->rule === GlpiPluginRuleEngine::ENTRYPOINT_MISSING);
+    assert($findings[0]->rule === GlpiPluginRuleEngine::ENTRYPOINT_MISSING);
+    assert($findings[1]->rule === GlpiPluginRuleEngine::REQUIRED_CALLBACK_MISSING);
 
     // Includes podem declarar callbacks externos; ausência permanece unknown.
     file_put_contents($plugin . '/hook.php', "<?php require_once __DIR__ . '/other.php';\n");
