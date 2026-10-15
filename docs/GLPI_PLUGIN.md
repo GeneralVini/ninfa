@@ -126,7 +126,7 @@ $PLUGIN_HOOKS['csrf_compliant'] = ['example' => true]; // mapa completo, não ac
 Plugin::registerClass('PluginSigapsProfile', ['addtabon' => ['Profile']]);
 ```
 
-O snapshot expõe `class_declarations` e `class_registrations`: `declared=true` confirma declaração local; `declared=null` significa **unknown**, não classe inexistente. A presença de métodos comprova somente declarações, **não** invocabilidade, herança nem autoload completo. Chamadas calculadas e classes por `::class` ainda não são resolvidas. **Esta tranche não introduz Finding nem autofix.**
+O snapshot expõe `class_declarations` e `class_registrations`: `declared=true` confirma declaração local; `declared=null` significa **unknown**, não classe inexistente. A presença de métodos comprova somente declarações, **não** invocabilidade, herança nem autoload completo. `GlpiClassReferenceResolver` agora resolve `Plugin::registerClass(Alias::class)`, strings simples e nomes de classe totalmente qualificados, incluindo aliases `use` não ambíguos. Imports agrupados, aliases conflitantes, expressões compostas e autoload/herança externos permanecem inconclusivos. **Esta tranche não introduz Finding nem autofix.**
 
 Callables em arrays/métodos, referências externas e tipos de valor por hook permanecem em aberto até prova estática suficiente.
 
