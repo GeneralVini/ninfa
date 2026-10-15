@@ -78,6 +78,10 @@ bash scripts/glpi-field-test.sh /var/www/psglpi/plugins/sigaps assist
 
 Para `check`, `security` ou `fix`, substitua somente o último argumento. O script copia o consumidor para `/tmp/ninfa-glpi-field-test.*/<nome-tecnico-do-plugin>`, preservando o basename do diretório necessário à resolução dos callbacks, bloqueia symlinks, aponta o CLI exclusivamente para a cópia, mantém logs/workspace externos, compara hashes e metadata do original ao terminar e guarda evidências. Nenhuma execução automática desse harness foi realizada sobre SIGAPS neste ambiente. **Uma comparação final não substitui isolamento do processo**: execute-o apenas sob credenciais/ambiente que não tenham permissão para escrever no SIGAPS original, quando possível, e avalie efeitos de autoload no host GLPI.
 
+## Revisão de lacunas
+
+A auditoria de defects e pendências de fechamento está registrada em [GLPI-PLUGIN-REVIEW-2026-10-15.md](GLPI-PLUGIN-REVIEW-2026-10-15.md), incluindo os riscos do harness, integração com `check`, hooks por constantes, callbacks/classes, direitos/CSRF, migrações e homologação. Itens P0/P1 precisam de resolução ou classificação expressa para o gate.
+
 ## Definition of Done
 
 - [ ] Catálogo GLPI 11 com cada candidato classificado `IMPLEMENTED`, `PARTIAL`, `REVIEW`, `SEMANTIC`, `DEFERRED` ou `REJECTED` e justificativa.
