@@ -138,7 +138,7 @@ Executa Composer Audit, OSV, Psalm Taint e Semgrep. DAST não integra o comando 
 
 ## Field test seguro
 
-A homologação em SIGAPS deve usar `scripts/glpi-field-test.sh` sobre **cópia isolada**; jamais direcione `ninfa fix` ao path original `/var/www/psglpi/plugins/sigaps`. O harness rejeita symlinks e compara o estado do original no início e no fim, mantendo seus artefatos em diretório temporário. Consulte o [gate de fechamento](GLPI-PLUGIN-CLOSURE.md) para limitações do isolamento.
+A homologação em SIGAPS deve usar `scripts/glpi-field-test.sh` sobre **cópia isolada**; jamais direcione `ninfa fix` ao path original `/var/www/psglpi/plugins/sigaps`. O harness preserva o nome técnico do plugin na cópia (essencial para resolver callbacks), rejeita symlinks e compara o estado do original no início e no fim, mantendo seus artefatos em diretório temporário. Consulte o [gate de fechamento](GLPI-PLUGIN-CLOSURE.md) para limitações do isolamento.
 
 ## Escopo do MVP
 
