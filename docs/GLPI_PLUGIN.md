@@ -10,7 +10,7 @@ export PATH="/opt/ninfa/bin:$PATH"
 
 ## Detecção
 
-A detecção usa sinais técnicos combinados, incluindo `setup.php`, `hook.php`, hooks de instalação/inicialização e namespaces `GlpiPlugin\\...`. O projeto também precisa possuir `composer.json` e paths analisáveis.
+A detecção usa sinais técnicos combinados, incluindo `setup.php`, `hook.php`, hooks de instalação/inicialização e namespaces `GlpiPlugin\\...`. `composer.json` é opcional no detector; o contexto exige paths analisáveis e um host GLPI 11 reconhecível.
 
 `setup.php` e `hook.php` tambem integram explicitamente os paths de PHPStan,
 Psalm, ECS e Semgrep. Eles sao entrypoints do ciclo de vida do plugin e nao
@@ -85,6 +85,23 @@ Psalm também usa **nível 8** no profile GLPI. O config externo:
 
 Psalm Taint é executado apenas no comando `security`.
 
+## Semântica nativa de lifecycle — baseline inicial
+
+`GlpiPluginSemanticModel` lê `setup.php` e `hook.php` usando tokens PHP, sem incluir/executar o consumidor, e registra quatro callbacks convencionais associados ao nome técnico do diretório:
+
+```text
+setup.php  plugin_init_<plugin>()
+setup.php  plugin_version_<plugin>()
+hook.php   plugin_<plugin>_install()
+hook.php   plugin_<plugin>_uninstall()
+```
+
+Os IDs `NINFA-GLPI-COR-001` (entrypoint obrigatório ausente) e `NINFA-GLPI-COR-002` (callback obrigatório não declarado) são correctness com `autofix=false`, disponíveis no `ninfa assist`. Só são produzidos quando a ausência pode ser afirmada. Includes, namespaces e declarações condicionais deixam a evidência em `unknown`, sem finding especulativo. A regra não tenta determinar se um hook dinâmico será executado, se a função retorna sucesso ou se o plugin pode ser instalado no host.
+
+O configurador escreve `framework_semantics` no `semantic-index.json` externo. Em `assist`, os fatos e resultados nativos ficam também em `assist/glpi-semantic.json`, `assist/glpi-findings.json` e `assist/findings.json`, sob o workspace NINFA. O analisador não escreve no plugin.
+
+Os demais contratos (registro de hooks, Session/rights/CSRF, banco/migrations e deprecations GLPI 11) continuam pendentes do gate em [GLPI-PLUGIN-CLOSURE.md](GLPI-PLUGIN-CLOSURE.md).
+
 ## Semântica documental
 
 README, AGENTS e documentação do plugin podem enriquecer o índice semântico de símbolos, mas não substituem os contratos reais fornecidos pelo host GLPI e pelo `phpstan-glpi`.
@@ -99,14 +116,8 @@ Se o plugin contiver JavaScript/TypeScript real, `check` e `fix` também incluem
 ninfa security /caminho/do/plugin
 ```
 
-Executa Composer Audit, Psalm Taint e Semgrep. DAST é opcional e somente local por padrão:
-
-```bash
-NINFA_DAST=1 \
-NINFA_ZAP_TARGET=http://127.0.0.1:8080 \
-ninfa security /caminho/do/plugin
-```
+Executa Composer Audit, OSV, Psalm Taint e Semgrep. DAST não integra o comando público `ninfa security` nesta baseline; a configuração `NINFA_DAST=1` não executa OWASP ZAP automaticamente.
 
 ## Escopo do MVP
 
-O profile cobre detecção, validação GLPI 11, descoberta de símbolos, PHPStan/Psalm contextuais, workspace externo e pipelines de qualidade/segurança. Regras Semgrep específicas do domínio GLPI e validações especializadas de permissões/hooks podem evoluir após os testes em plugins reais.
+O profile cobre detecção, validação GLPI 11, descoberta de símbolos, PHPStan/Psalm contextuais, workspace externo e pipelines de qualidade/segurança. O overlay Semgrep GLPI já existe, mas sua calibração e a validação semântica de permissões/hooks ainda dependem de fixtures e field tests em cópias de plugins reais. Não se deve declarar o profile fechado antes do [gate de fechamento](GLPI-PLUGIN-CLOSURE.md).
