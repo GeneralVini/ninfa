@@ -11,6 +11,9 @@
 # Todos os artefatos são criados em um diretório temporário removido no EXIT.
 set -euo pipefail
 
+# O harness SIGAPS só é validado sintaticamente; o teste não acessa o SIGAPS real.
+bash -n "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/glpi-field-test.sh"
+
 # @var NINFA_ROOT absolute-path — raiz física do repositório Ninfa usado pela fixture.
 NINFA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # @var FIXTURE_ROOT absolute-path — sandbox temporário que contém host, plugin e workspace.
