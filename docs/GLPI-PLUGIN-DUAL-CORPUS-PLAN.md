@@ -7,6 +7,10 @@
 - **ÉGIDE GLPI:** [GeneralVini/egide](https://github.com/GeneralVini/egide), repositório privado, branch `main`, com `setup.php`, `hook.php`, `composer.json` (`type=glpi-plugin`) e PSR-4. Inspeção textual read-only realizada. **O host e o caminho local de homologação continuam não confirmados.**
 - **NINFA:** [PR #15](https://github.com/GeneralVini/ninfa/pull/15), branch `feature/glpi-plugin-closure`. Yii2 permanece congelado.
 
+### Evidências históricas já recuperadas
+
+A primeira recuperação verificável do repositório NINFA está em [GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md](GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md): PR #1 documenta validação anterior no SigaPS e três apontamentos P1 de review sobre configuração e portabilidade. **Esses apontamentos são issues da infraestrutura NINFA observadas na revisão do PR, não necessariamente defeitos do código SIGAPS.** Nenhum deles está resolvido por mera mudança arquitetural ou por ausência de GitHub Issue. O inventário integral dos chats ainda não foi consultável nesta execução; sua recuperação continua bloqueio de DUAL-0.
+
 ## 1. Regras de governança (sem exceções tácitas)
 
 1. **Preservação histórica:** importar e preservar integralmente as issues e findings anteriores do SIGAPS, mesmo se uma execução atual não conseguir reproduzi-los. Um scan novo nunca sobrescreve o registro antigo.
