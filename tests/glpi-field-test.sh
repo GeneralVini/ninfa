@@ -16,6 +16,7 @@ HARNESS_ROOTS="$FIXTURE_ROOT/harness-roots.txt"
 cleanup() {
     # A lista só contém paths emitidos pelo próprio harness nesta fixture.
     if [[ -f "$HARNESS_ROOTS" ]]; then
+        # Cada sandbox da execução deve ser tratado individualmente.
         while IFS= read -r harness_root; do
             # O prefixo é obrigatório para nunca remover uma árvore arbitrária.
             if [[ -n "$harness_root" && "$harness_root" == /tmp/ninfa-glpi-field-test.* && -d "$harness_root" ]]; then
