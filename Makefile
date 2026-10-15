@@ -46,6 +46,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-check.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-hook-registry.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-class-index.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-class-references.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-semantic-model.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-behavior-inheritance.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-view-resolution.php
