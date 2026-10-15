@@ -49,6 +49,8 @@ printf '%s\n' "$3" > "$NINFA_GLPI_TEST_CAPTURE"
 FAKE_PHP
 chmod +x "$FIXTURE_ROOT/bin/php"
 
+# @var NINFA_GLPI_TEST_CAPTURE absolute-path — captura externa usada apenas pelo PHP fictício.
+# @var NINFA_GLPI_TEST_SOURCE absolute-path — original sintético protegido pelo PHP fictício.
 # @var OUTPUT text — relatório do harness para conferir o resultado da inspeção.
 OUTPUT="$(PATH="$FIXTURE_ROOT/bin:$PATH" \
     NINFA_GLPI_TEST_CAPTURE="$CAPTURE" NINFA_GLPI_TEST_SOURCE="$SOURCE" \
