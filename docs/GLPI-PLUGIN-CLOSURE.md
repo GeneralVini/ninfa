@@ -42,7 +42,7 @@ Fonte de comportamento: documentação oficial de desenvolvimento de plugins GLP
 
 ## SIGAPS e ÉGIDE — somente leitura absoluta
 
-Referências: SIGAPS em `/var/www/psglpi/plugins/sigaps`; ÉGIDE com **caminho/repositório ainda não informado**. Nunca inferir que ÉGIDE esteja na mesma instalação GLPI ou que seu diretório se chame `egide`.
+Referências: SIGAPS em `/var/www/psglpi/plugins/sigaps`; ÉGIDE no [repositório privado `GeneralVini/egide`](https://github.com/GeneralVini/egide) (`main`), inspecionado estaticamente por leitura no GitHub. O caminho da instalação local do ÉGIDE **ainda não foi confirmado**. Não supor host/diretório local comum ao SIGAPS; preservar o basename técnico confirmado no checkout.
 
 **O caminho original é intocável**, inclusive para `ninfa check`/ `assist`/`security` quando não for possível provar todos os efeitos colaterais de terceiros. Não executar `ninfa fix` contra ele. Não rodar Composer install/update, migrations, GLPI CLI install/uninstall ou testes com DB mutável diretamente nele.
 
