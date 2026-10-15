@@ -68,6 +68,16 @@ Neste ambiente conectado ao GitHub, esse caminho local não está montado; porta
 
 O catálogo não implica que todos os itens sejam implementação obrigatória para v1: os estados `DEFERRED` e `REVIEW` precisam de decisão justificada na revisão do gate. `PARTIAL` exige fronteira de cobertura expressa, e nenhum SAFE novo é autorizado por presunção.
 
+## Executando field test local sobre cópia
+
+Na máquina que possui o SIGAPS, a partir da raiz do NINFA, rode:
+
+```bash
+bash scripts/glpi-field-test.sh /var/www/psglpi/plugins/sigaps assist
+```
+
+Para `check`, `security` ou `fix`, substitua somente o último argumento. O script copia o consumidor para `/tmp/ninfa-glpi-field-test.*`, bloqueia symlinks, aponta o CLI exclusivamente para a cópia, mantém logs/workspace externos, compara hashes e metadata do original ao terminar e guarda evidências. Nenhuma execução automática desse harness foi realizada sobre SIGAPS neste ambiente. **Uma comparação final não substitui isolamento do processo**: execute-o apenas sob credenciais/ambiente que não tenham permissão para escrever no SIGAPS original, quando possível, e avalie efeitos de autoload no host GLPI.
+
 ## Definition of Done
 
 - [ ] Catálogo GLPI 11 com cada candidato classificado `IMPLEMENTED`, `PARTIAL`, `REVIEW`, `SEMANTIC`, `DEFERRED` ou `REJECTED` e justificativa.
