@@ -20,6 +20,15 @@ final class GlpiPluginRuleEngine
     /** Callback de lifecycle obrigatório não declarado estaticamente. */
     public const REQUIRED_CALLBACK_MISSING = 'NINFA-GLPI-COR-002';
 
+    /** Hook conhecido recebe escalar diretamente no índice de hook, sem índice de plugin. */
+    public const FLAT_SCALAR_HOOK = 'NINFA-GLPI-COR-003';
+
+    /** @var list<string> Hooks GLPI com registro conhecido por plugin, com duas dimensões. */
+    private const PLUGIN_SCOPED_HOOKS = [
+        'csrf_compliant', 'config_page', 'change_profile', 'change_entity',
+        'init_session', 'use_massive_action',
+    ];
+
     /**
      * Converte inventário GLPI conclusivo em achados não autofixáveis.
      *
@@ -80,6 +89,37 @@ final class GlpiPluginRuleEngine
                     'callback' => $callback['callback'],
                     'callback_exists' => false,
                     'inventory_complete' => true,
+                    'remediation_risk' => 'review',
+                    'autofix' => false,
+                ],
+            );
+        }
+
+        // Um escalar isolado no índice de um hook com contrato por plugin
+        // sobrescreve o mapa de plugins; valores dinâmicos/arrays ficam unknown.
+        foreach ($model->hookRegistrations() as $registration) {
+            if ($registration['scope'] !== 'hook'
+                || !$registration['scalar_value']
+                || !in_array($registration['hook'], self::PLUGIN_SCOPED_HOOKS, true)) {
+                continue;
+            }
+            $findings[] = new Finding(
+                tool: 'ninfa-glpi',
+                file: $registration['file'],
+                line: $registration['line'],
+                rule: self::FLAT_SCALAR_HOOK,
+                problem: 'Hook GLPI com escopo por plugin recebeu escalar diretamente: ' . $registration['hook'],
+                correction: 'Revise o índice do plugin e registre o valor em $PLUGIN_HOOKS[hook][plugin], preservando o mapa de plugins.',
+                severity: 'warning',
+                confidence: 'high',
+                evidenceType: 'framework-correctness',
+                provenance: ['ninfa:glpi-hook-registry-analyzer'],
+                metadata: [
+                    'framework' => 'glpi11',
+                    'category' => 'correctness',
+                    'hook' => $registration['hook'],
+                    'registration_scope' => $registration['scope'],
+                    'plugin' => $model->plugin(),
                     'remediation_risk' => 'review',
                     'autofix' => false,
                 ],
