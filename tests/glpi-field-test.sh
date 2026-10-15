@@ -17,10 +17,12 @@ CAPTURE="$FIXTURE_ROOT/target.txt"
 
 # @function cleanup — limpa apenas a árvore temporária criada por esta fixture.
 cleanup() {
+    # Só há cópia externa para remover se o harness finalizou sua preparação.
     if [[ -f "$FIXTURE_ROOT/harness-root.txt" ]]; then
         # O harness armazena a cópia fora da árvore da fixture: limpar só seu diretório conhecido.
         local harness_root
         harness_root="$(cat "$FIXTURE_ROOT/harness-root.txt")"
+        # Não apagar nenhum path que não tenha o prefixo exclusivo do harness.
         if [[ -n "$harness_root" && "$harness_root" == /tmp/ninfa-glpi-field-test.* && -d "$harness_root" ]]; then
             rm -rf -- "$harness_root"
         fi
