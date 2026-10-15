@@ -33,6 +33,18 @@ Estas referências descrevem **riscos na infraestrutura NINFA para consumidores 
 
 Esses IDs `GLPI-PR1-REVIEW-0x` são **identificadores internos desta reconciliação**, não números de GitHub Issues originais. Os links de comentário são a proveniência verdadeira.
 
+## Reavaliação técnica no código atual (tranche PR1-P1)
+
+As três advertências foram confrontadas com `src/ExternalConfigGenerator.php` e `scripts/ninfa-configure.php` da branch `feature/glpi-plugin-closure`. Foi adicionada a fixture pública sintética `tests/glpi-pr1-regressions.php`, executada por `make profile-test`. Ela preserva os IDs do review e testa:
+
+| ID original | Contrato atual observado | Prova/regressão | Classificação provisória |
+| --- | --- | --- | --- |
+| [3998260114](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260114) | `ExternalConfigGenerator` só emite `parameters.glpi` e `includes: extension.neon` quando a extensão foi de fato encontrada no plugin/host | Sem extensão => ambos ausentes. Extensão sintética presente no host => ambos gerados | `MITIGATED_IN_CURRENT_CODE`, a validar no CI e em consumidor real |
+| [3998260120](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260120) | NINFA regenera `phpstan.neon`, `psalm.xml`, `glpi-bootstrap.php` em workspace externo por projeto | Troca do host A 11.0.8 para host B 11.0.9 **com a mesma raiz de plugin** deve remover caminhos antigos e apontar para B | `MITIGATED_IN_CURRENT_CODE`, a validar no CI e em consumidor real |
+| [3998260123](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260123) | `--force` é compatibilidade; a configuração atual é gerada no workspace externo, sem sobrescrever arquivos do consumidor | Fixture versiona configs com conteúdo próprio, executa configurador em `--force` e compara hashes do plugin/arquivos de configuração | `MITIGATED_IN_CURRENT_CODE`, a validar no CI e em consumidor real |
+
+**Não fechar os três registros históricos** com base apenas na leitura da implementação: o resultado é específico à infraestrutura atual do NINFA, em hosts sintéticos, e requer regressão verde e validação de campo para a combinação GLPI/SIGAPS. Não marca issues do SIGAPS como resolvidas; os três IDs são ocorrências de review do NINFA. A reclassificação final exige decisão explícita vinculada à URL original.
+
 ## Evidências de regressão, ainda não atribuídas a achados do SIGAPS
 
 - [Commit `b6c4700`](https://github.com/GeneralVini/ninfa/commit/b6c4700af826233983f6d621092a4331e86ccfdc): evolução das regras Semgrep GLPI, inclusive SQL e redirecionamento.
