@@ -25,8 +25,9 @@ try {
     $plan = new PipelinePlan();
 
     $check = $plan->check($context);
-    assert(array_column($check, 'id') === ['ecs', 'rector', 'phpstan', 'psalm', 'test']);
+    assert(array_column($check, 'id') === ['ecs', 'rector', 'phpstan', 'psalm', 'glpi-semantic', 'test']);
     assert($check[1]['mode'] === 'dry-run');
+    assert($check[4] === ['id' => 'glpi-semantic', 'mode' => 'check', 'fixable' => false]);
 
     $fix = $plan->fix($context);
     assert(array_column($fix, 'id') === ['ecs', 'rector']);
@@ -47,7 +48,7 @@ try {
     $frontendContext = ProjectContext::fromRoot($projectRoot);
 
     $frontendCheck = $plan->check($frontendContext);
-    assert(array_column($frontendCheck, 'id') === ['ecs', 'rector', 'phpstan', 'psalm', 'eslint', 'prettier', 'test']);
+    assert(array_column($frontendCheck, 'id') === ['ecs', 'rector', 'phpstan', 'psalm', 'glpi-semantic', 'eslint', 'prettier', 'test']);
 
     $frontendFix = $plan->fix($frontendContext);
     assert(array_column($frontendFix, 'id') === ['ecs', 'rector', 'eslint', 'prettier']);
@@ -56,6 +57,8 @@ try {
     $security = $plan->security($context);
     assert(array_column($security, 'id') === ['composer-audit', 'osv', 'psalm-taint', 'semgrep']);
     assert(!in_array('dast', array_column($security, 'id'), true));
+    assert(!in_array('glpi-semantic', array_column($security, 'id'), true));
+    assert(!in_array('glpi-semantic', array_column($fix, 'id'), true));
 
     $genericRoot = $root . '/generic';
     mkdir($genericRoot . '/src', 0775, true);
@@ -64,6 +67,7 @@ try {
     assert($genericContext->profile() === 'php-generic');
     assert(array_column($plan->check($genericContext), 'id') === ['ecs', 'rector', 'phpstan', 'psalm', 'test']);
     assert(array_column($plan->fix($genericContext), 'id') === ['ecs', 'rector']);
+    assert(!in_array('glpi-semantic', array_column($plan->check($genericContext), 'id'), true));
     assert(array_column($plan->security($genericContext), 'id') === ['composer-audit', 'osv', 'psalm-taint', 'semgrep']);
 
     $yii2Root = $root . '/yii2';
