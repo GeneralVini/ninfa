@@ -118,6 +118,10 @@ ninfa security /caminho/do/plugin
 
 Executa Composer Audit, OSV, Psalm Taint e Semgrep. DAST não integra o comando público `ninfa security` nesta baseline; a configuração `NINFA_DAST=1` não executa OWASP ZAP automaticamente.
 
+## Field test seguro
+
+A homologação em SIGAPS deve usar `scripts/glpi-field-test.sh` sobre **cópia isolada**; jamais direcione `ninfa fix` ao path original `/var/www/psglpi/plugins/sigaps`. O harness rejeita symlinks e compara o estado do original no início e no fim, mantendo seus artefatos em diretório temporário. Consulte o [gate de fechamento](GLPI-PLUGIN-CLOSURE.md) para limitações do isolamento.
+
 ## Escopo do MVP
 
 O profile cobre detecção, validação GLPI 11, descoberta de símbolos, PHPStan/Psalm contextuais, workspace externo e pipelines de qualidade/segurança. O overlay Semgrep GLPI já existe, mas sua calibração e a validação semântica de permissões/hooks ainda dependem de fixtures e field tests em cópias de plugins reais. Não se deve declarar o profile fechado antes do [gate de fechamento](GLPI-PLUGIN-CLOSURE.md).
