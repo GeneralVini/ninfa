@@ -172,6 +172,87 @@ function plugin_version_example(): array { return []; }
 PHP);
     assert(count((new GlpiPluginRuleEngine())->analyse(GlpiPluginSemanticModel::fromContext($context))) === 1);
 
+    // Constantes GLPI são extraídas exclusivamente do arquivo do host selecionado.
+    mkdir($host . '/src/Glpi/Plugin', 0775, true);
+    file_put_contents($host . '/src/Glpi/Plugin/Hooks.php', <<<'PHP'
+<?php
+namespace Glpi\Plugin;
+class Hooks
+{
+    public const CHANGE_PROFILE = 'change_profile';
+    public const CHANGE_ENTITY = 'change_entity';
+    public const POST_INIT = 'post_init';
+    public const DYNAMIC_VALUE = self::CHANGE_PROFILE;
+}
+PHP);
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+use Glpi\Plugin\Hooks;
+function plugin_init_example(): void
+{
+    global $PLUGIN_HOOKS;
+    $PLUGIN_HOOKS[Hooks::CHANGE_PROFILE] = 'callback';
+    $PLUGIN_HOOKS[\Glpi\Plugin\Hooks::CHANGE_ENTITY] = true;
+    $PLUGIN_HOOKS[Hooks::POST_INIT]['example'] = 'plugin_example_post_init';
+    $PLUGIN_HOOKS[Hooks::DYNAMIC_VALUE] = true;
+    $PLUGIN_HOOKS[Hooks::NOT_A_CONSTANT] = true;
+    $PLUGIN_HOOKS[OtherHooks::CHANGE_PROFILE] = true;
+}
+function plugin_version_example(): array { return []; }
+PHP);
+    $model = GlpiPluginSemanticModel::fromContext($context);
+    $constFacts = $model->hookRegistrations();
+    assert(count($constFacts) === 3);
+    assert(array_column($constFacts, 'hook') === ['change_profile', 'change_entity', 'post_init']);
+    assert($constFacts[2]['plugin'] === 'example');
+    assert(count((new GlpiPluginRuleEngine())->analyse($model)) === 2);
+
+    // Imports com alias e nome qualificado devem preservar a identidade da classe GLPI.
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+use Glpi\Plugin\Hooks as PluginHookKeys;
+function plugin_init_example(): void
+{
+    global $PLUGIN_HOOKS;
+    $PLUGIN_HOOKS[PluginHookKeys::CHANGE_PROFILE] = 'callback';
+    $PLUGIN_HOOKS[\Glpi\Plugin\Hooks::POST_INIT]['example'] = 'callback';
+    $PLUGIN_HOOKS[Glpi\Plugin\Hooks::CHANGE_ENTITY] = true;
+}
+function plugin_version_example(): array { return []; }
+PHP);
+    $model = GlpiPluginSemanticModel::fromContext($context);
+    assert(array_column($model->hookRegistrations(), 'hook') === ['change_profile', 'post_init', 'change_entity']);
+    assert(count((new GlpiPluginRuleEngine())->analyse($model)) === 2);
+
+    // Uma classe Hooks não importada, de outro vendor, não é GLPI.
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+use Vendor\Other\Hooks;
+function plugin_init_example(): void
+{
+    global $PLUGIN_HOOKS;
+    $PLUGIN_HOOKS[Hooks::CHANGE_PROFILE] = true;
+}
+function plugin_version_example(): array { return []; }
+PHP);
+    assert(GlpiPluginSemanticModel::fromContext($context)->hookRegistrations() === []);
+
+    // Sem classe oficial no host ou com valor calculado, mantém-se unknown.
+    unlink($host . '/src/Glpi/Plugin/Hooks.php');
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+use Glpi\Plugin\Hooks;
+function plugin_init_example(): void
+{
+    global $PLUGIN_HOOKS;
+    $PLUGIN_HOOKS[Hooks::CHANGE_PROFILE] = true;
+}
+function plugin_version_example(): array { return []; }
+PHP);
+    $model = GlpiPluginSemanticModel::fromContext($context);
+    assert($model->hookRegistrations() === []);
+    assert((new GlpiPluginRuleEngine())->analyse($model) === []);
+
     // Tokenização, inventário e rule engine preservam o consumidor original.
     $before = hash_file('sha256', $plugin . '/setup.php');
     GlpiPluginSemanticModel::fromContext($context);
