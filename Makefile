@@ -43,6 +43,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/pipeline-plan.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/semantic-hints.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-plugin-semantic.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-hook-registry.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-semantic-model.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-behavior-inheritance.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-view-resolution.php
