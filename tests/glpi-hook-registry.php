@@ -97,6 +97,49 @@ PHP);
     $model = GlpiPluginSemanticModel::fromContext($context);
     assert(count((new GlpiPluginRuleEngine())->analyse($model)) === 0);
 
+    // Nome de variável local idêntico não é o global de hooks do GLPI.
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+function plugin_init_example(): void
+{
+    $PLUGIN_HOOKS['csrf_compliant'] = true;
+}
+function plugin_version_example(): array { return []; }
+function helper_example(): void
+{
+    $PLUGIN_HOOKS['change_profile'] = 'local-only';
+}
+PHP);
+    $model = GlpiPluginSemanticModel::fromContext($context);
+    assert($model->hookRegistrations() === []);
+    assert((new GlpiPluginRuleEngine())->analyse($model) === []);
+
+    // Closures têm escopo próprio; não herdam a variável global automaticamente.
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+function plugin_init_example(): void
+{
+    global $PLUGIN_HOOKS;
+    $PLUGIN_HOOKS['csrf_compliant']['example'] = true;
+    $closure = function (): void {
+        $PLUGIN_HOOKS['csrf_compliant'] = false;
+    };
+}
+function plugin_version_example(): array { return []; }
+PHP);
+    $model = GlpiPluginSemanticModel::fromContext($context);
+    assert(count($model->hookRegistrations()) === 1);
+    assert((new GlpiPluginRuleEngine())->analyse($model) === []);
+
+    // No escopo de arquivo, $PLUGIN_HOOKS é efetivamente global.
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+$PLUGIN_HOOKS['csrf_compliant'] = true;
+function plugin_init_example(): void {}
+function plugin_version_example(): array { return []; }
+PHP);
+    assert(count((new GlpiPluginRuleEngine())->analyse(GlpiPluginSemanticModel::fromContext($context))) === 1);
+
     // Tokenização, inventário e rule engine preservam o consumidor original.
     $before = hash_file('sha256', $plugin . '/setup.php');
     GlpiPluginSemanticModel::fromContext($context);
