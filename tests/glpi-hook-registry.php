@@ -131,6 +131,38 @@ PHP);
     assert(count($model->hookRegistrations()) === 1);
     assert((new GlpiPluginRuleEngine())->analyse($model) === []);
 
+    // Método com nome de callback GLPI não equivale à função global init.
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+class FakeInitializer
+{
+    public function plugin_init_example(): void
+    {
+        global $PLUGIN_HOOKS;
+        $PLUGIN_HOOKS['csrf_compliant'] = true;
+    }
+}
+function plugin_init_example(): void {}
+function plugin_version_example(): array { return []; }
+PHP);
+    $model = GlpiPluginSemanticModel::fromContext($context);
+    assert($model->hookRegistrations() === []);
+    assert((new GlpiPluginRuleEngine())->analyse($model) === []);
+
+    // Declaração condicional com nome esperado também não prova callback global.
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+if (false) {
+    function plugin_init_example(): void
+    {
+        global $PLUGIN_HOOKS;
+        $PLUGIN_HOOKS['csrf_compliant'] = true;
+    }
+}
+function plugin_version_example(): array { return []; }
+PHP);
+    assert(GlpiPluginSemanticModel::fromContext($context)->hookRegistrations() === []);
+
     // No escopo de arquivo, $PLUGIN_HOOKS é efetivamente global.
     file_put_contents($plugin . '/setup.php', <<<'PHP'
 <?php
