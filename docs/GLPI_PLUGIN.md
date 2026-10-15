@@ -100,7 +100,25 @@ Os IDs `NINFA-GLPI-COR-001` (entrypoint obrigatório ausente) e `NINFA-GLPI-COR-
 
 O configurador escreve `framework_semantics` no `semantic-index.json` externo. Em `assist`, os fatos e resultados nativos ficam também em `assist/glpi-semantic.json`, `assist/glpi-findings.json` e `assist/findings.json`, sob o workspace NINFA. O analisador não escreve no plugin.
 
-Os demais contratos (registro de hooks, Session/rights/CSRF, banco/migrations e deprecations GLPI 11) continuam pendentes do gate em [GLPI-PLUGIN-CLOSURE.md](GLPI-PLUGIN-CLOSURE.md).
+### Inventário do registry de hooks (GLPI-2, parcial)
+
+O `GlpiHookRegistryAnalyzer` indexa atribuições a `$PLUGIN_HOOKS` em `setup.php` somente quando o primeiro índice é uma string literal. Preserva `hook`, `plugin` literal quando houver, linha, nível do registro e se o valor é um escalar isolado; os fatos aparecem em `framework_semantics.hook_registrations` e em `assist/glpi-semantic.json`.
+
+`NINFA-GLPI-COR-003` sinaliza apenas a atribuição de **escalar ao índice de hook sem índice do plugin**, para hooks comprovadamente por plugin: `csrf_compliant`, `config_page`, `change_profile`, `change_entity`, `init_session` e `use_massive_action`.
+
+```php
+$PLUGIN_HOOKS['csrf_compliant'] = true;             // COR-003
+$PLUGIN_HOOKS['csrf_compliant']['example'] = true;  // correto
+$PLUGIN_HOOKS['csrf_compliant'] = ['example' => true]; // mapa completo, não acusado
+```
+
+Atribuições por constante `Hooks::...`, índices calculados, concatenação/ternário no valor, arrays completos e registros de três ou mais dimensões não são transformados em erros pela regra. O finding é **correctness/warning/high**, `remediation_risk=review`, `autofix=false`. Não prova bypass de CSRF nem outros problemas de segurança.
+
+Esta tranche **não valida ainda** o nome literal do plugin, a existência de callbacks de hooks, tipos dos valores por hook ou o registro de classes `Plugin::registerClass()`. São frentes posteriores do [gate de fechamento](GLPI-PLUGIN-CLOSURE.md), dependentes de evidência/convenções específicas do GLPI 11.
+
+Referências: [GLPI developer docs — Hooks](https://github.com/glpi-project/docdev/blob/master/source/plugins/hooks.rst) e [plugin Tag compatível com GLPI 11](https://github.com/pluginsGLPI/tag/blob/main/setup.php).
+
+Os demais contratos (validação de callbacks de hooks, Session/rights/CSRF, banco/migrations e deprecations GLPI 11) continuam pendentes do gate em [GLPI-PLUGIN-CLOSURE.md](GLPI-PLUGIN-CLOSURE.md).
 
 ## Semântica documental
 
