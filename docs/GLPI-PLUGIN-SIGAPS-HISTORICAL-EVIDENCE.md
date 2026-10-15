@@ -23,13 +23,13 @@ A inspeção do catálogo de issues da conta `GeneralVini/ninfa` não revelou is
 
 ## Apontamentos concretos recuperados da revisão do PR #1
 
-Estas referências descrevem **riscos na infraestrutura NINFA para consumidores GLPI**, encontrados em review; não atribuir diretamente um bug ao código SIGAPS. Mantêm o identificador do comentário, a prioridade original e estado **`VERIFY_CURRENT_CODE`** até confirmação.
+Estas referências descrevem **riscos na infraestrutura NINFA para consumidores GLPI**, encontrados em review; não atribuir diretamente um bug ao código SIGAPS. Mantêm o identificador do comentário e a prioridade original. A regressão sintética de configuração passou no [CI do commit `843f725a`](https://github.com/GeneralVini/ninfa/actions/runs/38824632638); isso documenta contratos específicos da infraestrutura, **não fecha automaticamente** o apontamento histórico nem homologa o SIGAPS real. Os eventos auditáveis também estão no [ledger JSON](GLPI-PLUGIN-HISTORICAL-LEDGER.json).
 
 | Caso de reconciliação | Origem (ID original preservado) | Contrato afetado | Estado |
 | --- | --- | --- | --- |
-| `GLPI-PR1-REVIEW-01` | [review 3998260114](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260114) — P1 | Emissão de `parameters.glpi` sem extensão `phpstan-glpi` carregada inviabilizava parse de configuração PHPStan | `VERIFY_CURRENT_CODE`; revisar versão externa de configuração e teste sem extensão |
-| `GLPI-PR1-REVIEW-02` | [review 3998260120](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260120) — P1 | Config PHPStan gerada com caminhos absolutos poderia ficar desatualizada entre hosts | `VERIFY_CURRENT_CODE`; testar mudança de `NINFA_GLPI_ROOT`, workspace e regeneração |
-| `GLPI-PR1-REVIEW-03` | [review 3998260123](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260123) — P1 | `--force` no workflow poderia sobrescrever configurações ECS, Rector, PHPStan, Psalm e PHPUnit já versionadas no consumidor | `VERIFY_CURRENT_CODE`; avaliar contrato de escrita externa atual, testes e CI |
+| `GLPI-PR1-REVIEW-01` | [review 3998260114](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260114) — P1 | Emissão de `parameters.glpi` sem extensão `phpstan-glpi` carregada inviabilizava parse de configuração PHPStan | `SYNTHETIC_REGRESSION_PASSED`; o teste confirma omissão de `parameters.glpi` sem extensão e inclusão quando instalada |
+| `GLPI-PR1-REVIEW-02` | [review 3998260120](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260120) — P1 | Config PHPStan gerada com caminhos absolutos poderia ficar desatualizada entre hosts | `SYNTHETIC_REGRESSION_PASSED`; o teste troca dois hosts GLPI 11 no mesmo plugin/workspace, verificando que PHPStan/Psalm/bootstrap não conservam paths anteriores |
+| `GLPI-PR1-REVIEW-03` | [review 3998260123](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260123) — P1 | `--force` no workflow poderia sobrescrever configurações ECS, Rector, PHPStan, Psalm e PHPUnit já versionadas no consumidor | `PARTIAL_SYNTHETIC_REGRESSION_PASSED`; arquivo customizado permanece intacto, inclusive com `--force`; **a aplicação efetiva das regras personalizadas do consumidor segue aberta** |
 
 Esses IDs `GLPI-PR1-REVIEW-0x` são **identificadores internos desta reconciliação**, não números de GitHub Issues originais. Os links de comentário são a proveniência verdadeira.
 
@@ -48,7 +48,7 @@ Essas referências compõem o inventário de **regras/decisões**; para se torna
 | --- | --- | --- |
 | `SIGAPS-LEGACY-CHAT` | `AWAITING_SOURCE_DISCOVERY` | Recuperar todos os apontamentos nas conversas do Projeto NINFA; nenhum caso deve sumir por falta de busca integral |
 | `SIGAPS-LEGACY-REPORTS` | `AWAITING_SOURCE_DISCOVERY` | Buscar referências/artefatos de execução anteriores por branch, PR, scripts e notas; não interpretar ausência na branch atual como resolução |
-| `GLPI-PR1-REVIEW-01..03` | `VERIFY_CURRENT_CODE` | Cada review mantém a própria URL e decisão após teste, mesmo se a arquitetura foi substituída |
+| `GLPI-PR1-REVIEW-01..03` | `SYNTHETIC_PASSED` (01/02), `PARTIAL_OPEN` (03) | Identidade original e URL preservadas; P1-03 não termina até validar a propagação de regras do consumidor |
 | `SIGAPS-NEW-BASELINE` | `NOT_EXECUTED` | Rodar somente sobre cópia isolada do plugin GLPI correto, preservar resultado inicial |
 | `EGIDE-BASELINE` | `NOT_EXECUTED` | Repositório privado identificado, mas host local NINFA e execução real não confirmados |
 
@@ -58,8 +58,16 @@ Não criar tickets com texto inventado. **Contagens de issues/finding SIGAPS per
 
 1. Correlacionar PR #1, commits, reviews e documentos em `GeneralVini/ninfa`; não equiparar `GeneralVini/sigaps` (aparenta aplicação Yii2) à instalação `/var/www/psglpi/plugins/sigaps`.
 2. Continuar a recuperação das decisões de outros chats do Projeto NINFA quando essas conversas estiverem efetivamente acessíveis pelo contexto/fonte; preservar o ID original ou permalink sempre que houver.
-3. Validar cada uma das três advertências P1 do PR #1 contra o código atual e fixtures de migração/configuração, marcando separadamente `VERIFIED_FIXED`, `OPEN` ou `INCONCLUSIVE`.
+3. Manter os testes sintéticos `tests/glpi-historical-pr1.php` e `tests/glpi-historical-ledger.php` no gate; preservar as referências de origem mesmo após CI aprovado. Investigar separadamente o P1-03 sobre **utilização** de configurações personalizadas, não apenas não sobrescrita.
 4. Produzir ledger privado de ocorrências reais do SIGAPS e do ÉGIDE com identidade de fonte, fingerprint e histórico de triagem; não publicar informações sensíveis em repositórios públicos.
 5. Não fechar DUAL-0/DUAL-7 antes de conciliar histórico SIGAPS, inclusive resultados `NOT_REPRODUCED` e `UNKNOWN`.
 
 **Resultado desta tranche:** evidências documentais de GitHub reconstituídas; inventário completo dos chats e relatório de campo SIGAPS continuam por comprovar. Nenhum original foi acessado ou modificado.
+
+## Validação sintética incremental — 2026-10-15
+
+- [CI profile-test #38824632638](https://github.com/GeneralVini/ninfa/actions/runs/38824632638) concluiu com sucesso no commit `843f725afe943d93025cf2f817cc210c823e15a8`.
+- `tests/glpi-historical-pr1.php` constrói dois hosts GLPI 11 sintéticos e um plugin fictício, testa inclusão condicional do `phpstan-glpi`, regeneração de referências ao trocar de host e preservação de sentinelas ECS/Rector/PHPStan/Psalm/PHPUnit mesmo com `--force`.
+- `tests/glpi-historical-ledger.php` é guarda documental para as três origens P1 e filas SIGAPS/ÉGIDE ainda não reconciliadas; sua aprovação **não** prova que o inventário de chats esteja completo.
+- **Limite P1-03:** o pipeline atualmente usa configurações externas geradas pelo NINFA, o que impede overwrite, mas não garante incorporar as customizações do consumidor. A definição de composição segura, com testes de regras personalizadas, continua pendente.
+
