@@ -31,7 +31,7 @@ foreach ([$firstHost => '11.0.8', $secondHost => '11.0.9'] as $host => $version)
     file_put_contents($host . '/src/Glpi/Plugin/Hooks.php', "<?php namespace Glpi\\Plugin; class Hooks { public const POST_INIT = 'post_init'; }\n");
     file_put_contents($host . '/inc/includes.php', "<?php\n");
 }
-file_put_contents($plugin . '/composer.json', '{"name":"synthetic/pr1","type":"glpi-plugin","require":{"php":">=8.2"}}');
+file_put_contents($plugin . '/composer.json', '{"name":"synthetic/pr1","type":"glpi-plugin","require":{"php":">=8.2"},"require-dev":{"glpi-project/phpstan-glpi":"^1.3"}}');
 file_put_contents($plugin . '/setup.php', "<?php function plugin_init_example(): void {} function plugin_version_example(): array { return []; }\n");
 file_put_contents($plugin . '/hook.php', "<?php function plugin_example_install(): bool { return true; } function plugin_example_uninstall(): bool { return true; }\n");
 file_put_contents($plugin . '/src/Example.php', "<?php namespace GlpiPlugin\\Example; class Example {}\n");
@@ -93,6 +93,13 @@ try {
     assert(str_contains($phpstanWithExtension, '  glpi:'));
     assert(str_contains($phpstanWithExtension, $secondHost . '/vendor/glpi-project/phpstan-glpi/extension.neon'));
     assert(!str_contains($phpstanWithExtension, $firstHost));
+
+    // Remover a extensão deve limpar parâmetros antigos ao regenerar.
+    unlink($secondHost . '/vendor/glpi-project/phpstan-glpi/extension.neon');
+    $withoutAgain = (new ExternalConfigGenerator())->generate($secondContext);
+    $regenerated = (string) file_get_contents($withoutAgain['phpstan']);
+    assert(!str_contains($regenerated, '  glpi:'));
+    assert(!str_contains($regenerated, '/glpi-project/phpstan-glpi/extension.neon'));
 
     // P1-03: até a flag legada --force precisa gerar somente no workspace externo.
     $output = [];
