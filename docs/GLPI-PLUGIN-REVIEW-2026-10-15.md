@@ -18,7 +18,7 @@ Esta revisão separa defeitos efetivos, cobertura deliberadamente parcial e trab
 
 | Prioridade | Assunto | Consequência / decisão de aceite |
 | --- | --- | --- |
-| P0 | **Isolamento de field test real** | Cópia e hash posterior não impedem escrita transversa por autoload, paths absolutos ou ferramentas externas. Homologar apenas sob conta sem permissão de escrita no SIGAPS original e, preferencialmente, isolamento/mount read-only do original e host, além de workspace próprio. |
+| P0 | **Isolamento de field test real** | Cópia e hash posterior não impedem escrita transversa por autoload, paths absolutos ou ferramentas externas. Homologar apenas sob conta sem permissão de escrita nos originais de SIGAPS e ÉGIDE e, preferencialmente, isolamento/mount read-only do original e host, além de workspace próprio. |
 | P1 | **Semântica nativa disponível somente em `assist`** | **Resolvido nesta tranche:** `glpi-semantic` integra `check`, com `error` bloqueante, `warning` não bloqueante e audit externo; `fix`/`security` sem alteração. |
 | P1 | **Hooks definidos com `Glpi\Plugin\Hooks::*`** | Tranche de resolução entregue: valores públicos literais obtidos do `<host>/src/Glpi/Plugin/Hooks.php`, sem tabela NINFA; imports/aliases e FQN verificadas. Constantes calculadas ou arquivo ausente permanecem `unknown`; ainda requer field test real. |
 | P1 | **Callbacks e classes registrados** | Inventário inicial de callbacks literais de função simples implantado: `declared=true` quando a função global é encontrada em setup/hook, senão `unknown` (sem finding). Inventário inicial de classes/métodos locais e `Plugin::registerClass()` literal implementado (somente `declared=true/null`). Continuam pendentes callables `[Classe::class, método]`, first-class callable, registros por `::class` e provas negativas completas com autoload/herança. |
@@ -48,7 +48,7 @@ As fontes oficiais confirmam `setup.php`/`hook.php`, callbacks de lifecycle, reg
 3. Resolver constantes e callbacks de hook com índice estático e três estados (exists/missing/unknown), incluindo `Plugin::registerClass()`.
 4. Validar contratos de `plugin_version`, Session/rights e DB sem executar código do consumidor.
 5. Calibrar overlay Semgrep e executar corpus GLPI 11 de múltiplos plugins.
-6. Homologar SIGAPS **apenas por cópia e isolamento efetivo de escrita**, registrar hash/metadata do original e evidências de scanner.
+6. Homologar SIGAPS **e ÉGIDE** apenas por cópias e isolamento efetivo de escrita; para ÉGIDE, obter caminho real antes de agir. Registrar hash/metadata de ambos os originais e evidências comparativas dos scanners (ver `GLPI-PLUGIN-FIELD-TEST-CORPUS.md`).
 7. Revalidar syntax, shell/internal-docs, profiles, Semgrep e Go; só depois solicitar revisão de merge.
 
-**Não cumprido:** homologação SIGAPS original; não há acesso ao path local neste ambiente e nenhuma ferramenta foi executada sobre ele.
+**Não cumprido:** homologação real SIGAPS/ÉGIDE; não há acesso local a esses projetos neste ambiente e nenhuma ferramenta foi executada sobre eles.
