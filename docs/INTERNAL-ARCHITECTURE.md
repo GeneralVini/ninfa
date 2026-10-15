@@ -170,7 +170,7 @@ Consolida a operação e os resultados das ferramentas, preservando a política 
 
 O configurador preserva `framework_semantics` para GLPI no `semantic-index.json` do workspace. Em `assist`, persiste `glpi-semantic.json`, `glpi-findings.json` e consolida os findings no schema comum.
 
-`src/GlpiHookRegistryAnalyzer.php` adiciona ao snapshot GLPI os registros literais de `$PLUGIN_HOOKS` em `setup.php`, com `hook`, `plugin` quando literal, nível de indexação e prova de valor escalar isolado. O `GlpiPluginRuleEngine` usa esses fatos em `COR-003` apenas para hooks conhecidos com escopo por plugin; valores/índices dinâmicos não geram evidência negativa. Regra permanece não autofixável e fora de `security`.
+`src/GlpiHookRegistryAnalyzer.php` adiciona ao snapshot GLPI os registros literais de `$PLUGIN_HOOKS` em `setup.php`, com `hook`, `plugin` quando literal, nível de indexação e prova de valor escalar isolado. O binding global precisa ser demonstrado pelo escopo de arquivo ou pela função `plugin_init_<plugin>()` com declaração `global $PLUGIN_HOOKS;` em primeiro nível; variáveis locais homônimas e closures não são registros confirmados. O `GlpiPluginRuleEngine` usa esses fatos em `COR-003` apenas para hooks conhecidos com escopo por plugin; valores/índices dinâmicos não geram evidência negativa. Regra permanece não autofixável e fora de `security`.
 
 A arquitetura será expandida para callbacks de hooks, permissões e demais contratos somente quando existirem provas e fixtures adequadas; ver `docs/GLPI-PLUGIN-CLOSURE.md`. O SIGAPS original não pode ser alterado por field tests.
 
