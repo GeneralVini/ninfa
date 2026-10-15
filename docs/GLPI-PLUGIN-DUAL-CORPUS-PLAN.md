@@ -93,4 +93,4 @@ Se um padrão estiver ausente em um consumidor, registrar `NOT_OBSERVED` (não c
 - Nunca rodar `ninfa fix`, instaladores ou migrations diretamente no SIGAPS/ÉGIDE originais ou em host/DB produtivos.
 - Verificar integridade antes/depois e guardar falhas de ferramenta como `INCONCLUSIVE`, não scan bem-sucedido.
 
-**Estado da decisão:** plano aprovado como regra de trabalho, mas **não** constitui execução dos field tests. Baseline e contagem das issues SIGAPS ainda precisam ser identificadas com evidência.
+**Estado da proposta:** EAP registrada para orientação e revisão. Isto **não** constitui execução dos field tests nem aprovação automática do gate. Baseline e contagem das issues SIGAPS ainda precisam ser identificadas com evidência.
