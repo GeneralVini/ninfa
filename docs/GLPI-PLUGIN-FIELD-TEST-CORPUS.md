@@ -4,17 +4,17 @@
 
 Usar **dois projetos consumidores independentes** para calibrar o profile `glpi-plugin` do NINFA antes de declarar fechado o gate GLPI-6. A análise deve identificar acertos, falsos positivos, falsos negativos verificáveis e casos `unknown`, sem alterar o código original nem copiar código privado para o repositório NINFA.
 
-**O ÉGIDE foi solicitado como segundo caso de homologação. Ainda não foi localizado/validado como diretório ou repositório neste ambiente.** Seu caminho real e a instalação/versão GLPI correspondente precisam ser informados antes de um field test real. Não inferir que esteja na mesma instalação do SIGAPS nem deduzir um caminho a partir do nome.
+**O repositório privado do ÉGIDE foi confirmado:** [GeneralVini/egide](https://github.com/GeneralVini/egide), branch `main` (inspeção estática read-only em 2026-10-15). Foram verificados `setup.php`, `hook.php`, `composer.json` com `type: glpi-plugin`, layout `src/`, autoload PSR-4 e declaração de plataforma GLPI 11. **Não foi confirmada uma instalação local nem o host GLPI correspondente**; análise por GitHub não equivale a executar `ninfa check/assist/security` no projeto real.
 
 ## Corpus e autorização
 
 | Projeto | Origem | Estado | Restrição de escrita |
 | --- | --- | --- | --- |
 | SIGAPS | `/var/www/psglpi/plugins/sigaps` | Conhecido por contexto; não montado aqui | **Somente leitura absoluta** |
-| ÉGIDE | **A informar pelo responsável** (path local ou URL exata do repositório) | Localização e layout ainda não validados | **Somente leitura absoluta** |
+| ÉGIDE | [Repositório privado `GeneralVini/egide`](https://github.com/GeneralVini/egide), branch `main` | Estrutura de plugin GLPI 11 confirmada por leitura estática; host/cópia de campo pendentes | **Somente leitura absoluta** |
 | Fixtures `sigaps`/`egide` | `tests/glpi-field-test.sh` | Sintéticas, sem código dos consumidores | Mutação permitida somente na fixture descartável |
 
-Antes de executar um estudo real, confirmar: diretório raiz do plugin, nome técnico real do diretório (não normalizar o nome visual ÉGIDE), host GLPI 11 associado, autorização de leitura, e se o ambiente permite executar scanners sem escrita no original/host.
+Antes de executar um estudo real, confirmar: checkout local do plugin, nome técnico preservado (o registry observado utiliza `egide`; não usar o nome visual acentuado como basename), host GLPI 11 associado e isolamento sem escrita no original/host. O repositório é **privado**: não publicar achados com trechos proprietários, paths internos ou detalhes de implementação. Não pressupor que esteja na mesma instalação do SIGAPS.
 
 ## Protocolo de field test
 
@@ -34,11 +34,11 @@ cd /opt/ninfa
 bash scripts/glpi-field-test.sh /var/www/psglpi/plugins/sigaps assist
 ```
 
-ÉGIDE (**não substituir por caminho adivinhado**):
+ÉGIDE (repositório confirmado; **checkout local e host ainda precisam ser verificados**):
 
 ```bash
 cd /opt/ninfa
-EGIDE_ROOT="/caminho/real/do/plugin/egide"  # substitua após confirmar o diretório técnico
+EGIDE_ROOT="/caminho/local/confirmado/egide"  # não presume instalação em /var/www
 bash scripts/glpi-field-test.sh "$EGIDE_ROOT" assist
 ```
 
@@ -48,9 +48,9 @@ Não executar os comandos acima neste ambiente remoto: as árvores reais não es
 
 | Tema | SIGAPS | ÉGIDE | Política |
 | --- | --- | --- | --- |
-| `setup.php`, `hook.php`, lifecycle/version | Field test pendente | Field test pendente | Só ausência conclusiva vira `COR-001/002` |
-| `Hooks::*` e `$PLUGIN_HOOKS` | Pendente | Pendente | Constantes do host; dinâmicos `unknown` |
-| Funções/callables, classes, `Plugin::registerClass()` | Pendente | Pendente | Inventário `true/null`, não presumir autoload inexistente |
+| `setup.php`, `hook.php`, lifecycle/version | Field test pendente | Estrutura presente em `main`; verificação NINFA de campo pendente | Só ausência conclusiva vira `COR-001/002` |
+| `Hooks::*` e `$PLUGIN_HOOKS` | Pendente | Uso observado por inspeção estática; resolução pelo host e scanner pendentes | Constantes do host; dinâmicos `unknown` |
+| Funções/callables, classes, `Plugin::registerClass()` | Pendente | Imports com `::class`, callbacks simples/compostos e PSR-4 observados; testes NINFA reais pendentes | Inventário `true/null`, não presumir autoload inexistente |
 | Permissionamento, `Session`, CSRF | Pendente | Pendente | Segurança exige prova de contexto/fluxo |
 | DB, migrations, APIs GLPI 11 e deprecations | Pendente | Pendente | Evitar execução do consumidor; SAFE só equivalente e idempotente |
 | Baseline Semgrep/taint e segurança | Pendente | Pendente | Separar hotspot de vulnerabilidade comprovada |
@@ -60,7 +60,8 @@ Um projeto não precisa exercitar todas as áreas: lacunas sem código represent
 
 ## Critério de fechamento do corpus
 
-- [ ] Identidade/caminho e host GLPI 11 do ÉGIDE confirmados, sem inferir nome técnico.
+- [x] Identidade e repositório do ÉGIDE confirmados (`GeneralVini/egide`, privado, `main`); inspeção estática de layout concluída.
+- [ ] Checkout local/host GLPI 11 e condições de isolamento do ÉGIDE confirmados para execução real.
 - [ ] Resultados de `assist`, `check` e `security` coletados separadamente nos **dois** plugins quando os comandos forem pertinentes.
 - [ ] Originais preservados, integridade pós-teste conferida, isolamento efetivo documentado.
 - [ ] Findings GLPI nativos e overlays SAST revisados com evidência e triagem por projeto.
@@ -68,4 +69,4 @@ Um projeto não precisa exercitar todas as áreas: lacunas sem código represent
 - [ ] Casos `unknown` e lacunas de autoload/hook/ACL/migration explicitados.
 - [ ] Relatório consolidado anexado ao PR #15 e gate GLPI-6 revisado.
 
-**Status:** ÉGIDE adicionado ao plano e às fixtures sintéticas; **nenhuma análise do ÉGIDE real ou do SIGAPS real foi realizada nesta sessão**.
+**Status:** ÉGIDE real inspecionado **somente via leitura estática no GitHub**, com novo caso de uso que motivou fixture sintética de `Plugin::registerClass(Alias::class)`. **Nenhum comando NINFA foi executado no ÉGIDE real ou no SIGAPS real**; homologação local de ambos segue aberta.
