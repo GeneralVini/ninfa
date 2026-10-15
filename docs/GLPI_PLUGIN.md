@@ -118,6 +118,12 @@ Esta tranche **não valida ainda** o nome literal do plugin, a existência de ca
 
 Referências: [GLPI developer docs — Hooks](https://github.com/glpi-project/docdev/blob/master/source/plugins/hooks.rst) e [plugin Tag compatível com GLPI 11](https://github.com/pluginsGLPI/tag/blob/main/setup.php).
 
+### Gate semântico no `ninfa check`
+
+Além de `assist`, `check` executa a etapa nativa `glpi-semantic` **somente** para `glpi-plugin`, de modo independente dos binários externos. Os findings `COR-001..003` entram em `RunResult`/`ToolResult` e são exibidos no resumo. Apenas `severity=error` bloqueia o `check`; `COR-003` é `warning` observável, sem exit de erro.
+
+A etapa grava `check/glpi-semantic.json` e `check/glpi-findings.json` exclusivamente sob o workspace externo. Qualquer falha de serialização/escrita torna a etapa `error`, nunca um falso scan limpo. O `fix` não executa o analyzer nem aplica correções GLPI; `security` mantém seu pipeline SCA/SAST independente. `assist` continua exportando os artefatos próprios em `assist/`.
+
 Os demais contratos (validação de callbacks de hooks, Session/rights/CSRF, banco/migrations e deprecations GLPI 11) continuam pendentes do gate em [GLPI-PLUGIN-CLOSURE.md](GLPI-PLUGIN-CLOSURE.md).
 
 ## Semântica documental
