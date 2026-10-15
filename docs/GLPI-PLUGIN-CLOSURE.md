@@ -48,7 +48,7 @@ Referências: SIGAPS em `/var/www/psglpi/plugins/sigaps`; ÉGIDE no [repositóri
 
 Criar cópia descartável **fora da árvore original** (exemplo `/tmp/ninfa-field-tests/sigaps-YYYYMMDD-HHMMSS`), com workspace e caches também fora do original. Registrar snapshot e diff do original antes e depois, sem instalar hooks ou alterar permissão. Não importar fonte do SIGAPS nem do ÉGIDE como fixture versionada do NINFA.
 
-Neste ambiente conectado ao GitHub, as árvores reais não estão montadas; portanto field tests de SIGAPS e ÉGIDE **não podem ser dados como concluídos remotamente**. O [corpus de homologação](GLPI-PLUGIN-FIELD-TEST-CORPUS.md) define matriz comparativa, triagem e requisitos do ÉGIDE.
+Neste ambiente conectado ao GitHub, o código do ÉGIDE foi consultado remotamente em modo read-only, mas nenhuma árvore real foi montada no host de execução; portanto field tests de SIGAPS e ÉGIDE **não podem ser dados como concluídos remotamente**. O [corpus de homologação](GLPI-PLUGIN-FIELD-TEST-CORPUS.md) define matriz comparativa, triagem e requisitos do ÉGIDE.
 
 ## Catálogo inicial de decisões (baseline GLPI 11)
 
