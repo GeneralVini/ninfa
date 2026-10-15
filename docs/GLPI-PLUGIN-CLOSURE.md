@@ -27,7 +27,7 @@ Fonte de comportamento: documentação oficial de desenvolvimento de plugins GLP
 | GLPI-2 | Hook registry | validação de chave de plugin e callback só quando nomes/alvos são literais e resolvidos; hooks calculados unknown |
 | GLPI-3 | Direitos e acesso | revisão de `Session`, perfis, CSRF e autorização por fluxo; security apenas com prova, outros como REVIEW |
 | GLPI-4 | DB, migrations e deprecations | inventário de APIs GLPI 11, casos perigosos comprovados, correções SAFE só idempotentes |
-| GLPI-5 | Integração | `assist`/JSON, CI, documentação e relatórios externos; regressão PHP genérico/Yii2 |
+| GLPI-5 | Integração | `assist` e `check`/JSON integrados à engine GLPI (`COR-001..003`); manter regressões, field tests e revisão de exit codes no gate final |
 | GLPI-6 | Field test e homologação | host GLPI 11 real, corpus de plugins independentes, falsos positivos triados e relatórios |
 | GLPI-7 | Gate de fechamento | critérios abaixo aprovados e PR revisado, sem merge automático |
 
