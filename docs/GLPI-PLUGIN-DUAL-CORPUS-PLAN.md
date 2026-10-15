@@ -9,7 +9,7 @@
 
 ### Evidências históricas já recuperadas
 
-A primeira recuperação verificável do repositório NINFA está em [GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md](GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md): PR #1 documenta validação anterior no SigaPS e três apontamentos P1 de review sobre configuração e portabilidade. **Esses apontamentos são issues da infraestrutura NINFA observadas na revisão do PR, não necessariamente defeitos do código SIGAPS.** Nenhum deles está resolvido por mera mudança arquitetural ou por ausência de GitHub Issue. O inventário integral dos chats ainda não foi consultável nesta execução; sua recuperação continua bloqueio de DUAL-0.
+A primeira recuperação verificável do repositório NINFA está em [GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md](GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md) e no [ledger versionado](GLPI-PLUGIN-HISTORICAL-LEDGER.json): PR #1 documenta validação anterior no SigaPS e três apontamentos P1 de review sobre configuração e portabilidade. Os P1-01/02 já têm regressões sintéticas aprovadas; P1-03 permanece parcialmente aberto quanto à herança de regras personalizadas do consumidor. **Esses apontamentos são issues da infraestrutura NINFA observadas na revisão do PR, não necessariamente defeitos do código SIGAPS.** Nenhum deles está resolvido por mera mudança arquitetural ou por ausência de GitHub Issue. O inventário integral dos chats ainda não foi consultável nesta execução; sua recuperação continua bloqueio de DUAL-0.
 
 ## 1. Regras de governança (sem exceções tácitas)
 
