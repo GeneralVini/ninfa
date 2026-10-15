@@ -112,7 +112,7 @@ $PLUGIN_HOOKS['csrf_compliant']['example'] = true;  // correto
 $PLUGIN_HOOKS['csrf_compliant'] = ['example' => true]; // mapa completo, não acusado
 ```
 
-Atribuições por constante `Hooks::...`, índices calculados, concatenação/ternário no valor, arrays completos e registros de três ou mais dimensões não são transformados em erros pela regra. O finding é **correctness/warning/high**, `remediation_risk=review`, `autofix=false`. Não prova bypass de CSRF nem outros problemas de segurança.
+`GlpiHookConstantResolver` consulta exclusivamente `<host>/src/Glpi/Plugin/Hooks.php` e resolve valores públicos literais para `Hooks::NOME` com `use Glpi\Plugin\Hooks` (com ou sem alias), `\Glpi\Plugin\Hooks::NOME` e referências qualificadas inequívocas. Na ausência do arquivo oficial no host, em imports de outro vendor, constantes calculadas, índices calculados, concatenação/ternário no valor, arrays completos ou registros de três ou mais dimensões, a regra não emite diagnósticos sem prova. O finding é **correctness/warning/high**, `remediation_risk=review`, `autofix=false`. Não prova bypass de CSRF nem outros problemas de segurança.
 
 Esta tranche **não valida ainda** o nome literal do plugin, a existência de callbacks de hooks, tipos dos valores por hook ou o registro de classes `Plugin::registerClass()`. São frentes posteriores do [gate de fechamento](GLPI-PLUGIN-CLOSURE.md), dependentes de evidência/convenções específicas do GLPI 11.
 
