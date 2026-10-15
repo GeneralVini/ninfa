@@ -162,6 +162,16 @@ Representa uma etapa e distingue `ok`, `failed`, `error`, `skipped`, `not_applic
 
 Consolida a operação e os resultados das ferramentas, preservando a política de exit code.
 
+## Fundação semântica GLPI Plugin 11
+
+`src/GlpiPluginSemanticModel.php` lê `setup.php` e `hook.php` do plugin como fonte de evidência estática. O resultado inclui a existência de entrypoints, declarações globais convencionais e callbacks obrigatórios em estado true/false/unknown. Um arquivo com includes, namespace ou callbacks sob bloco aninhado não permite afirmar ausência. A análise não inclui o código PHP consumidor.
+
+`src/GlpiPluginRuleEngine.php` converte exclusivamente ausências conclusivas em `Finding` de correctness (`NINFA-GLPI-COR-001` e `COR-002`), sem autofix e sem associação a security.
+
+O configurador preserva `framework_semantics` para GLPI no `semantic-index.json` do workspace. Em `assist`, persiste `glpi-semantic.json`, `glpi-findings.json` e consolida os findings no schema comum.
+
+A arquitetura será expandida para índice de hooks, permissões e contracts somente quando existirem provas e fixtures adequadas; ver `docs/GLPI-PLUGIN-CLOSURE.md`. O SIGAPS original não pode ser alterado por field tests.
+
 ## Fundação semântica Yii2
 
 ```text
