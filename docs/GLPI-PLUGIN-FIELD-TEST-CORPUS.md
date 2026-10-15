@@ -18,6 +18,8 @@ Usar **dois projetos consumidores independentes** para calibrar o profile `glpi-
 
 Antes de executar um estudo real, confirmar: checkout local do plugin, nome técnico preservado (o registry observado utiliza `egide`; não usar o nome visual acentuado como basename), host GLPI 11 associado e isolamento sem escrita no original/host. O repositório é **privado**: não publicar achados com trechos proprietários, paths internos ou detalhes de implementação. Não pressupor que esteja na mesma instalação do SIGAPS.
 
+Antes de coletar novos relatórios, consultar o [histórico SIGAPS reconstruído no GitHub](GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md). A contagem dos achados anteriores permanece desconhecida, não zero; três P1 recuperados referem-se à infraestrutura NINFA, não devem ser contabilizados automaticamente como bugs do consumidor.
+
 ## Protocolo de field test
 
 1. Validar por inspeção a raiz do consumidor. O harness `scripts/glpi-field-test.sh` cria uma cópia em `/tmp/ninfa-glpi-field-test.*`, preservando o nome técnico e rejeitando symlinks. **Não apontar `ninfa fix` nem scanners de terceiros diretamente para o original.**
