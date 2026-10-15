@@ -92,6 +92,16 @@ try {
     assert(str_contains($bootstrapB, $hostB));
     assert(!str_contains($bootstrapB, $hostA));
 
+    // P1-03: também exercita a interface legada --force, origem da revisão.
+    // A CLI não pode reescrever as configurações customizadas do consumidor.
+    require_once dirname(__DIR__) . '/src/ProcessRunner.php';
+    $forceRun = (new ProcessRunner())->runCaptured([
+        PHP_BINARY, dirname(__DIR__) . '/scripts/ninfa-configure.php', $plugin, '--force',
+    ], $plugin);
+    assert($forceRun->exitCode === 0);
+    assert(str_contains($forceRun->stdout, '--force mantido apenas por compatibilidade'));
+    assert(str_contains($forceRun->stdout, '[NINFA] Profile: glpi-plugin'));
+
     // P1-03: a geração só pode alterar artefatos externos. A preservação
     // não implica que todas as customizações do consumidor sejam aplicadas
     // pelos scanners — essa é uma questão separada, ainda sob triagem.
