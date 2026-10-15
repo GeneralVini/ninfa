@@ -118,7 +118,7 @@ final class GlpiHookRegistryAnalyzer
      */
     private function registryScopeProven(array $tokens, int $position, string $plugin): bool
     {
-        /** @var array{name:string|null,open:int}|null $enclosing Função mais interna que contém a atribuição. */
+        /** @var array{name:string|null,open:int,definition:int}|null $enclosing Função mais interna que contém a atribuição. */
         $enclosing = null;
         for ($i = 0; $i < $position; $i++) {
             if (!is_array($tokens[$i]) || $tokens[$i][0] !== T_FUNCTION) {
@@ -159,7 +159,7 @@ final class GlpiHookRegistryAnalyzer
                 }
             }
             if ($close !== null && $position < $close && ($enclosing === null || $open > $enclosing['open'])) {
-                $enclosing = ['name' => $name, 'open' => $open];
+                $enclosing = ['name' => $name, 'open' => $open, 'definition' => $i];
             }
         }
 
@@ -167,6 +167,17 @@ final class GlpiHookRegistryAnalyzer
             return true;
         }
         if ($enclosing['name'] !== 'plugin_init_' . strtolower($plugin)) {
+            return false;
+        }
+
+        // Métodos de classe ou funções condicionais com o mesmo nome não são
+        // o callback global init que o GLPI invoca. Só aceitamos a definição
+        // no escopo raiz do arquivo, com profundidade de chaves igual a zero.
+        $definitionDepth = 0;
+        for ($i = 0; $i < $enclosing['definition']; $i++) {
+            $definitionDepth += $tokens[$i] === '{' ? 1 : ($tokens[$i] === '}' ? -1 : 0);
+        }
+        if ($definitionDepth !== 0) {
             return false;
         }
 
