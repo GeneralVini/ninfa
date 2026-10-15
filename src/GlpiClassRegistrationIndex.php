@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/GlpiClassReferenceResolver.php';
+
 /**
  * Indexa chamadas literais a Plugin::registerClass() no setup de plugins GLPI.
  *
- * O primeiro argumento precisa ser uma string isolada e o alvo Plugin precisa
- * ser inequivocamente o símbolo global do GLPI. Referências calculadas,
+ * O primeiro argumento precisa ser uma string literal ou nome ::class
+ * comprovável e o alvo Plugin precisa ser inequivocamente o símbolo global. Referências calculadas,
  * imports ambíguos e classes apenas carregadas por autoload ficam unknown.
  * Nenhum código de plugin é incluído ou executado.
  */
@@ -50,8 +52,9 @@ final class GlpiClassRegistrationIndex
             }
         }
 
-        /** @var list<array{file:string,line:int,class:string,declared:bool|null,methods:list<string>}> $registrations Literal de classe e declaração comprovada. */
+        /** @var list<array{file:string,line:int,class:string,declared:bool|null,methods:list<string>}> $registrations Referências e declarações comprovadas. */
         $registrations = [];
+        $resolver = new GlpiClassReferenceResolver();
         foreach ($tokens as $i => $token) {
             if (!is_array($token)
                 || !in_array($token[0], [T_STRING, T_NAME_FULLY_QUALIFIED], true)
@@ -68,22 +71,14 @@ final class GlpiClassRegistrationIndex
             if ($doubleColon === null || !is_array($tokens[$doubleColon]) || $tokens[$doubleColon][0] !== T_DOUBLE_COLON
                 || $method === null || !is_array($tokens[$method]) || strtolower($tokens[$method][1]) !== 'registerclass'
                 || $opening === null || $tokens[$opening] !== '('
-                || $firstArgument === null || !is_array($tokens[$firstArgument]) || $tokens[$firstArgument][0] !== T_CONSTANT_ENCAPSED_STRING) {
+                || $firstArgument === null) {
                 continue;
             }
 
-            $after = $this->next($tokens, $firstArgument + 1);
-            if ($after === null || !in_array($tokens[$after], [',', ')'], true)) {
-                continue;
-            }
-            $raw = $tokens[$firstArgument][1];
-            // Aspas simples sem escapes: forma mais segura para classes GLPI
-            // legadas como 'PluginExampleProfile'. Demais expressões unknown.
-            if (strlen($raw) < 3 || $raw[0] !== "'" || !str_ends_with($raw, "'")) {
-                continue;
-            }
-            $class = substr($raw, 1, -1);
-            if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $class) !== 1) {
+            // Resolve string isolada ou Nome::class/import alias, sem avaliar PHP.
+            // Ambiguidade do nome deixa a referência ausente do inventário.
+            $class = $resolver->resolve($tokens, $firstArgument);
+            if ($class === null) {
                 continue;
             }
 
