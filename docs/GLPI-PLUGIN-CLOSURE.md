@@ -82,7 +82,7 @@ Para `check`, `security` ou `fix`, substitua somente o último argumento. O scri
 
 ## Evidência histórica do SIGAPS
 
-O [registro inicial de evidências](GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md) recupera a validação do consumidor SigaPS documentada no PR #1 e três apontamentos P1 de infraestrutura NINFA, sem confundi-los com issues no código consumidor. O histórico integral de chats deste Projeto NINFA ainda necessita reconciliação verificável. Nenhuma ausência nos novos scans, testes do ÉGIDE ou issue tracker vazio permite marcar pendências SIGAPS como resolvidas.
+O [registro inicial de evidências](GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md) e o [ledger versionado](GLPI-PLUGIN-HISTORICAL-LEDGER.json) recuperam a validação do consumidor SigaPS documentada no PR #1 e três apontamentos P1 de infraestrutura NINFA, sem confundi-los com issues no código consumidor. Os três IDs de origem são protegidos por `tests/glpi-historical-ledger.php`; as regressões de configuração estão em `tests/glpi-historical-pr1.php`. P1-03 ainda exige verificar a aplicação de configurações personalizadas. O histórico integral de chats deste Projeto NINFA ainda necessita reconciliação verificável. Nenhuma ausência nos novos scans, testes do ÉGIDE ou issue tracker vazio permite marcar pendências SIGAPS como resolvidas.
 
 ## Revisão de lacunas
 
