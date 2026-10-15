@@ -25,7 +25,7 @@ final class GlpiHookRegistryAnalyzer
      * para hooks conhecidos; o inventário permanece neutro.
      *
      * @param ProjectContext $context Contexto GLPI, sem executar setup.php.
-     * @return list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool}> Fatos literais, na ordem do source.
+     * @return list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool,value_literal:string|null}> Fatos literais, na ordem do source.
      */
     public function registrations(ProjectContext $context): array
     {
@@ -42,7 +42,7 @@ final class GlpiHookRegistryAnalyzer
         /** @var list<array{0:int,1:string,2:int}|string> $tokens Stream PHP sem executar o arquivo. */
         $tokens = token_get_all($source);
         $constantResolver = new GlpiHookConstantResolver($context->glpiRoot());
-        /** @var list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool}> $registrations Inventário limitado às atribuições literais. */
+        /** @var list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool,value_literal:string|null}> $registrations Inventário limitado às atribuições literais. */
         $registrations = [];
         foreach ($tokens as $index => $token) {
             if (!is_array($token) || $token[0] !== T_VARIABLE || $token[1] !== '$PLUGIN_HOOKS') {
@@ -101,6 +101,9 @@ final class GlpiHookRegistryAnalyzer
                 'plugin' => $plugin,
                 'scope' => $scope,
                 'scalar_value' => $this->isStandaloneScalar($tokens, $value),
+                'value_literal' => $this->isStandaloneScalar($tokens, $value)
+                    ? $this->stringLiteral($tokens, $value, $value)
+                    : null,
             ];
         }
 
