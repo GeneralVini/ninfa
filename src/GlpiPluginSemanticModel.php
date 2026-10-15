@@ -15,6 +15,11 @@ require_once __DIR__ . '/ProjectContext.php';
 final class GlpiPluginSemanticModel implements JsonSerializable
 {
     /**
+     * Congela os fatos derivados de entrypoints sem reexecutar a análise.
+     *
+     * O objeto mantém separados inventários conclusivos e referências unknown;
+     * somente a rule engine pode convertê-los posteriormente em findings.
+     *
      * @param string $plugin Identificador técnico obtido do diretório do plugin.
      * @param string $hostVersion Versão do host GLPI já validada por ProjectContext.
      * @param array<string,array{file:string,exists:bool,complete:bool,functions:list<string>,uncertainty:list<string>}> $entrypoints Contrato estático de cada entrypoint.
