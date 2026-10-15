@@ -14,6 +14,7 @@ require_once __DIR__ . '/SecurityReport.php';
 require_once __DIR__ . '/PsalmTaintParser.php';
 require_once __DIR__ . '/SemgrepParser.php';
 require_once __DIR__ . '/SecurityContract.php';
+require_once __DIR__ . '/GlpiPluginRuleEngine.php';
 
 /**
  * Orquestra as operações `check`, `fix` e `security` sobre um ProjectContext.
@@ -111,6 +112,19 @@ final class PipelineRunner
         // A execução não é fail-fast: cada fonte independente deve produzir sua própria evidência sempre que possível.
         foreach ($hooks as $hook) {
             $started = hrtime(true);
+
+            // Semântica GLPI é análise PHP estática, não um processo externo.
+            // Ela compõe o check, mas nunca faz parte de fix ou security.
+            if ($operation === 'check' && $hook['id'] === 'glpi-semantic') {
+                echo CliStyle::info('[NINFA] glpi-semantic (check)') . PHP_EOL;
+                try {
+                    $results[] = $this->runGlpiSemantic($context, $started);
+                } catch (Throwable $error) {
+                    fwrite(STDERR, CliStyle::error('✗ glpi-semantic: ' . $error->getMessage()) . PHP_EOL);
+                    $results[] = ToolResult::error('glpi-semantic', $error->getMessage(), $this->elapsedMs($started));
+                }
+                continue;
+            }
 
             // OSV é adapter HTTP interno e não deve passar pelo ProcessRunner nem por resolução de executável.
             if ($operation === 'security' && $hook['id'] === 'osv') {
@@ -217,6 +231,61 @@ final class PipelineRunner
         $this->renderSummary($operation, $results);
 
         return $runResult;
+    }
+
+    /**
+     * Executa e audita as regras semânticas GLPI em uma etapa nativa de check.
+     *
+     * Somente severidade error bloqueia o gate; warning continua finding
+     * observável sem transformar análise estática em security ou autofix.
+     * Os dois artefatos ficam no workspace externo e erros de escrita tornam
+     * a etapa inconclusiva, nunca uma execução aparentemente limpa.
+     *
+     * @param ProjectContext $context Contexto GLPI 11 somente leitura.
+     * @param int $started Timestamp monotônico usado para duração.
+     * @return ToolResult Findings e resultado bloqueante da etapa nativa.
+     * @throws RuntimeException Quando a auditoria externa não puder ser gravada.
+     * @throws JsonException Quando a serialização de evidências falhar.
+     */
+    private function runGlpiSemantic(ProjectContext $context, int $started): ToolResult
+    {
+        $model = GlpiPluginSemanticModel::fromContext($context);
+        /** @var list<Finding> $findings Resultado de correctness do registry/lifecycle. */
+        $findings = (new GlpiPluginRuleEngine())->analyse($model);
+        /** @var list<Finding> $blocking Findings correctness com severidade error. */
+        $blocking = array_values(array_filter(
+            $findings,
+            static fn (Finding $finding): bool => strtolower((string) $finding->severity) === 'error',
+        ));
+
+        $dir = $context->workspace()->file('check');
+        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
+            throw new RuntimeException('Não foi possível criar o diretório externo da auditoria GLPI.');
+        }
+        foreach (['glpi-semantic.json' => $model, 'glpi-findings.json' => $findings] as $name => $payload) {
+            $encoded = json_encode(
+                $payload,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+            );
+            if (file_put_contents($dir . '/' . $name, $encoded . PHP_EOL) === false) {
+                throw new RuntimeException('Não foi possível gravar a auditoria GLPI: ' . $name);
+            }
+        }
+
+        if ($findings !== []) {
+            FindingRenderer::render($findings, false);
+        }
+        echo $blocking !== []
+            ? CliStyle::error('✗ glpi-semantic: ' . count($blocking) . ' erro(s) conclusivo(s) e ' . count($findings) . ' achado(s).') . PHP_EOL
+            : CliStyle::success('✓ glpi-semantic: ' . count($findings) . ' achado(s), sem erro bloqueante.') . PHP_EOL;
+
+        return ToolResult::completed(
+            'glpi-semantic',
+            $blocking !== [] ? 1 : 0,
+            $findings,
+            $this->elapsedMs($started),
+            ['framework' => 'glpi11', 'findings' => count($findings), 'blocking' => count($blocking)],
+        );
     }
 
     /**
