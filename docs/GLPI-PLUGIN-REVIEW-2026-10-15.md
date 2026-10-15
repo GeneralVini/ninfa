@@ -19,7 +19,7 @@ Esta revisão separa defeitos efetivos, cobertura deliberadamente parcial e trab
 | Prioridade | Assunto | Consequência / decisão de aceite |
 | --- | --- | --- |
 | P0 | **Isolamento de field test real** | Cópia e hash posterior não impedem escrita transversa por autoload, paths absolutos ou ferramentas externas. Homologar apenas sob conta sem permissão de escrita no SIGAPS original e, preferencialmente, isolamento/mount read-only do original e host, além de workspace próprio. |
-| P1 | **Semântica nativa disponível somente em `assist`** | `COR-001..003` entram no `ninfa assist`, não no `ninfa check` executado via `PipelineRunner`. Definir contrato de gate/exit codes e integrar check (sem contaminar security) antes de declarar cobertura automática. |
+| P1 | **Semântica nativa disponível somente em `assist`** | **Resolvido nesta tranche:** `glpi-semantic` integra `check`, com `error` bloqueante, `warning` não bloqueante e audit externo; `fix`/`security` sem alteração. |
 | P1 | **Hooks definidos com `Glpi\Plugin\Hooks::*`** | Formato importante do GLPI 11, ainda marcado `unknown` por não resolver constantes do host; extrair mapa oficial de versões e resolver apenas símbolos comprovados. |
 | P1 | **Callbacks e classes registrados** | Não verifica resolução das strings de callback, callables `[Classe::class, método]`, first-class callable ou `Plugin::registerClass()`. Necessário índice de funções/classes local + host para emitir apenas negativas conclusivas. |
 | P1 | **Autorização / Session / CSRF em endpoints** | Nenhuma regra nativa baseada em fluxo ou entrypoint HTTP comprovado; não promover cheiro de código a vulnerabilidade. Validar guards, origem e sinks com fixtures e host 11 antes de `security`. |
