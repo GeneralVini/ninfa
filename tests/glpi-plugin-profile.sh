@@ -62,6 +62,23 @@ grep -q 'level: 8' "$WORKSPACE/phpstan.neon"
 grep -q "$GLPI_ROOT/src" "$WORKSPACE/phpstan.neon"
 grep -q '<var name="DB" type="DBmysql" />' "$WORKSPACE/psalm.xml"
 grep -q "$GLPI_ROOT/inc/includes.php" "$WORKSPACE/psalm.xml"
+# O índice semântico GLPI também deve ficar fora do consumidor.
+grep -q '"framework_semantics"' "$WORKSPACE/semantic-index.json"
+grep -q '"required_callbacks"' "$WORKSPACE/semantic-index.json"
+grep -q '^\[NINFA\] GLPI lifecycle callbacks: 4
+
+# Nenhum boilerplate/configuração gerada pelo Ninfa pode escapar do workspace
+# externo e contaminar a raiz do consumidor sintético.
+for forbidden in .ninfa phpstan.neon.dist psalm.xml ecs.php rector.php phpunit.xml.dist; do
+    # Uma ocorrência aqui é regressão arquitetural: o consumidor deve permanecer imutável.
+    if [[ -e "$PROJECT_ROOT/$forbidden" ]]; then
+        printf '[ERRO] Boilerplate criado no consumidor: %s\n' "$forbidden" >&2
+        exit 1
+    fi
+done
+
+printf '[OK] Profile GLPI Plugin 11 usa workspace externo sem boilerplate.\n'
+ <<< "$OUTPUT"
 
 # Nenhum boilerplate/configuração gerada pelo Ninfa pode escapar do workspace
 # externo e contaminar a raiz do consumidor sintético.
