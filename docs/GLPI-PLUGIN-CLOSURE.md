@@ -19,6 +19,8 @@ Fonte de comportamento: documentação oficial de desenvolvimento de plugins GLP
 | Field test | fixtures sintéticas com nomes `sigaps` e `egide`; harness copy-only | homologar SIGAPS e ÉGIDE reais em cópias descartáveis, com host GLPI 11 validado e origem do ÉGIDE informada |
 | Compatibilidade | foco declarado GLPI 11 | matriz validada contra host real e APIs com prova |
 
+A homologação deve respeitar a [EAP de dois consumidores e preservação das issues SIGAPS](GLPI-PLUGIN-DUAL-CORPUS-PLAN.md). A ausência de um finding em scan posterior, ou no ÉGIDE, **não resolve uma issue SIGAPS**. O gate DUAL-0 exige inventariar fontes/IDs e histórico antes de declarar o perfil fechado; a origem do plugin local SIGAPS deve ser distinguida do repositório homônimo que aparenta ser Yii2.
+
 ## Pacotes e dependências
 
 | Pacote | Entrega | Aceite |
