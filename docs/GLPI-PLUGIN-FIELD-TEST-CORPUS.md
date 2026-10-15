@@ -1,5 +1,7 @@
 # Corpus de homologação GLPI 11: SIGAPS e ÉGIDE
 
+O plano vinculante de trabalho em duas trilhas, preservação de todas as issues antigas do SIGAPS e critérios de não descarte está em [GLPI-PLUGIN-DUAL-CORPUS-PLAN.md](GLPI-PLUGIN-DUAL-CORPUS-PLAN.md). **Não substituir a fila SIGAPS por findings do ÉGIDE.**
+
 ## Objetivo
 
 Usar **dois projetos consumidores independentes** para calibrar o profile `glpi-plugin` do NINFA antes de declarar fechado o gate GLPI-6. A análise deve identificar acertos, falsos positivos, falsos negativos verificáveis e casos `unknown`, sem alterar o código original nem copiar código privado para o repositório NINFA.
