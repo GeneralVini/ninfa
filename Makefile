@@ -40,6 +40,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/osv.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/sast-parsers.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/external-config.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-pr1-historical-regressions.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/pipeline-plan.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/semantic-hints.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-plugin-semantic.php
