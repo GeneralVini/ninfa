@@ -207,9 +207,13 @@ final class GlpiPluginSemanticModel implements JsonSerializable
                 break;
             }
         }
+        $uncertainty = array_values(array_unique($uncertainty));
+        // Declarações sob namespace não provam o contrato de callbacks globais do GLPI.
+        if (in_array('namespace', $uncertainty, true)) {
+            $functions = [];
+        }
         $functions = array_values(array_unique($functions));
         sort($functions);
-        $uncertainty = array_values(array_unique($uncertainty));
 
         return [
             'file' => $relative,
