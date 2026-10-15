@@ -210,6 +210,7 @@ final class GlpiPluginSemanticModel implements JsonSerializable
         $uncertainty = array_values(array_unique($uncertainty));
         // Declarações sob namespace não provam o contrato de callbacks globais do GLPI.
         if (in_array('namespace', $uncertainty, true)) {
+            /** @var list<string> $functions Funções não verificadas como globais não entram no inventário. */
             $functions = [];
         }
         $functions = array_values(array_unique($functions));
