@@ -45,6 +45,10 @@ final class GlpiHookRegistryAnalyzer
             if (!is_array($token) || $token[0] !== T_VARIABLE || $token[1] !== '$PLUGIN_HOOKS') {
                 continue;
             }
+            // Uma variável homônima local não é necessariamente o registry do GLPI.
+            if (!$this->registryScopeProven($tokens, $index, basename($context->root()))) {
+                continue;
+            }
 
             $first = $this->next($tokens, $index + 1);
             if ($first === null || $tokens[$first] !== '[') {
@@ -97,6 +101,99 @@ final class GlpiHookRegistryAnalyzer
         }
 
         return $registrations;
+    }
+
+    /**
+     * Prova que o candidato refere-se ao registry global, não a variável local.
+     *
+     * Atribuições em escopo de arquivo são globais. Dentro de funções, somente
+     * plugin_init_<plugin>() com declaração de global $PLUGIN_HOOKS no primeiro
+     * nível do corpo é aceito; nested closures, métodos e funções auxiliares
+     * são ignorados. Essa prova de escopo é intencionalmente conservadora.
+     *
+     * @param list<array{0:int,1:string,2:int}|string> $tokens Tokens de setup.php.
+     * @param int $position Posição do acesso a $PLUGIN_HOOKS.
+     * @param string $plugin Nome técnico do diretório.
+     * @return bool Se o binding global do hook está demonstrado.
+     */
+    private function registryScopeProven(array $tokens, int $position, string $plugin): bool
+    {
+        /** @var array{name:string|null,open:int}|null $enclosing Função mais interna que contém a atribuição. */
+        $enclosing = null;
+        for ($i = 0; $i < $position; $i++) {
+            if (!is_array($tokens[$i]) || $tokens[$i][0] !== T_FUNCTION) {
+                continue;
+            }
+            $namePos = $this->next($tokens, $i + 1);
+            if ($namePos === null) {
+                continue;
+            }
+            $nameToken = $tokens[$namePos];
+            if ($nameToken === '&' || (is_array($nameToken) && $nameToken[0] === T_AMPERSAND_NOT_FOLLOWED_BY_VAR_OR_VARARG)) {
+                $namePos = $this->next($tokens, $namePos + 1);
+                $nameToken = $namePos !== null ? $tokens[$namePos] : null;
+            }
+            $name = is_array($nameToken) && $nameToken[0] === T_STRING ? strtolower($nameToken[1]) : null;
+
+            // Abstract/interface declarations end at ';' and never own a body.
+            $open = null;
+            for ($cursor = $i + 1, $count = count($tokens); $cursor < $count; $cursor++) {
+                if ($tokens[$cursor] === ';') {
+                    break;
+                }
+                if ($tokens[$cursor] === '{') {
+                    $open = $cursor;
+                    break;
+                }
+            }
+            if ($open === null || $open >= $position) {
+                continue;
+            }
+            $depth = 0;
+            $close = null;
+            for ($cursor = $open, $count = count($tokens); $cursor < $count; $cursor++) {
+                $depth += $tokens[$cursor] === '{' ? 1 : ($tokens[$cursor] === '}' ? -1 : 0);
+                if ($depth === 0) {
+                    $close = $cursor;
+                    break;
+                }
+            }
+            if ($close !== null && $position < $close && ($enclosing === null || $open > $enclosing['open'])) {
+                $enclosing = ['name' => $name, 'open' => $open];
+            }
+        }
+
+        if ($enclosing === null) {
+            return true;
+        }
+        if ($enclosing['name'] !== 'plugin_init_' . strtolower($plugin)) {
+            return false;
+        }
+
+        $depth = 1;
+        for ($i = $enclosing['open'] + 1; $i < $position; $i++) {
+            $token = $tokens[$i];
+            if ($token === '{') {
+                $depth++;
+                continue;
+            }
+            if ($token === '}') {
+                $depth--;
+                continue;
+            }
+            if (!is_array($token) || $token[0] !== T_GLOBAL || $depth !== 1) {
+                continue;
+            }
+
+            // Aceita global $CFG_GLPI, $PLUGIN_HOOKS; sem interpretar expresses.
+            for ($cursor = $i + 1; $cursor < $position && $tokens[$cursor] !== ';'; $cursor++) {
+                if (is_array($tokens[$cursor]) && $tokens[$cursor][0] === T_VARIABLE && $tokens[$cursor][1] === '$PLUGIN_HOOKS') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
