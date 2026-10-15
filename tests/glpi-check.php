@@ -99,6 +99,14 @@ PHP;
     assert(count($audit) === 1);
     assert($audit[0]['rule'] === GlpiPluginRuleEngine::FLAT_SCALAR_HOOK);
 
+    // O CLI público também deve preservar warning não bloqueante.
+    $cliWarning = (new ProcessRunner())->runCaptured([
+        PHP_BINARY, dirname(__DIR__) . '/bin/ninfa', 'check', $plugin,
+    ], $plugin);
+    assert($cliWarning->exitCode === 0);
+    assert(str_contains($cliWarning->stdout, 'glpi-semantic: ok (codigo 0)'));
+    assert(str_contains($cliWarning->stdout, GlpiPluginRuleEngine::FLAT_SCALAR_HOOK));
+
     // Ausência conclusiva de callback transforma a etapa nativa em bloqueante.
     file_put_contents($plugin . '/setup.php', str_replace(
         "function plugin_version_example(): array { return ['version' => '1.0.0']; }",
@@ -111,6 +119,14 @@ PHP;
     assert(count($callbackFindings) === 1);
     assert($callbackFindings[0]->severity === 'error');
     assert($callbackFindings[0]->metadata['remediation_risk'] === 'review');
+
+    // O CLI público precisa propagar erro nativo mesmo com scanners externos limpos.
+    $cliError = (new ProcessRunner())->runCaptured([
+        PHP_BINARY, dirname(__DIR__) . '/bin/ninfa', 'check', $plugin,
+    ], $plugin);
+    assert($cliError->exitCode === 1);
+    assert(str_contains($cliError->stdout, 'glpi-semantic: failed (codigo 1)'));
+    assert(str_contains($cliError->stdout, GlpiPluginRuleEngine::REQUIRED_CALLBACK_MISSING));
 
     // Include pode declarar callback externo: a ausência não é demonstrável.
     file_put_contents($plugin . '/setup.php', "<?php\nrequire_once __DIR__ . '/other.php';\nfunction plugin_init_example(): void {}\n");
