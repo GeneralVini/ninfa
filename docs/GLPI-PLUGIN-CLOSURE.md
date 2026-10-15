@@ -57,7 +57,7 @@ Neste ambiente conectado ao GitHub, esse caminho local não está montado; porta
 | Entrypoints `setup.php`/`hook.php` | `IMPLEMENTED` (tranche GLPI-1) | `COR-001`, ausência física comprovada |
 | Callback global init/version/install/uninstall | `PARTIAL` (tranche GLPI-1) | `COR-002`, apenas declarações estáticas e identificador técnico convencional |
 | Hook registry `$PLUGIN_HOOKS` | `PARTIAL` | GLPI-2: inventário literal + `COR-003` para valor escalar em hook por plugin sem índice de plugin; constantes literais resolvidas do host GLPI 11; callbacks de função simples têm inventário `declared=true/null` (sem prova negativa); arrays/métodos/classes e valores dinâmicos continuam unknown |
-| `Plugin::registerClass()` | `DEFERRED` | análise precisa validar tipos registrados e autoload resolvido |
+| `Plugin::registerClass()` | `PARTIAL` | índice estático de classes/métodos locais e chamadas literais (`declared=true/null`); autoload/herança, `::class` e calls dinâmicas continuam pendentes |
 | Lifecycle de install/uninstall e migrations | `DEFERRED` | efeitos em banco e estado de host não são inferidos por texto |
 | Direitos, perfis e `Session` | `REVIEW` | segurança depende de controle de fluxo e endpoint público comprovado |
 | CSRF e autorização de ação | `REVIEW` | contexto do roteamento e guards deve ser demonstrado |
