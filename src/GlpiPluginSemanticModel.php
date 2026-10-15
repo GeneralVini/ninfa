@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/ProjectContext.php';
 require_once __DIR__ . '/GlpiHookRegistryAnalyzer.php';
+require_once __DIR__ . '/GlpiHookCallbackIndex.php';
 
 /**
  * Extrai fatos estáticos de entrypoints do ciclo de vida de um plugin GLPI 11.
@@ -25,7 +26,8 @@ final class GlpiPluginSemanticModel implements JsonSerializable
      * @param string $hostVersion Versão do host GLPI já validada por ProjectContext.
      * @param array<string,array{file:string,exists:bool,complete:bool,functions:list<string>,uncertainty:list<string>}> $entrypoints Contrato estático de cada entrypoint.
      * @param list<array{file:string,callback:string,exists:bool|null}> $callbacks Contrato tri-state dos callbacks convencionais.
-     * @param list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool}> $hookRegistrations Atribuições literais extraídas de setup.php.
+     * @param list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool,value_literal:string|null}> $hookRegistrations Atribuições literais extraídas de setup.php.
+     * @param list<array{hook:string,plugin:string,line:int,callback:string,declared:bool|null}> $hookCallbacks Prova local ou unknown das funções referenciadas.
      */
     private function __construct(
         private readonly string $plugin,
@@ -33,6 +35,7 @@ final class GlpiPluginSemanticModel implements JsonSerializable
         private readonly array $entrypoints,
         private readonly array $callbacks,
         private readonly array $hookRegistrations,
+        private readonly array $hookCallbacks,
     ) {
     }
 
@@ -79,9 +82,11 @@ final class GlpiPluginSemanticModel implements JsonSerializable
             }
         }
 
-        /** @var list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool}> $hookRegistrations Fatos literais que não dependem de execução. */
+        /** @var list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool,value_literal:string|null}> $hookRegistrations Fatos literais que não dependem de execução. */
         $hookRegistrations = (new GlpiHookRegistryAnalyzer())->registrations($context);
-        return new self($plugin, $context->glpiVersion() ?? 'unknown', $entrypoints, $callbacks, $hookRegistrations);
+        /** @var list<array{hook:string,plugin:string,line:int,callback:string,declared:bool|null}> $hookCallbacks Evidência sintática de função local, nunca prova negativa. */
+        $hookCallbacks = (new GlpiHookCallbackIndex())->build($hookRegistrations, $entrypoints);
+        return new self($plugin, $context->glpiVersion() ?? 'unknown', $entrypoints, $callbacks, $hookRegistrations, $hookCallbacks);
     }
 
     /** Retorna o identificador técnico original do diretório. */
@@ -113,7 +118,7 @@ final class GlpiPluginSemanticModel implements JsonSerializable
     /**
      * Exibe o inventário de atribuições literais no registry de hooks.
      *
-     * @return list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool}> Registros comprovados.
+     * @return list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool,value_literal:string|null}> Registros comprovados.
      */
     public function hookRegistrations(): array
     {
@@ -121,9 +126,19 @@ final class GlpiPluginSemanticModel implements JsonSerializable
     }
 
     /**
+     * Retorna callbacks literais e o estado de sua declaração global visível.
+     *
+     * @return list<array{hook:string,plugin:string,line:int,callback:string,declared:bool|null}> Inventário true ou unknown.
+     */
+    public function hookCallbacks(): array
+    {
+        return $this->hookCallbacks;
+    }
+
+    /**
      * Serializa o snapshot sem dados mutáveis do consumidor.
      *
-     * @return array{plugin:string,host_version:string,entrypoints:array<string,array{file:string,exists:bool,complete:bool,functions:list<string>,uncertainty:list<string>}>,required_callbacks:list<array{file:string,callback:string,exists:bool|null}>,hook_registrations:list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool}>} Snapshot auditável.
+     * @return array{plugin:string,host_version:string,entrypoints:array<string,array{file:string,exists:bool,complete:bool,functions:list<string>,uncertainty:list<string>}>,required_callbacks:list<array{file:string,callback:string,exists:bool|null}>,hook_registrations:list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool,value_literal:string|null}>,hook_callbacks:list<array{hook:string,plugin:string,line:int,callback:string,declared:bool|null}>} Snapshot auditável.
      */
     public function jsonSerialize(): array
     {
@@ -133,6 +148,7 @@ final class GlpiPluginSemanticModel implements JsonSerializable
             'entrypoints' => $this->entrypoints,
             'required_callbacks' => $this->callbacks,
             'hook_registrations' => $this->hookRegistrations,
+            'hook_callbacks' => $this->hookCallbacks,
         ];
     }
 
