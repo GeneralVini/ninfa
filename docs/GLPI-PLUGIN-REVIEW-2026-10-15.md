@@ -41,6 +41,8 @@ Esta revisão separa defeitos efetivos, cobertura deliberadamente parcial e trab
 
 As fontes oficiais confirmam `setup.php`/`hook.php`, callbacks de lifecycle, registry indexado por hook e nome do plugin e o uso real de constantes `Hooks::*`. A existência de um exemplo upstream não prova sozinho que toda variante dinâmica seja inválida.
 
+**Preservação obrigatória:** seguir a [EAP SIGAPS/ÉGIDE](GLPI-PLUGIN-DUAL-CORPUS-PLAN.md). Nenhuma pendência herdada do SIGAPS pode ser excluída por mudança de regra, não reprodução ou sucesso do ÉGIDE; preservar source IDs, estados e decisões de triagem num ledger privado.
+
 ## Plano recomendado para encerrar com baixo falso positivo
 
 1. Fechar regressões da presente revisão e comprovar CI no **HEAD final**.
