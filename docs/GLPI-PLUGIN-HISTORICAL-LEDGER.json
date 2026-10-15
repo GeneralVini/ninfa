@@ -21,10 +21,16 @@
       "source_comment_id": 3998260114,
       "origin_priority": "P1",
       "contract": "GLPI-specific PHPStan parameters require the phpstan-glpi extension.",
-      "current_status": "REGRESSION_ADDED_PENDING_CI",
+      "current_status": "SYNTHETIC_REGRESSION_PASSED",
       "evidence_scope": "synthetic GLPI host with and without extension",
       "not_consumer_issue": true,
-      "closure_evidence": null
+      "closure_evidence": null,
+      "regression_evidence": {
+        "test": "tests/glpi-historical-pr1.php",
+        "ci_run": "https://github.com/GeneralVini/ninfa/actions/runs/38824632638",
+        "validated_commit": "843f725afe943d93025cf2f817cc210c823e15a8",
+        "scope": "Synthetic GLPI hosts only; historical review remains traceable."
+      }
     },
     {
       "case_id": "GLPI-PR1-REVIEW-02",
@@ -33,10 +39,16 @@
       "source_comment_id": 3998260120,
       "origin_priority": "P1",
       "contract": "Regenerated analyzer configuration must use the current GLPI host.",
-      "current_status": "REGRESSION_ADDED_PENDING_CI",
+      "current_status": "SYNTHETIC_REGRESSION_PASSED",
       "evidence_scope": "synthetic same-plugin host A to B switch",
       "not_consumer_issue": true,
-      "closure_evidence": null
+      "closure_evidence": null,
+      "regression_evidence": {
+        "test": "tests/glpi-historical-pr1.php",
+        "ci_run": "https://github.com/GeneralVini/ninfa/actions/runs/38824632638",
+        "validated_commit": "843f725afe943d93025cf2f817cc210c823e15a8",
+        "scope": "Synthetic GLPI hosts only; historical review remains traceable."
+      }
     },
     {
       "case_id": "GLPI-PR1-REVIEW-03",
@@ -45,11 +57,17 @@
       "source_comment_id": 3998260123,
       "origin_priority": "P1",
       "contract": "Config generation/legacy --force must not overwrite consumer configs; whether consumers' custom analysis rules are honored is separately unresolved.",
-      "current_status": "PARTIAL_REGRESSION_PENDING_CI",
+      "current_status": "PARTIAL_SYNTHETIC_REGRESSION_PASSED",
       "evidence_scope": "hash protection for consumer configs including legacy --force",
       "remaining_gap": "Confirm opt-in preservation/application of consumer-specific PHPStan, Psalm, ECS, Rector and PHPUnit rules without defeating external isolation.",
       "not_consumer_issue": true,
-      "closure_evidence": null
+      "closure_evidence": null,
+      "regression_evidence": {
+        "test": "tests/glpi-historical-pr1.php",
+        "ci_run": "https://github.com/GeneralVini/ninfa/actions/runs/38824632638",
+        "validated_commit": "843f725afe943d93025cf2f817cc210c823e15a8",
+        "scope": "No overwrite, including --force, only. Consumer custom rule inheritance not yet proven."
+      }
     }
   ],
   "queues": [
