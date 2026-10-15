@@ -80,6 +80,10 @@ bash scripts/glpi-field-test.sh /var/www/psglpi/plugins/sigaps assist
 
 Para `check`, `security` ou `fix`, substitua somente o último argumento. O script copia o consumidor para `/tmp/ninfa-glpi-field-test.*/<nome-tecnico-do-plugin>`, preservando o basename do diretório necessário à resolução dos callbacks, bloqueia symlinks, aponta o CLI exclusivamente para a cópia, mantém logs/workspace externos, compara hashes e metadata do original ao terminar e guarda evidências. Nenhuma execução automática desse harness foi realizada sobre SIGAPS ou ÉGIDE neste ambiente. Para ÉGIDE, primeiro obter a raiz técnica real e passá-la como primeiro argumento, sem inventar um caminho. **Uma comparação final não substitui isolamento do processo**: execute-o apenas sob credenciais/ambiente que não tenham permissão para escrever no SIGAPS original, quando possível, e avalie efeitos de autoload no host GLPI.
 
+## Evidência histórica do SIGAPS
+
+O [registro inicial de evidências](GLPI-PLUGIN-SIGAPS-HISTORICAL-EVIDENCE.md) recupera a validação do consumidor SigaPS documentada no PR #1 e três apontamentos P1 de infraestrutura NINFA, sem confundi-los com issues no código consumidor. O histórico integral de chats deste Projeto NINFA ainda necessita reconciliação verificável. Nenhuma ausência nos novos scans, testes do ÉGIDE ou issue tracker vazio permite marcar pendências SIGAPS como resolvidas.
+
 ## Revisão de lacunas
 
 A auditoria de defects e pendências de fechamento está registrada em [GLPI-PLUGIN-REVIEW-2026-10-15.md](GLPI-PLUGIN-REVIEW-2026-10-15.md), incluindo os riscos do harness, integração com `check`, hooks por constantes, callbacks/classes, direitos/CSRF, migrações e homologação. Itens P0/P1 precisam de resolução ou classificação expressa para o gate.
