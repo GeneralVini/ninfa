@@ -116,7 +116,19 @@ $PLUGIN_HOOKS['csrf_compliant'] = ['example' => true]; // mapa completo, não ac
 
 `GlpiHookCallbackIndex` registra, adicionalmente, referências literais simples de função nos hooks `change_profile`, `change_entity`, `init_session` e `post_init`. Quando a função global é declarada nos entrypoints, o campo `declared=true` comprova a declaração textual; fora deles, `declared=null` significa **unknown**, nunca ausência definitiva. Os fatos são exportados em `hook_callbacks` no JSON sem criar uma nova regra ou autofix.
 
-A tranche ainda **não valida** contratos de callback em arrays/métodos/classes, referências externas, tipo do valor por hook nem `Plugin::registerClass()`. Não emite findings por callback ausente sem inventário completo da base e do autoload.
+### Classes locais e `Plugin::registerClass()` (índice inicial)
+
+`GlpiClassDeclarationIndex` percorre **somente** `setup.php`, `hook.php` e arquivos PHP regulares em `src/`, via `token_get_all`, sem executar código. Reconhece classes nomeadas no escopo global ou em namespaces convencionais `namespace X;` e métodos declarados diretamente. Classes anônimas/condicionais, traits, interfaces e namespaces em bloco permanecem fora.
+
+`GlpiClassRegistrationIndex` captura `Plugin::registerClass('PluginExampleProfile', ...)` ou `\\Plugin::registerClass(...)` quando o símbolo global é inequívoco e o primeiro argumento é uma string literal simples.
+
+```php
+Plugin::registerClass('PluginSigapsProfile', ['addtabon' => ['Profile']]);
+```
+
+O snapshot expõe `class_declarations` e `class_registrations`: `declared=true` confirma declaração local; `declared=null` significa **unknown**, não classe inexistente. A presença de métodos comprova somente declarações, **não** invocabilidade, herança nem autoload completo. Chamadas calculadas e classes por `::class` ainda não são resolvidas. **Esta tranche não introduz Finding nem autofix.**
+
+Callables em arrays/métodos, referências externas e tipos de valor por hook permanecem em aberto até prova estática suficiente.
 
 Referências: [GLPI developer docs — Hooks](https://github.com/glpi-project/docdev/blob/master/source/plugins/hooks.rst) e [plugin Tag compatível com GLPI 11](https://github.com/pluginsGLPI/tag/blob/main/setup.php).
 
