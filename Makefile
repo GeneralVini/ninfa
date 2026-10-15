@@ -44,6 +44,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/semantic-hints.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-plugin-semantic.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-check.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-historical-pr1.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-hook-registry.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-class-index.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-class-references.php
