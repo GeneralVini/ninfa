@@ -224,6 +224,36 @@ PHP);
     assert(array_column($model->hookRegistrations(), 'hook') === ['change_profile', 'post_init', 'change_entity']);
     assert(count((new GlpiPluginRuleEngine())->analyse($model)) === 2);
 
+    // Callback simples encontrado em hook.php é declarado; ausente continua unknown.
+    file_put_contents($plugin . '/hook.php', <<<'PHP'
+<?php
+function plugin_example_install(): bool { return true; }
+function plugin_example_uninstall(): bool { return true; }
+function plugin_example_post_init(): void {}
+PHP);
+    file_put_contents($plugin . '/setup.php', <<<'PHP'
+<?php
+use Glpi\Plugin\Hooks;
+function plugin_init_example(): void
+{
+    global $PLUGIN_HOOKS;
+    $PLUGIN_HOOKS[Hooks::POST_INIT]['example'] = 'plugin_example_post_init';
+    $PLUGIN_HOOKS[Hooks::CHANGE_PROFILE]['example'] = 'plugin_example_external';
+    $PLUGIN_HOOKS[Hooks::CHANGE_ENTITY]['example'] = ['PluginExampleHandler', 'onChange'];
+    $PLUGIN_HOOKS['config_page']['example'] = 'front/config.php';
+}
+function plugin_version_example(): array { return []; }
+PHP);
+    $model = GlpiPluginSemanticModel::fromContext($context);
+    assert(count($model->hookCallbacks()) === 2);
+    assert($model->hookCallbacks()[0]['callback'] === 'plugin_example_post_init');
+    assert($model->hookCallbacks()[0]['declared'] === true);
+    assert($model->hookCallbacks()[1]['callback'] === 'plugin_example_external');
+    assert($model->hookCallbacks()[1]['declared'] === null);
+    assert(count(json_decode(json_encode($model, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR)['hook_callbacks']) === 2);
+    // Não promover unknown a finding de callback faltante nesta tranche.
+    assert((new GlpiPluginRuleEngine())->analyse($model) === []);
+
     // Uma classe Hooks não importada, de outro vendor, não é GLPI.
     file_put_contents($plugin . '/setup.php', <<<'PHP'
 <?php
