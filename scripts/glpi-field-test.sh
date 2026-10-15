@@ -41,8 +41,8 @@ fi
 
 # @var SANDBOX absolute-path — cópia, configurações, logs e evidências.
 SANDBOX="$(mktemp -d /tmp/ninfa-glpi-field-test.XXXXXXXX)"
-# @var CLONE absolute-path — único projeto apontado ao CLI do NINFA.
-CLONE="$SANDBOX/plugin"
+# @var CLONE absolute-path — cópia preserva o nome técnico para resolução de callbacks GLPI.
+CLONE="$SANDBOX/$(basename "$SOURCE")"
 # @var BEFORE absolute-path — estado inicial do original.
 BEFORE="$SANDBOX/original-before.sha256"
 # @var AFTER absolute-path — estado final do original.
