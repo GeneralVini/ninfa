@@ -13,10 +13,12 @@ SOURCE="${1:-/var/www/psglpi/plugins/sigaps}"
 # @var MODE enum — operação exclusiva da cópia.
 MODE="${2:-assist}"
 
+# Impede chamadas com argumentos extras que poderiam mudar o alvo.
 if [[ $# -gt 2 ]]; then
     printf '[ERRO] Uso: %s [plugin-root] [check|assist|security|fix]\n' "$0" >&2
     exit 2
 fi
+# Somente operações conhecidas são permitidas e sempre sobre a cópia.
 case "$MODE" in
     check|assist|security|fix) ;;
     *)
@@ -24,6 +26,7 @@ case "$MODE" in
         exit 2
         ;;
 esac
+# O original precisa ser um diretório real com marcador de plugin.
 if [[ ! -d "$SOURCE" || ! -f "$SOURCE/setup.php" || -L "$SOURCE" ]]; then
     printf '[ERRO] Plugin GLPI não reconhecido ou path simbólico: %s\n' "$SOURCE" >&2
     exit 2
@@ -59,7 +62,9 @@ snapshot() {
 finish() {
     local status=$?
     trap - EXIT
+    # Só compara o original se o snapshot inicial foi gravado com sucesso.
     if [[ -f "$BEFORE" ]]; then
+        # Falha de leitura, alteração de hash ou alteração de metadata invalida o field test.
         if ! snapshot "$SOURCE" "$AFTER"; then
             printf '[ERRO] Falha ao inventariar o original após a execução.\n' >&2
             status=90
