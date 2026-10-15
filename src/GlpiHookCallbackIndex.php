@@ -28,6 +28,8 @@ final class GlpiHookCallbackIndex
      */
     public function build(array $registrations, array $entrypoints): array
     {
+        // Somente presença sintática em entrypoints globais prova declaração;
+        // ausência não prova que outro arquivo/autoload não forneça a função.
         /** @var array<string,true> $defined Funções globais comprovadamente declaradas. */
         $defined = [];
         foreach ($entrypoints as $entrypoint) {
