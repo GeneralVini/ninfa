@@ -3,13 +3,15 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ProjectContext.php';
+require_once __DIR__ . '/GlpiHookConstantResolver.php';
 
 /**
  * Inventaria registros literais de hooks no setup.php de plugins GLPI 11.
  *
  * O parser interpreta tokens PHP e nunca executa o consumidor. Apenas
  * atribuições simples a índices literais de $PLUGIN_HOOKS entram no inventário;
- * expressões/constantes de hook, owner dinâmico e arrays compostos não geram
+ * constantes oficiais de Hooks são resolvidas do próprio host GLPI 11,
+ * nunca de uma tabela interna. Expressões calculadas/owner dinâmico não geram
  * prova negativa. O detector não atribui severidade nem oferece patches.
  */
 final class GlpiHookRegistryAnalyzer
@@ -39,6 +41,7 @@ final class GlpiHookRegistryAnalyzer
 
         /** @var list<array{0:int,1:string,2:int}|string> $tokens Stream PHP sem executar o arquivo. */
         $tokens = token_get_all($source);
+        $constantResolver = new GlpiHookConstantResolver($context->glpiRoot());
         /** @var list<array{file:string,line:int,hook:string,plugin:string|null,scope:string,scalar_value:bool}> $registrations Inventário limitado às atribuições literais. */
         $registrations = [];
         foreach ($tokens as $index => $token) {
@@ -58,7 +61,8 @@ final class GlpiHookRegistryAnalyzer
             if ($firstClose === null) {
                 continue;
             }
-            $hook = $this->stringLiteral($tokens, $first + 1, $firstClose - 1);
+            $hook = $this->stringLiteral($tokens, $first + 1, $firstClose - 1)
+                ?? $constantResolver->resolve($tokens, $first + 1, $firstClose - 1);
             if ($hook === null) {
                 continue;
             }
