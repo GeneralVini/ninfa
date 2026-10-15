@@ -172,6 +172,8 @@ O configurador preserva `framework_semantics` para GLPI no `semantic-index.json`
 
 `src/GlpiHookRegistryAnalyzer.php` adiciona ao snapshot GLPI os registros literais de `$PLUGIN_HOOKS` em `setup.php`, com `hook`, `plugin` quando literal, nível de indexação e prova de valor escalar isolado. O binding global precisa ser demonstrado pelo escopo de arquivo ou pela função `plugin_init_<plugin>()` com declaração `global $PLUGIN_HOOKS;` em primeiro nível; variáveis locais homônimas, closures, métodos de classe com nome homônimo e funções init condicionais não são registros confirmados. O `GlpiPluginRuleEngine` usa esses fatos em `COR-003` apenas para hooks conhecidos com escopo por plugin; valores/índices dinâmicos não geram evidência negativa. Regra permanece não autofixável e fora de `security`.
 
+O `PipelinePlan::check()` inclui `glpi-semantic` exclusivamente para o profile `glpi-plugin` e com `fixable=false`. `PipelineRunner::runGlpiSemantic()` é a fronteira de execução sem binário, persiste `check/glpi-semantic.json`/`check/glpi-findings.json` no workspace e normaliza `Finding[]` em `ToolResult`. Só findings `severity=error` bloqueiam, `warning` segue rastreável; erro de workspace/serialização é falha da etapa. `fix` e `security` não incluem a nova etapa.
+
 A arquitetura será expandida para callbacks de hooks, permissões e demais contratos somente quando existirem provas e fixtures adequadas; ver `docs/GLPI-PLUGIN-CLOSURE.md`. O SIGAPS original não pode ser alterado por field tests.
 
 ## Fundação semântica Yii2
