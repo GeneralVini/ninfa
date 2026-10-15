@@ -128,6 +128,8 @@ A auditoria completa fica no workspace externo:
 
 O comando retorna `1` quando ainda existem achados e `0` quando PHPStan/Psalm e as regras nativas aplicáveis não retornam findings.
 
+No profile GLPI 11, o `assist` também inclui o snapshot estático de lifecycle (`glpi-semantic.json`) e os achados nativos de correctness (`glpi-findings.json`) sob o mesmo diretório externo `assist/`. As regras `NINFA-GLPI-COR-001` e `COR-002` permanecem fora de `fix` e de `security`. Para critérios de encerramento e field tests read-only, consulte [GLPI-PLUGIN-CLOSURE.md](GLPI-PLUGIN-CLOSURE.md).
+
 ## Security
 
 ```bash
