@@ -102,7 +102,7 @@ O configurador escreve `framework_semantics` no `semantic-index.json` externo. E
 
 ### Inventário do registry de hooks (GLPI-2, parcial)
 
-O `GlpiHookRegistryAnalyzer` indexa atribuições a `$PLUGIN_HOOKS` em `setup.php` somente quando o primeiro índice é uma string literal. Preserva `hook`, `plugin` literal quando houver, linha, nível do registro e se o valor é um escalar isolado; os fatos aparecem em `framework_semantics.hook_registrations` e em `assist/glpi-semantic.json`.
+O `GlpiHookRegistryAnalyzer` indexa atribuições a `$PLUGIN_HOOKS` em `setup.php` somente quando o primeiro índice é uma string literal **e o binding global está comprovado**: no escopo do arquivo ou em `plugin_init_<plugin>()` após `global $PLUGIN_HOOKS;` em nível direto do corpo. Atribuições em funções auxiliares, variáveis locais homônimas e closures sem binding global são ignoradas. Preserva `hook`, `plugin` literal quando houver, linha, nível do registro e se o valor é um escalar isolado; os fatos aparecem em `framework_semantics.hook_registrations` e em `assist/glpi-semantic.json`.
 
 `NINFA-GLPI-COR-003` sinaliza apenas a atribuição de **escalar ao índice de hook sem índice do plugin**, para hooks comprovadamente por plugin: `csrf_compliant`, `config_page`, `change_profile`, `change_entity`, `init_session` e `use_massive_action`.
 
