@@ -114,7 +114,9 @@ $PLUGIN_HOOKS['csrf_compliant'] = ['example' => true]; // mapa completo, não ac
 
 `GlpiHookConstantResolver` consulta exclusivamente `<host>/src/Glpi/Plugin/Hooks.php` e resolve valores públicos literais para `Hooks::NOME` com `use Glpi\Plugin\Hooks` (com ou sem alias), `\Glpi\Plugin\Hooks::NOME` e referências qualificadas inequívocas. Na ausência do arquivo oficial no host, em imports de outro vendor, constantes calculadas, índices calculados, concatenação/ternário no valor, arrays completos ou registros de três ou mais dimensões, a regra não emite diagnósticos sem prova. O finding é **correctness/warning/high**, `remediation_risk=review`, `autofix=false`. Não prova bypass de CSRF nem outros problemas de segurança.
 
-Esta tranche **não valida ainda** o nome literal do plugin, a existência de callbacks de hooks, tipos dos valores por hook ou o registro de classes `Plugin::registerClass()`. São frentes posteriores do [gate de fechamento](GLPI-PLUGIN-CLOSURE.md), dependentes de evidência/convenções específicas do GLPI 11.
+`GlpiHookCallbackIndex` registra, adicionalmente, referências literais simples de função nos hooks `change_profile`, `change_entity`, `init_session` e `post_init`. Quando a função global é declarada nos entrypoints, o campo `declared=true` comprova a declaração textual; fora deles, `declared=null` significa **unknown**, nunca ausência definitiva. Os fatos são exportados em `hook_callbacks` no JSON sem criar uma nova regra ou autofix.
+
+A tranche ainda **não valida** contratos de callback em arrays/métodos/classes, referências externas, tipo do valor por hook nem `Plugin::registerClass()`. Não emite findings por callback ausente sem inventário completo da base e do autoload.
 
 Referências: [GLPI developer docs — Hooks](https://github.com/glpi-project/docdev/blob/master/source/plugins/hooks.rst) e [plugin Tag compatível com GLPI 11](https://github.com/pluginsGLPI/tag/blob/main/setup.php).
 
