@@ -34,7 +34,9 @@ A primeira recuperação verificável do repositório NINFA está em [GLPI-PLUGI
 | **DUAL-6: regressão cruzada** | Reexecutar **toda** a baseline antiga + nova SIGAPS; justificar cada mudança de status | Reexecutar baseline ÉGIDE após cada tranche | Comparar TP, FP, FN conhecidos e unknowns separadamente; falha num consumidor impede aceitar regra comum |
 | **DUAL-7: homologação/gate** | 100% das issues legadas têm identidade e decisão registrada, inclusive `DEFERRED`; P0/P1 sem pendência **não decidida** | Baseline completa, P0/P1 triados; incompatibilidades explicadas | PHP/Go CI, SAST, docs, integridade dos originais e relatórios auditáveis. PR revisado; **sem merge automático** |
 
-**Dependências:** DUAL-0 bloqueia encerramento de DUAL-1 e DUAL-7. DUAL-1 fornece corpus real para DUAL-2..5. DUAL-6 repete-se após **cada** alteração semântica, não só ao final.
+**Dependências:** DUAL-0 bloqueia encerramento de DUAL-1 e DUAL-7.**P1-03 da revisão do PR #1 permanece em aberto por cobertura:** o NINFA preserva as configurações personalizadas dos consumidores e informa que não são mescladas. O novo teste `tests/glpi-consumer-config-coverage.php` comprova o alerta em `check/assist`, mas o gate cruzado SIGAPS/ÉGIDE deve registrar quais regras próprias deixam de ser aplicadas. A composição dessas configurações exige decisão técnica separada, sem executar código de terceiros apenas para inferir semântica.
+
+ DUAL-1 fornece corpus real para DUAL-2..5. DUAL-6 repete-se após **cada** alteração semântica, não só ao final.
 
 ## 3. Registro mestre de issues e política de não descarte
 
