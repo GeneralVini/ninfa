@@ -1,5 +1,7 @@
 # Corpus de homologação GLPI 11: SIGAPS e ÉGIDE
 
+> **EAP mestre:** [GLPI-PLUGIN-EAP.md](GLPI-PLUGIN-EAP.md) — coordenação das cinco ondas, IDs, prioridades, evidências e gates. Este arquivo mantém seu escopo especializado e não deve ser usado como segunda fonte concorrente de status.
+
 ## SIGAPS GLPI — fonte confirmada para o corpus (2026-10-15)
 
 **Fonte principal de código:** [`GeneralVini/sigaps_glpi`](https://github.com/GeneralVini/sigaps_glpi), repositório privado, `main@d039aec352b45a89117fa7bf526562bc1a4645bc`. Inspeção read-only de metadados confirmou `type=glpi-plugin`, PSR-4 `GlpiPlugin\\Sigaps\\`, `setup.php`, `hook.php`, declaração GLPI 11 e dependências de análise PHPStan. Exemplo de corpus pertinente: `Hooks::*` e referências `::class` nos registros GLPI; não publicar fonte privada como fixture. `GeneralVini/sigaps` não é a base GLPI autorizada.
