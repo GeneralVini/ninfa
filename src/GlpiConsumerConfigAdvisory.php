@@ -44,6 +44,9 @@ final class GlpiConsumerConfigAdvisory implements JsonSerializable
     {
         /** @var array<string,list<string>> $detected Presença de configs convencionais por analyzer. */
         $detected = [];
+        // Só enumera configurações usuais para plugins GLPI; arquivos encontrados
+        // não são lidos nem compostos ao config gerado, pois isso exigiria prova
+        // das precedências de cada ferramenta e poderia ocultar regras do projeto.
         if ($context->profile() === 'glpi-plugin') {
             foreach (self::CANDIDATES as $tool => $names) {
                 foreach ($names as $name) {
