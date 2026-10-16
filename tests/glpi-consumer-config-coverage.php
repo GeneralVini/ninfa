@@ -60,7 +60,8 @@ try {
     $runner = new ProcessRunner();
     $check = $runner->runCaptured([PHP_BINARY, dirname(__DIR__) . '/bin/ninfa', 'check', $plugin], $plugin);
     assert($check->exitCode === 0);
-    assert(str_contains($check->stdout, 'configs personalizadas do consumidor detectadas e não mescladas'));
+    // O aviso operacional pertence ao stderr e não contamina a saída de findings.
+    assert(str_contains($check->stderr, 'configs personalizadas do consumidor detectadas e não mescladas'));
 
     $report = $context->workspace()->file('consumer-config-advisory.json');
     assert(is_file($report));
