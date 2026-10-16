@@ -215,6 +215,17 @@ try {
     /** @var array<string,string> $configs Paths de configuração gerados por ferramenta. */
     $configs = (new ExternalConfigGenerator())->generate($context);
 
+    // --force não altera configs versionadas; também não importa customizações
+    // para as configs externas. Sem aviso isso aparentaria cobertura completa.
+    if ($context->profile() === 'glpi-plugin'
+        && GlpiConsumerConfigAdvisory::fromContext($context)->requiresReview()) {
+        fwrite(
+            STDERR,
+            '[AVISO] GLPI: configs personalizadas do consumidor não mescladas; '
+                . 'consulte consumer-config-advisory.json no workspace NINFA.' . PHP_EOL,
+        );
+    }
+
     if ($assist) {
         exit(runAssist($context, $configs));
     }
