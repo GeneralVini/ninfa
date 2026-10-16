@@ -1,5 +1,12 @@
 # Corpus de homologação GLPI 11: SIGAPS e ÉGIDE
 
+## SIGAPS GLPI — fonte confirmada para o corpus (2026-10-15)
+
+**Fonte principal de código:** [`GeneralVini/sigaps_glpi`](https://github.com/GeneralVini/sigaps_glpi), repositório privado, `main@d039aec352b45a89117fa7bf526562bc1a4645bc`. Inspeção read-only de metadados confirmou `type=glpi-plugin`, PSR-4 `GlpiPlugin\\Sigaps\\`, `setup.php`, `hook.php`, declaração GLPI 11 e dependências de análise PHPStan. Exemplo de corpus pertinente: `Hooks::*` e referências `::class` nos registros GLPI; não publicar fonte privada como fixture. `GeneralVini/sigaps` não é a base GLPI autorizada.
+
+A origem de código SIGAPS agora está determinada. Ainda faltam prova da identidade/commit do checkout local e do host correspondente, cópia com isolamento efetivo, regressões de campo e reconciliação de ocorrências legadas. A ausência de GitHub Issues na consulta não implica ausência de issues anteriores. ÉGIDE segue [`GeneralVini/egide`](https://github.com/GeneralVini/egide) em trilha independente. Nenhum field test foi executado.
+
+
 O plano vinculante de trabalho em duas trilhas, preservação de todas as issues antigas do SIGAPS e critérios de não descarte está em [GLPI-PLUGIN-DUAL-CORPUS-PLAN.md](GLPI-PLUGIN-DUAL-CORPUS-PLAN.md). **Não substituir a fila SIGAPS por findings do ÉGIDE.**
 
 ## Objetivo
