@@ -49,7 +49,7 @@ Fontes normativas sem duplicação: [plano dual de custódia](GLPI-PLUGIN-DUAL-C
 | Check | EAP | Entrega / atividade | Estado | Dependência | Início confirmado (UTC−03) | Entrega validada (UTC−03) | Evidência necessária |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | - [ ] | EAP-01 | Onda 1 — baseline, fontes e custódia | `IN_PROGRESS` | — | — | — | Dossiês independentes e históricos reconciliados |
-| - [ ] | EAP-01.01 | Origem, SHA, identidade e host dos dois consumidores | `IN_PROGRESS` | — | 2026-10-15 22:26 — marco de rastreamento; início efetivo anterior não confirmado | — | URLs/SHAs e correlação checkout-host |
+| - [ ] | EAP-01.01 | Origem, SHA, identidade e host dos dois consumidores | `IN_PROGRESS` | — | — | — | URLs/SHAs e correlação checkout-host |
 | - [ ] | EAP-01.02 | Ledger histórico SIGAPS e reconciliação das fontes | `BLOCKED` | 01.01 | — | — | Todas as fontes históricas, IDs e decisões conciliados |
 | - [ ] | EAP-01.03 | Baseline check/assist/security em cópias isoladas | `BLOCKED` | 01.01 | — | — | Hosts/isolamento comprovados; relatórios por SHA |
 | - [ ] | EAP-02 | Onda 2 — motor semântico GLPI | `IN_PROGRESS` | 01.01 | — | — | Modelo e regressão cruzada |
@@ -57,7 +57,7 @@ Fontes normativas sem duplicação: [plano dual de custódia](GLPI-PLUGIN-DUAL-C
 | - [ ] | EAP-02.02 | Classes, aliases, PSR-4, métodos e callbacks | `IN_PROGRESS` | 02.01 | — | — | Provas e testes sem código privado |
 | - [ ] | EAP-02.03 | Semântica integrada a check/assist | `IN_PROGRESS` | 02.01–02.02 | — | — | RunResult, findings, schema e testes |
 | - [ ] | EAP-03 | Onda 3 — pipeline e SAST | `IN_PROGRESS` | 01.01; 02.03 | — | — | Configurações aplicadas e correlação auditável |
-| - [ ] | EAP-03.01 | Proveniência por analyzer (P1-03A) | `IN_REVIEW` | — | 2026-10-15 22:26 — marco de rastreamento; início efetivo anterior não confirmado | — | Manifesto, SHA, regressões e CI do head |
+| - [ ] | EAP-03.01 | Proveniência por analyzer (P1-03A) | `IN_REVIEW` | — | — | — | Manifesto, SHA, regressões e CI do head |
 | - [ ] | EAP-03.02 | PHPStan consumer-aware opt-in (P1-03B) | `TODO` | 03.01 | — | — | Regra sentinela altera resultado real; fail-closed |
 | - [ ] | EAP-03.03 | Psalm, ECS e Rector com isolamento | `TODO` | 03.02 | — | — | Regras próprias demonstráveis; PHP executável isolado |
 | - [ ] | EAP-03.04 | Semgrep, Composer Audit, taint e fingerprints | `TODO` | 03.01 | — | — | Correlação TP/FP/FN/unknown por consumidor |
@@ -70,7 +70,7 @@ Fontes normativas sem duplicação: [plano dual de custódia](GLPI-PLUGIN-DUAL-C
 | - [ ] | EAP-05.02 | CI, SAST, documentação e PHPDoc | `TODO` | 02–04 | — | — | CI verde no SHA candidato, docs coerentes |
 | - [ ] | EAP-05.03 | P0/P1, revisão e decisão de release | `BLOCKED` | 01.02; 05.01–05.02 | — | — | Todas as ocorrências legadas decididas; aceite humano |
 
-**Importante:** as duas datas preenchidas em `01.01` e `03.01` identificam somente quando o acompanhamento foi instituído, **não o início real** das atividades; elas devem ser corrigidas para início confirmado somente após recuperar uma fonte temporal verificável. Até lá, tratar o início técnico como desconhecido. Nenhum checkbox está assinalado porque a homologação integral dos respectivos pacotes não foi demonstrada.
+**Importante:** datas de início técnico e entrega estão em branco (`—`) por falta de prova temporal suficiente; o marco de implantação do checklist consta apenas no histórico de auditoria. Preencher datas somente com evidências verificadas. Nenhum checkbox está assinalado porque a homologação integral dos respectivos pacotes não foi demonstrada.
 
 ### 4.1 Ficha de atualização por atividade
 
