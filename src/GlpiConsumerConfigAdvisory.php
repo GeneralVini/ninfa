@@ -48,8 +48,11 @@ final class GlpiConsumerConfigAdvisory implements JsonSerializable
         // não são lidos nem compostos ao config gerado, pois isso exigiria prova
         // das precedências de cada ferramenta e poderia ocultar regras do projeto.
         if ($context->profile() === 'glpi-plugin') {
+            // Cada ferramenta tem seu conjunto explícito de arquivos convencionais.
             foreach (self::CANDIDATES as $tool => $names) {
+                // Apenas presença sintática: a regra customizada não é executada.
                 foreach ($names as $name) {
+                    // Um arquivo existente é advisory, não prova de uso no pipeline.
                     if (is_file($context->root() . '/' . $name)) {
                         $detected[$tool][] = $name;
                     }
