@@ -1,5 +1,7 @@
 # Gate de fechamento — profile GLPI Plugin 11
 
+> **EAP mestre:** [GLPI-PLUGIN-EAP.md](GLPI-PLUGIN-EAP.md) — coordenação das cinco ondas, IDs, prioridades, evidências e gates. Este arquivo mantém seu escopo especializado e não deve ser usado como segunda fonte concorrente de status.
+
 ## Decisão e escopo
 
 Esta é a EAP operacional de encerramento do profile `glpi-plugin`, separada da EAP Yii2/upstreams. O Yii2 não será expandido neste ciclo. O objetivo não é alegar cobertura de 100% do GLPI 11; é fechar uma baseline **documentada, verificável e conservadora**, sem modificar o consumidor durante análise.
