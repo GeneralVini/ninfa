@@ -162,6 +162,12 @@ Representa uma etapa e distingue `ok`, `failed`, `error`, `skipped`, `not_applic
 
 Consolida a operação e os resultados das ferramentas, preservando a política de exit code.
 
+## Advertência de cobertura de configurações do consumidor GLPI
+
+`src/GlpiConsumerConfigAdvisory.php` inventaria somente nomes convencionais de configs próprias de PHPStan, Psalm, ECS e Rector, em modo GLPI; não lê nem executa código de configuração do consumidor. `ExternalConfigGenerator` grava `consumer-config-advisory.json` no workspace externo, com política `not_merged_with_generated_configs`. `PipelineRunner` e `scripts/ninfa-configure.php` alertam que configurações personalizadas detectadas não são mescladas, sem bloquear o gate. A ausência do aviso não demonstra que toda regra customizada seja reconhecida: só significa que os nomes convencionais não foram encontrados.
+
+O histórico PR #1 P1-03 permanece parcialmente aberto, porque preservação de configuração versionada e herança de suas regras são propriedades independentes. A regressão fica em `tests/glpi-historical-pr1.php`, sem alteração do Yii2.
+
 ## Fundação semântica GLPI Plugin 11
 
 `src/GlpiPluginSemanticModel.php` lê `setup.php` e `hook.php` do plugin como fonte de evidência estática. O resultado inclui a existência de entrypoints, declarações globais convencionais e callbacks obrigatórios em estado true/false/unknown. Um arquivo com includes, namespace ou callbacks sob bloco aninhado não permite afirmar ausência. A análise não inclui o código PHP consumidor.
