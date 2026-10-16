@@ -100,3 +100,7 @@ Se um padrão estiver ausente em um consumidor, registrar `NOT_OBSERVED` (não c
 - Verificar integridade antes/depois e guardar falhas de ferramenta como `INCONCLUSIVE`, não scan bem-sucedido.
 
 **Estado da proposta:** EAP registrada para orientação e revisão. Isto **não** constitui execução dos field tests nem aprovação automática do gate. Baseline e contagem das issues SIGAPS ainda precisam ser identificadas com evidência.
+
+## DUAL-P1-03A — evidência por analisador
+
+O manifesto GLPI do workspace agora discrimina os quatro analyzers, incluindo detecção de arquivo local, indicação explícita de que sua configuração **não** foi aplicada, proveniência `ninfa-generated` e digest do arquivo externo. A regressão sintética no CLI protege esse contrato. Não é composição opt-in, não é field test e não resolve o caso histórico P1-03. A matriz SIGAPS/ÉGIDE segue independente, com questões SIGAPS legadas ainda por reconciliar.
