@@ -35,33 +35,75 @@ Fontes normativas sem duplicação: [plano dual de custódia](GLPI-PLUGIN-DUAL-C
 
 **Regra de unidade de entrega:** ondas integradas de implementação + testes + documentação + rastreabilidade; commits menores são aceitos, mas **não** declarar uma onda concluída com apenas documento ou fixture sem execução quando sua definição exige field test.
 
-## 4. EAP hierárquica e critérios de conclusão
+## 4. EAP rastreável — checkboxes, timestamps e evidências
 
-| EAP | Pacote de trabalho / artefato | Dependências | Estado inicial | Evidência obrigatória para conclusão |
+**Marco de implantação do acompanhamento:** `2026-10-15 22:26 America/Sao_Paulo (UTC−03:00)`. Este é o instante do **controle inicial do checklist**, não a data de início técnico dos trabalhos anteriores. Quando uma tarefa começou antes deste controle e o instante não está documentado, indicar `—`, sem inventar data retrospectiva.
+
+**Regras de marcação:**
+- `- [ ]` = entrega **ainda não validada integralmente** (inclusive `IN_PROGRESS`, `IN_REVIEW`, `BLOCKED`, `TODO` e `DEFERRED`).
+- `- [x]` = somente `VALIDATED`, com **data/hora real da validação/entrega**, revisão Git e evidência objetiva. CI verde isoladamente não basta quando a etapa exige field test.
+- Datas em `YYYY-MM-DD HH:mm UTC−03:00`; não usar horário de commit como início de execução sem prova específica. Início e entrega são eventos distintos.
+- Após cada ciclo, atualizar o status e a data/hora realmente observada; criar evento no histórico abaixo com ID, evidência, mudança e próximo impedimento. Nunca apagar o evento anterior.
+- Onda agregadora só pode ser `[x]` quando todos os filhos necessários estiverem `VALIDATED`. Para SIGAPS e ÉGIDE, exigir gates separados.
+
+| Check | EAP | Entrega / atividade | Estado | Dependência | Início confirmado (UTC−03) | Entrega validada (UTC−03) | Evidência necessária |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| - [ ] | EAP-01 | Onda 1 — baseline, fontes e custódia | `IN_PROGRESS` | — | — | — | Dossiês independentes e históricos reconciliados |
+| - [ ] | EAP-01.01 | Origem, SHA, identidade e host dos dois consumidores | `IN_PROGRESS` | — | 2026-10-15 22:26 — marco de rastreamento; início efetivo anterior não confirmado | — | URLs/SHAs e correlação checkout-host |
+| - [ ] | EAP-01.02 | Ledger histórico SIGAPS e reconciliação das fontes | `BLOCKED` | 01.01 | — | — | Todas as fontes históricas, IDs e decisões conciliados |
+| - [ ] | EAP-01.03 | Baseline check/assist/security em cópias isoladas | `BLOCKED` | 01.01 | — | — | Hosts/isolamento comprovados; relatórios por SHA |
+| - [ ] | EAP-02 | Onda 2 — motor semântico GLPI | `IN_PROGRESS` | 01.01 | — | — | Modelo e regressão cruzada |
+| - [ ] | EAP-02.01 | Lifecycle e hooks: setup.php, hook.php e Hooks::* | `IN_PROGRESS` | 01.01 | — | — | Casos TP/TN/unknown e COR-001..003 |
+| - [ ] | EAP-02.02 | Classes, aliases, PSR-4, métodos e callbacks | `IN_PROGRESS` | 02.01 | — | — | Provas e testes sem código privado |
+| - [ ] | EAP-02.03 | Semântica integrada a check/assist | `IN_PROGRESS` | 02.01–02.02 | — | — | RunResult, findings, schema e testes |
+| - [ ] | EAP-03 | Onda 3 — pipeline e SAST | `IN_PROGRESS` | 01.01; 02.03 | — | — | Configurações aplicadas e correlação auditável |
+| - [ ] | EAP-03.01 | Proveniência por analyzer (P1-03A) | `IN_REVIEW` | — | 2026-10-15 22:26 — marco de rastreamento; início efetivo anterior não confirmado | — | Manifesto, SHA, regressões e CI do head |
+| - [ ] | EAP-03.02 | PHPStan consumer-aware opt-in (P1-03B) | `TODO` | 03.01 | — | — | Regra sentinela altera resultado real; fail-closed |
+| - [ ] | EAP-03.03 | Psalm, ECS e Rector com isolamento | `TODO` | 03.02 | — | — | Regras próprias demonstráveis; PHP executável isolado |
+| - [ ] | EAP-03.04 | Semgrep, Composer Audit, taint e fingerprints | `TODO` | 03.01 | — | — | Correlação TP/FP/FN/unknown por consumidor |
+| - [ ] | EAP-04 | Onda 4 — segurança e compatibilidade | `TODO` | 02–03 | — | — | Regras GLPI 11 com provas positivas/negativas |
+| - [ ] | EAP-04.01 | ACL, Session, rights, endpoints, CSRF | `TODO` | 02.03 | — | — | Contexto e fluxo de permissões provados |
+| - [ ] | EAP-04.02 | SQL, escaping, uploads e taint | `TODO` | 03.04 | — | — | Fontes/sinks e mitigação verificados |
+| - [ ] | EAP-04.03 | Migrations e APIs GLPI 11 | `TODO` | 02.03 | — | — | Validação estática sem migrations |
+| - [ ] | EAP-05 | Onda 5 — homologação e gate | `BLOCKED` | 01–04 | — | — | Aprovação explícita dos dois consumidores |
+| - [ ] | EAP-05.01 | Regressão cruzada por tranche | `BLOCKED` | 01.03; 02–04 | — | — | Baselines e decisões independentes |
+| - [ ] | EAP-05.02 | CI, SAST, documentação e PHPDoc | `TODO` | 02–04 | — | — | CI verde no SHA candidato, docs coerentes |
+| - [ ] | EAP-05.03 | P0/P1, revisão e decisão de release | `BLOCKED` | 01.02; 05.01–05.02 | — | — | Todas as ocorrências legadas decididas; aceite humano |
+
+**Importante:** as duas datas preenchidas em `01.01` e `03.01` identificam somente quando o acompanhamento foi instituído, **não o início real** das atividades; elas devem ser corrigidas para início confirmado somente após recuperar uma fonte temporal verificável. Até lá, tratar o início técnico como desconhecido. Nenhum checkbox está assinalado porque a homologação integral dos respectivos pacotes não foi demonstrada.
+
+### 4.1 Ficha de atualização por atividade
+
+Ao atualizar uma tarefa, documentar pelo menos:
+
+```text
+EAP_ID: EAP-03.01
+CHECKBOX: [ ]                # [x] somente quando VALIDATED
+STATUS: IN_REVIEW
+STARTED_AT: null             # desconhecido até obter evidência temporal
+DELIVERED_AT: null           # exigido para [x]
+LAST_REVIEWED_AT: 2026-10-15T22:26:00-03:00
+NINFA_SHA: <sha_do_commit_avaliado>
+SIGAPS_SHA: <sha_ou_nao_executado>
+EGIDE_SHA: <sha_ou_nao_executado>
+EVIDENCE: <PR/CI/relatorio/fixture verificavel>
+BLOCKERS: <lista concreta>
+REVIEWER: <identidade quando aprovado>
+```
+
+### 4.2 Histórico append-only da trilha de execução
+
+| Data/hora UTC−03 | EAP | Evento | Prova / limite |
+| --- | --- | --- | --- |
+| 2026-10-15 22:26 | EAP-01..05 | Controle inicial dos checkboxes instituído; nenhuma conclusão presumida | [PR #15](https://github.com/GeneralVini/ninfa/pull/15); estados iniciais da EAP, sem field tests reais |
+| — | — | Próximos eventos devem ser acrescentados, sem substituir linhas anteriores | Incluir SHA, execução CI, consumidor e revisor quando aplicável |
+
+### 4.3 Registro da trilha por consumidor
+
+| Trilha | Referência de código | Último field test validado | Histórico | Checkbox de homologação |
 | --- | --- | --- | --- | --- |
-| **EAP-01** | **Onda 1 — baseline, fontes e custódia** | — | IN_PROGRESS | Dossiês independentes e históricos reconciliados |
-| EAP-01.01 | Fixar origem, SHA e identidade dos dois consumidores | — | IN_PROGRESS | URL+SHA de ambos, `composer.json`, entrypoints, host e correlação do checkout (ou bloqueio registrado) |
-| EAP-01.02 | Recuperar ledger histórico SIGAPS e reconciliar fontes | 01.01 | BLOCKED | Cada finding antigo com ID, fonte, severidade, resultado e decisão; total conhecido; chats/relatórios revisados |
-| EAP-01.03 | Baseline `check/assist/security` em cópias isoladas | 01.01 | BLOCKED | Host GLPI confirmado, integridade original antes/depois, logs privados por operação/consumer/SHA, falhas inconclusivas explícitas |
-| **EAP-02** | **Onda 2 — motor semântico GLPI** | 01.01; regressões sintéticas podem antecipar 01.03 | IN_PROGRESS | Provas e regressões cruzadas sem falsos positivos presumidos |
-| EAP-02.01 | Lifecycle e hooks `setup.php`, `hook.php`, `Hooks::*` | 01.01 | IN_PROGRESS | Registros provados; fixtures TP/TN/unknown e `COR-001..003` consistentes no CLI |
-| EAP-02.02 | Classes, aliases, PSR-4, métodos, callables e `registerClass()` | 02.01 | IN_PROGRESS | Indices declarativos e cenários desconhecidos; testes comparativos sem importar código privado |
-| EAP-02.03 | Integração de fatos semânticos ao `check/assist` | 02.01–02.02 | IN_PROGRESS | Findings, `RunResult` e JSON externo consistentes; regressões e schema documentados |
-| **EAP-03** | **Onda 3 — pipeline de qualidade e SAST** | 01.01; 02.03 quando a semântica for consumida | IN_PROGRESS | Origem e aplicação real dos configs rastreadas |
-| EAP-03.01 | Transparência das configurações por analisador (P1-03A) | — | IN_REVIEW | `consumer-config-advisory.json` por ferramenta, SHA dos arquivos gerados, `applied=false`, regressão CLI e CI do head aprovados |
-| EAP-03.02 | PHPStan `consumer-aware` opt-in (P1-03B) | 03.01 | TODO | Regra sentinela local muda resultado **real** do scanner com opt-in; precedência/host/extension e fail-closed testados |
-| EAP-03.03 | Psalm, ECS e Rector com política por ferramenta | 03.02 | TODO | Psalm config/baseline testados; PHP executável (ECS/Rector) apenas após isolamento demonstrado; falhas explícitas |
-| EAP-03.04 | Semgrep, Composer Audit, taint e correlação de findings | 03.01 | TODO | Proveniência e fingerprint, versão de ruleset, TP/FP/FN/unknown e deduplicação com trilhas independentes |
-| **EAP-04** | **Onda 4 — segurança e compatibilidade GLPI 11** | 02; 03; corpus da 01.03 para aceite real | TODO | Regras conservadoras verificáveis com cenário positivo/negativo |
-| EAP-04.01 | ACL/Session/rights, endpoints e CSRF | 02.03 | TODO | Contexto, fluxo e direitos comprovados; smells não promovidos a vulnerabilidade sem evidência |
-| EAP-04.02 | SQL, escaping, upload e taint | 03.04 | TODO | Fonte→sink e mitigação documentados; triagem independente SIGAPS/ÉGIDE |
-| EAP-04.03 | Migrations, instaladores e contratos de APIs GLPI 11 | 02.03 | TODO | Leitura estática apenas; versionamento de API; SAFE exige equivalência e idempotência, sem executar migrations |
-| **EAP-05** | **Onda 5 — homologação e gate** | 01–04 | BLOCKED | Aprovação explícita e evidências completas |
-| EAP-05.01 | Regressão cruzada por tranche | 01.03; ondas semânticas aplicáveis | BLOCKED | Revisões antes/depois por consumidor, `TP/FP/FN/UNKNOWN/NOT_REPRODUCED`, diferenças justificadas |
-| EAP-05.02 | CI PHP/Go/SAST e documentação consolidada | 02–04 | TODO | CI verde no SHA candidato, testes, PHPDoc, `.md`, comandos, READMEs e regras versionadas coerentes |
-| EAP-05.03 | Revisão P0/P1 e decisão de release | 01.02; 05.01–05.02 | BLOCKED | 100% das ocorrências legadas SIGAPS identificadas/decididas, P0/P1 explicitamente triados nos dois consumidores, aprovação humana; nunca merge automático |
-
-*Estados iniciais são estimativas conservadoras de coordenação, não execução ou aprovação de gates. A revisão documental e os testes sintéticos anteriormente criados não equivalem a field test.*
+| SIGAPS GLPI | `GeneralVini/sigaps_glpi@d039aec352b45a89117fa7bf526562bc1a4645bc` | — (não executado) | Fonte legada ainda não reconciliada | - [ ] |
+| ÉGIDE GLPI | `GeneralVini/egide@main` (SHA operacional pendente) | — (não executado) | Baseline independente ainda incompleta | - [ ] |
 
 ## 5. Sequenciamento e estratégia de execução
 
