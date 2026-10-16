@@ -1,5 +1,10 @@
 # Reconciliação de evidências históricas — SIGAPS GLPI / NINFA
 
+## Correção de identidade de corpus SIGAPS — 2026-10-15
+
+O mantenedor designou [`GeneralVini/sigaps_glpi`](https://github.com/GeneralVini/sigaps_glpi) como fonte canônica do **plugin GLPI** SIGAPS. Repositório privado, revisão verificada em leitura `main@d039aec352b45a89117fa7bf526562bc1a4645bc`; `composer.json` declara plugin GLPI com PSR-4, e `setup.php`/`hook.php` existem. **Não utilizar `GeneralVini/sigaps` como base dessa trilha.** O checkout local e os artefatos históricos do PR #1 continuam requerendo correlação independente com a fonte atual. Não fechar as filas de legacy chat/reports, não alterar IDs históricos, e não declarar homologação por esta identificação.
+
+
 **Consulta realizada em:** 2026-10-15  
 **Fontes primárias:** discussões já presentes no Projeto NINFA (somente o contexto disponível nesta conversa), histórico de commits, PRs, reviews e documentação em [GeneralVini/ninfa](https://github.com/GeneralVini/ninfa).  
 **Decisão:** **nenhum achado histórico do SIGAPS é descartado**, e nenhum finding novo do ÉGIDE é usado como substituto.
