@@ -90,4 +90,6 @@ Não criar tickets com texto inventado. **Contagens de issues/finding SIGAPS per
 - `tests/glpi-historical-pr1.php` constrói dois hosts GLPI 11 sintéticos e um plugin fictício, testa inclusão condicional do `phpstan-glpi`, regeneração de referências ao trocar de host e preservação de sentinelas ECS/Rector/PHPStan/Psalm/PHPUnit mesmo com `--force`.
 - `tests/glpi-historical-ledger.php` é guarda documental para as três origens P1 e filas SIGAPS/ÉGIDE ainda não reconciliadas; sua aprovação **não** prova que o inventário de chats esteja completo.
 - **Limite P1-03:** o pipeline atualmente usa configurações externas geradas pelo NINFA, o que impede overwrite, mas não garante incorporar as customizações do consumidor. A definição de composição segura, com testes de regras personalizadas, continua pendente.
+- A nova regressão `tests/glpi-consumer-config-coverage.php` exercita também os **comandos públicos** `ninfa check` e `ninfa-configure.php --assist` com scanners sintéticos. Ela exige aviso observável, manifesto externo indicando `not_merged_with_generated_configs`, preservação de hashes e ausência das regras customizadas nos arquivos efetivamente gerados. **Passar nesse teste não resolve P1-03**: confirma a transparência da lacuna, não a aplicação das regras do consumidor.
+
 
