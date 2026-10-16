@@ -83,6 +83,41 @@ final class GlpiConsumerConfigAdvisory implements JsonSerializable
      *
      * @return array{schema_version:int,profile:string,consumer_config_policy:string,detected:array<string,list<string>>,review_required:bool} Evidência auditável.
      */
+    /**
+     * Comprova somente o config gerado e selecionado pelo NINFA.
+     * Não prova carregamento interno pelo scanner, nem aplicação de regras do consumidor.
+     *
+     * @param array<string,string> $configs Paths efetivos gerados no workspace.
+     * @return array<string,mixed> Snapshot sem conteúdo proprietário.
+     */
+    public function coverage(array $configs): array
+    {
+        $report = $this->jsonSerialize();
+        $report['coverage_schema_version'] = 1;
+        $report['mode'] = 'generated-only';
+        $report['analyzers'] = [];
+        foreach (['phpstan', 'psalm', 'ecs', 'rector'] as $tool) {
+            $path = $configs[$tool] ?? null;
+            $valid = is_string($path) && is_file($path);
+            if (!$valid) {
+                throw new RuntimeException('Config externa GLPI ausente: ' . $tool);
+            }
+            $digest = hash_file('sha256', $path);
+            if (!is_string($digest)) {
+                throw new RuntimeException('Falha ao calcular digest do config GLPI: ' . $tool);
+            }
+            $report['analyzers'][$tool] = [
+                'consumer_config_detected' => ($this->detected[$tool] ?? []) !== [],
+                'consumer_config_applied' => false,
+                'effective_config_origin' => 'ninfa-generated',
+                'effective_config_sha256' => $digest,
+                'consumer_config_policy' => 'not_merged_with_generated_configs',
+                'verification_scope' => 'generated_config_file_only',
+            ];
+        }
+        return $report;
+    }
+
     public function jsonSerialize(): array
     {
         return [
