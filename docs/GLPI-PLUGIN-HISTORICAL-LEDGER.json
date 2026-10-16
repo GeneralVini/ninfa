@@ -106,5 +106,51 @@
       "count": null
     }
   ],
-  "non_deletion_policy": "Do not delete history when scan no longer reproduces, when EGIDE passes, or when a rule changes; record event and reviewer evidence separately."
+  "non_deletion_policy": "Do not delete history when scan no longer reproduces, when EGIDE passes, or when a rule changes; record event and reviewer evidence separately.",
+  "source_inventory": {
+    "state": "PARTIAL_IDENTIFICATION",
+    "sigaps_git_reference": "GeneralVini/sigaps_glpi@d039aec352b45a89117fa7bf526562bc1a4645bc",
+    "egide_git_reference": "GeneralVini/egide@0c9d43105cee533537dccc8b3f5bddbf7adca81c",
+    "source_document": "docs/GLPI-PLUGIN-SIGAPS-SOURCE-INVENTORY.md",
+    "verified_sources": [
+      {
+        "id": "S-GH-PR-1",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/pull/1",
+        "kind": "closed_pull_request",
+        "count_as_verified_consumer_issue": false
+      },
+      {
+        "id": "S-GH-PR-2",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/pull/2",
+        "kind": "closed_pull_request",
+        "count_as_verified_consumer_issue": false
+      },
+      {
+        "id": "S-DOC-EAP",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP.md",
+        "kind": "project_document",
+        "reconciled": false
+      },
+      {
+        "id": "S-DOC-TRAIL",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP_TRILHA.md",
+        "kind": "historical_execution_log",
+        "reconciled": false
+      },
+      {
+        "id": "S-CHAT-SESSIONS",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/tree/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/chats/codex/sessions",
+        "kind": "archived_sessions",
+        "reconciled": false
+      },
+      {
+        "id": "S-CHAT-ARCHIVE",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/tree/d039aec352b45a89117fa7bf526562bc1a4645bc/scripts/backups/codex-chats",
+        "kind": "multipart_archived_sessions",
+        "reconciled": false
+      }
+    ],
+    "legacy_finding_count": null,
+    "not_exhaustive": true
+  }
 }
