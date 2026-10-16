@@ -1,5 +1,12 @@
 # EAP — amadurecimento GLPI Plugin por dois consumidores independentes
 
+## Atualização da origem SIGAPS — 2026-10-15 (referência GitHub confirmada)
+
+Por indicação explícita do mantenedor e verificação de leitura via GitHub, o corpus **SIGAPS GLPI** adota como referência canônica de código o repositório privado [`GeneralVini/sigaps_glpi`](https://github.com/GeneralVini/sigaps_glpi), branch `main`, revisão imutável `d039aec352b45a89117fa7bf526562bc1a4645bc`. `composer.json` declara `type=glpi-plugin`, PSR-4 `GlpiPlugin\\Sigaps\\`, PHP >=8.2, PHPStan e `glpi-project/phpstan-glpi` em require-dev; `setup.php` e `hook.php` estão presentes. A existência das dependências em Composer **não comprova instalação no host**.
+
+A referência canônica de código **não prova** identidade do checkout local `/var/www/psglpi/plugins/sigaps` nem estabelece host GLPI 11 executável. `GeneralVini/sigaps` continua **fora desta trilha**. Histórico do PR #1 permanece ligado ao seu contexto de origem; não inferir equivalência entre a revisão histórica e a revisão atual. Busca GitHub de issues do repositório retornou nenhuma issue na página consultada, mas **não substitui** chats, relatórios e demais fontes legadas — contagem total segue desconhecida. ÉGIDE continua consumidor independente. Nenhum código privado foi incorporado ao NINFA público.
+
+
 **Decisão:** o SIGAPS e o ÉGIDE são **dois consumidores permanentes** do perfil `glpi-plugin`, com cobertura, baselines, pendências e critérios de aceite independentes. A inclusão do ÉGIDE **não substitui nem apaga** findings, issues, relatórios anteriores ou trabalho pendente do SIGAPS.
 
 **Repositórios/origens verificadas até 2026-10-15:**
