@@ -30,3 +30,17 @@ A EAP funcional SIGAPS e sua trilha documentam atividades de autorização, work
 - [ ] Reconciliar histórico das outras conversas do Projeto, não disponível integralmente por busca GitHub; confirmar fechamento das filas com evidência, nunca por ausência em novo scan.
 
 **Estado auditável:** `EAP-01.01=IN_PROGRESS` (fontes GitHub fixadas; identidade de instalação/host não comprovada); `EAP-01.02=BLOCKED` para encerramento (fontes novas catalogadas, reconciliação não exaustiva). Nenhuma issue histórica foi apagada, reclassificada como bug do consumidor ou encerrada por presunção.
+
+## D. Revisão documental aprofundada — EAP e trilha SIGAPS
+
+Inspeção **somente leitura**, no SHA SIGAPS fixado, de `docs/EAP.md` (634 linhas), `docs/EAP_TRILHA.md` (2.873 linhas) e `phpstan.neon.dist` (24 linhas). A classificação abaixo registra **fontes e hipóteses de cobertura**; não declara vulnerabilidades nem executa NINFA.
+
+| ID | Fonte verificável na revisão fixada | Evidência abstrata / implicação NINFA | Estado da reconciliação |
+| --- | --- | --- | --- |
+| S-EAP-SEC-01 | `docs/EAP.md`, seção de ressalvas técnicas (aprox. linhas 616–630) | A documentação do consumidor solicita validação adicional de cadeia de autorização/escopos em alguns fluxos; gerar corpus sintético de ACL, Session e políticas, **sem inferir exposição** | `SOURCE_REVIEWED_REQUIRES_PRIVATE_CASE_TRIAGE` |
+| S-EAP-WORKFLOW-01 | `docs/EAP.md`, seções de estado parcial (aprox. linhas 314–346) | Pendências de homologação funcional e fluxo financeiro permanecem; não classificar como bugs NINFA | `SOURCE_REVIEWED_FUNCTIONAL_NOT_NINFA_FINDING` |
+| S-TRAIL-20260928 | `docs/EAP_TRILHA.md`, seção de revisão técnica de 2026-09-28 (aprox. linhas 187–211) | Registra separação da integração NINFA do pacote SIGAPS, ajustes de PHPStan e validação local histórica; não comprova NINFA atual | `SOURCE_REVIEWED_HISTORICAL` |
+| S-CONFIG-PHPSTAN-01 | `phpstan.neon.dist`, revisão fixada | Configuração própria declara extensão GLPI e caminhos de host; confirmação de versão e resolução dependem do ambiente real, além da composição opt-in NINFA ainda pendente | `SOURCE_REVIEWED_REQUIRES_REAL_CONFIG_CHECK` |
+
+Essas referências **não são um inventário exaustivo** da EAP/trilha nem uma nova lista de findings confirmados. Detalhes operacionais e relatórios de autenticação dos consumidores permanecem privados. Datas de documentação histórica não são timestamps de execução de scanners pelo NINFA.
+
