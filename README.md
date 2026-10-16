@@ -1,5 +1,7 @@
 [Português](README.md) | [English](README.en.md)
 
+> **EAP mestre da maturação GLPI 11:** [docs/GLPI-PLUGIN-EAP.md](docs/GLPI-PLUGIN-EAP.md) — planejamento, estados, dependências, trilhas SIGAPS GLPI e ÉGIDE, critérios de aceite e gates. Não substitui o plano de custódia nem demonstra homologação real.
+
 # Ninfa
 
 **Ninfa** é uma esteira externa de qualidade e segurança para projetos PHP. O estado atual é **MVP experimental / 0.1.0-alpha**, destinado a testes controlados em projetos reais.

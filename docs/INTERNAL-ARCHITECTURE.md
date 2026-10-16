@@ -162,6 +162,26 @@ Representa uma etapa e distingue `ok`, `failed`, `error`, `skipped`, `not_applic
 
 Consolida a operação e os resultados das ferramentas, preservando a política de exit code.
 
+## Advertência de cobertura de configurações do consumidor GLPI
+
+`src/GlpiConsumerConfigAdvisory.php` inventaria somente nomes convencionais de configs próprias de PHPStan, Psalm, ECS e Rector, em modo GLPI; não lê nem executa código de configuração do consumidor. `ExternalConfigGenerator` grava `consumer-config-advisory.json` no workspace externo, com política `not_merged_with_generated_configs`. `PipelineRunner` e `scripts/ninfa-configure.php` alertam que configurações personalizadas detectadas não são mescladas, sem bloquear o gate. A ausência do aviso não demonstra que toda regra customizada seja reconhecida: só significa que os nomes convencionais não foram encontrados.
+
+O histórico PR #1 P1-03 permanece parcialmente aberto, porque preservação de configuração versionada e herança de suas regras são propriedades independentes. A regressão fica em `tests/glpi-historical-pr1.php`, sem alteração do Yii2.
+
+## Fundação semântica GLPI Plugin 11
+
+`src/GlpiPluginSemanticModel.php` lê `setup.php` e `hook.php` do plugin como fonte de evidência estática. O resultado inclui a existência de entrypoints, declarações globais convencionais e callbacks obrigatórios em estado true/false/unknown. Um arquivo com includes, namespace ou callbacks sob bloco aninhado não permite afirmar ausência. A análise não inclui o código PHP consumidor.
+
+`src/GlpiPluginRuleEngine.php` converte exclusivamente ausências conclusivas em `Finding` de correctness (`NINFA-GLPI-COR-001` e `COR-002`), sem autofix e sem associação a security.
+
+O configurador preserva `framework_semantics` para GLPI no `semantic-index.json` do workspace. Em `assist`, persiste `glpi-semantic.json`, `glpi-findings.json` e consolida os findings no schema comum.
+
+`src/GlpiHookConstantResolver.php` lê apenas o arquivo oficial de constantes `<host>/src/Glpi/Plugin/Hooks.php` e interpreta referências `Glpi\Plugin\Hooks::*` com import/alias/FQN provados, sem `require` do GLPI. Valor calculado e arquivo de host ausente permanecem `unknown`. `src/GlpiHookRegistryAnalyzer.php` adiciona ao snapshot GLPI os registros literais de `$PLUGIN_HOOKS` e os índices oficiais de constantes demonstrados em `setup.php`, com `hook`, `plugin` quando literal, nível de indexação e prova de valor escalar isolado. O binding global precisa ser demonstrado pelo escopo de arquivo ou pela função `plugin_init_<plugin>()` com declaração `global $PLUGIN_HOOKS;` em primeiro nível; variáveis locais homônimas, closures, métodos de classe com nome homônimo e funções init condicionais não são registros confirmados. O `GlpiPluginRuleEngine` usa esses fatos em `COR-003` apenas para hooks conhecidos com escopo por plugin; valores/índices dinâmicos não geram evidência negativa. Regra permanece não autofixável e fora de `security`. `src/GlpiHookCallbackIndex.php` correlaciona valores literais simples de hooks de função com declarações globais dos entrypoints: `declared=true` ou `null` (unknown), jamais false por ausência de arquivo local. O snapshot exporta `hook_callbacks`; ainda não gera regra de callback faltante. `src/GlpiClassDeclarationIndex.php` acrescenta índice positivo de classes nomeadas e métodos diretamente declarados em `setup.php`, `hook.php` e `src/**/*.php`, sem seguir symlinks/autoload. `src/GlpiClassRegistrationIndex.php` extrai o primeiro argumento string isolada ou `::class` de `Plugin::registerClass()` quando a identidade global é inequívoca; `src/GlpiClassReferenceResolver.php` resolve aliases e imports de classe simples via tokens, sem executar código do consumidor. O snapshot publica `class_declarations` e `class_registrations` com estado `declared=true/null`, sem converter ausência do índice em erro. O core GLPI 11 usa `registerClass()` para registrar tipos/opções (`addtabon` etc.); prova de hierarquia, invocabilidade e autoload permanece aberta.
+
+O `PipelinePlan::check()` inclui `glpi-semantic` exclusivamente para o profile `glpi-plugin` e com `fixable=false`. `PipelineRunner::runGlpiSemantic()` é a fronteira de execução sem binário, persiste `check/glpi-semantic.json`/`check/glpi-findings.json` no workspace e normaliza `Finding[]` em `ToolResult`. Só findings `severity=error` bloqueiam, `warning` segue rastreável; erro de workspace/serialização é falha da etapa. `fix` e `security` não incluem a nova etapa.
+
+A arquitetura será expandida para callbacks de hooks, permissões e demais contratos somente quando existirem provas e fixtures adequadas; ver `docs/GLPI-PLUGIN-CLOSURE.md`. O SIGAPS original não pode ser alterado por field tests.
+
 ## Fundação semântica Yii2
 
 ```text

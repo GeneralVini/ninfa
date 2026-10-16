@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ProjectContext.php';
+require_once __DIR__ . '/GlpiConsumerConfigAdvisory.php';
 
 /**
  * Gera no workspace as configurações consumidas pelas ferramentas de qualidade.
@@ -173,6 +174,26 @@ final class ExternalConfigGenerator
             $rector,
             "<?php\n\ndeclare(strict_types=1);\n\nuse Rector\\Config\\RectorConfig;\n\nreturn RectorConfig::configure()\n    ->withPaths([\n{$phpPaths},\n    ]){$rectorExtra}\n    ->withPreparedSets(deadCode: true, codeQuality: true, typeDeclarations: true);\n",
         );
+
+        // A preservação de arquivos versionados não implica que suas regras
+        // sejam herdadas: os runners consomem explicitamente nossas configs.
+        // O manifesto GLPI avisa dessa fronteira sem ler/alterar o consumidor.
+        if ($context->profile() === 'glpi-plugin') {
+            $advisory = GlpiConsumerConfigAdvisory::fromContext($context);
+            $audit = $workspace->file('consumer-config-advisory.json');
+            $encoded = json_encode(
+                $advisory->coverage([
+                    'phpstan' => $phpstan,
+                    'psalm' => $psalm,
+                    'ecs' => $ecs,
+                    'rector' => $rector,
+                ]),
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+            );
+            if (file_put_contents($audit, $encoded . PHP_EOL) === false) {
+                throw new RuntimeException('Não foi possível registrar a cobertura de configs GLPI externas.');
+            }
+        }
 
         return [
             'phpstan' => $phpstan,

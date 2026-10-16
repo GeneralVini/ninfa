@@ -27,6 +27,7 @@ require_once dirname(__DIR__) . '/src/ProjectContext.php';
 require_once dirname(__DIR__) . '/src/ExternalConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/SemanticHints.php';
 require_once dirname(__DIR__) . '/src/Yii2RuleEngine.php';
+require_once dirname(__DIR__) . '/src/GlpiPluginRuleEngine.php';
 require_once dirname(__DIR__) . '/src/LefthookConfigGenerator.php';
 require_once dirname(__DIR__) . '/src/ProcessRunner.php';
 require_once dirname(__DIR__) . '/src/ToolResolver.php';
@@ -94,6 +95,8 @@ function runAssist(ProjectContext $context, array $configs): int
 
     /** @var list<Finding> $yii2Findings Findings nativos produzidos apenas no profile Yii2. */
     $yii2Findings = [];
+    /** @var list<Finding> $glpiFindings Findings nativos GLPI, quando aplicável. */
+    $glpiFindings = [];
     // Yii2 preserva fatos e findings próprios separados da saída das ferramentas externas.
     if ($context->profile() === 'yii2') {
         $yii2Semantic = Yii2SemanticModel::fromContext($context);
@@ -114,11 +117,26 @@ function runAssist(ProjectContext $context, array $configs): int
         );
     }
 
+    // GLPI aplica apenas contrato estático de lifecycle; evidências unknown não geram Finding.
+    if ($context->profile() === 'glpi-plugin') {
+        $glpiSemantic = GlpiPluginSemanticModel::fromContext($context);
+        $glpiFindings = (new GlpiPluginRuleEngine())->analyse($glpiSemantic);
+        file_put_contents(
+            $dir . '/glpi-semantic.json',
+            json_encode($glpiSemantic, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL,
+        );
+        file_put_contents(
+            $dir . '/glpi-findings.json',
+            json_encode($glpiFindings, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL,
+        );
+    }
+
     /** @var list<Finding> $findings Achados normalizados das ferramentas e do profile especializado. */
     $findings = [
         ...FindingRenderer::phpStan($phpstan->stdout, $context->root()),
         ...FindingRenderer::psalm($psalm->stdout, $context->root()),
         ...$yii2Findings,
+        ...$glpiFindings,
     ];
 
     // Consolida uma visão estável dos findings sem substituir os artefatos brutos.
@@ -197,6 +215,17 @@ try {
     /** @var array<string,string> $configs Paths de configuração gerados por ferramenta. */
     $configs = (new ExternalConfigGenerator())->generate($context);
 
+    // --force não altera configs versionadas; também não importa customizações
+    // para as configs externas. Sem aviso isso aparentaria cobertura completa.
+    if ($context->profile() === 'glpi-plugin'
+        && GlpiConsumerConfigAdvisory::fromContext($context)->requiresReview()) {
+        fwrite(
+            STDERR,
+            '[AVISO] GLPI: configs personalizadas do consumidor não mescladas; '
+                . 'consulte consumer-config-advisory.json no workspace NINFA.' . PHP_EOL,
+        );
+    }
+
     if ($assist) {
         exit(runAssist($context, $configs));
     }
@@ -209,6 +238,8 @@ try {
     $semanticHints = SemanticHints::fromProject($context->root());
     /** @var Yii2SemanticModel|null $yii2Semantic Fatos Yii2 ou null fora do profile especializado. */
     $yii2Semantic = $context->profile() === 'yii2' ? Yii2SemanticModel::fromContext($context) : null;
+    /** @var GlpiPluginSemanticModel|null $glpiSemantic Fatos GLPI ou null fora do profile. */
+    $glpiSemantic = $context->profile() === 'glpi-plugin' ? GlpiPluginSemanticModel::fromContext($context) : null;
     /** @var string $semanticIndex Caminho do semantic-index.json documental/semântico. */
     $semanticIndex = $context->workspace()->file('semantic-index.json');
     file_put_contents(
@@ -219,6 +250,7 @@ try {
             'symbols' => $semanticHints->symbols(),
             'profile_signals' => $semanticHints->profileSignals(),
             ...($yii2Semantic !== null ? ['framework_semantics' => $yii2Semantic] : []),
+            ...($glpiSemantic !== null ? ['framework_semantics' => $glpiSemantic] : []),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL,
     );
 } catch (Throwable $error) {
@@ -261,6 +293,9 @@ if ($context->profile() === 'glpi-plugin') {
     echo '[NINFA] GLPI versao: ' . ($context->glpiVersion() ?? 'desconhecida') . PHP_EOL;
     echo '[NINFA] PHPStan level: ' . $context->phpStanLevel() . PHP_EOL;
     echo '[NINFA] Psalm level: ' . $context->psalmLevel() . PHP_EOL;
+    if ($glpiSemantic instanceof GlpiPluginSemanticModel) {
+        echo '[NINFA] GLPI lifecycle callbacks: ' . count($glpiSemantic->callbacks()) . PHP_EOL;
+    }
 }
 
 // Lista todos os arquivos de configuração retornados pelo gerador, incluindo

@@ -32,6 +32,7 @@ final class PipelinePlan
      * Monta a sequência de `check` aplicável ao contexto.
      *
      * ECS, Rector, PHPStan e Psalm são sempre planejados para profiles suportados.
+     * GLPI adiciona a etapa semântica nativa somente em check (não fix/security).
      * ESLint e Prettier entram somente quando seus sinais específicos existem; a
      * etapa de testes é sempre adicionada e poderá ser marcada como não aplicável
      * posteriormente pelo runner quando não houver comando de teste.
@@ -50,6 +51,13 @@ final class PipelinePlan
             ['id' => 'phpstan', 'mode' => 'check', 'fixable' => false],
             ['id' => 'psalm', 'mode' => 'check', 'fixable' => false],
         ];
+
+        // A verificação semântica nativa do GLPI é etapa de qualidade somente
+        // no check; não é executável, não participa de fix/security e não
+        // modifica o consumidor.
+        if ($context->profile() === 'glpi-plugin') {
+            $hooks[] = ['id' => 'glpi-semantic', 'mode' => 'check', 'fixable' => false];
+        }
 
         // Frontend é opcional e só entra quando o consumidor fornece sinais concretos.
         if ($this->frontendDetector->hasEslint($context->root())) {

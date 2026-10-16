@@ -11,6 +11,9 @@
 # Todos os artefatos são criados em um diretório temporário removido no EXIT.
 set -euo pipefail
 
+# O harness SIGAPS só é validado sintaticamente; não acessamos o SIGAPS real.
+bash -n "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/glpi-field-test.sh"
+
 # @var NINFA_ROOT absolute-path — raiz física do repositório Ninfa usado pela fixture.
 NINFA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # @var FIXTURE_ROOT absolute-path — sandbox temporário que contém host, plugin e workspace.
@@ -62,6 +65,10 @@ grep -q 'level: 8' "$WORKSPACE/phpstan.neon"
 grep -q "$GLPI_ROOT/src" "$WORKSPACE/phpstan.neon"
 grep -q '<var name="DB" type="DBmysql" />' "$WORKSPACE/psalm.xml"
 grep -q "$GLPI_ROOT/inc/includes.php" "$WORKSPACE/psalm.xml"
+# O snapshot semântico GLPI é gravado no workspace externo.
+grep -q '"framework_semantics"' "$WORKSPACE/semantic-index.json"
+grep -q '"required_callbacks"' "$WORKSPACE/semantic-index.json"
+grep -qF '[NINFA] GLPI lifecycle callbacks: 4' <<< "$OUTPUT"
 
 # Nenhum boilerplate/configuração gerada pelo Ninfa pode escapar do workspace
 # externo e contaminar a raiz do consumidor sintético.

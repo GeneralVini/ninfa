@@ -42,6 +42,15 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/external-config.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/pipeline-plan.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/semantic-hints.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-plugin-semantic.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-pr1-regressions.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-check.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-historical-pr1.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-consumer-config-coverage.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-historical-ledger.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-hook-registry.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-class-index.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-class-references.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-semantic-model.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-behavior-inheritance.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/yii2-view-resolution.php
@@ -61,6 +70,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/tooling-integration.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/pipeline-runner.php
 	php tests/legacy-config-policy.php
+	bash tests/glpi-field-test.sh
 	bash tests/glpi-plugin-profile.sh
 
 $(GO_TOOLS_STAMP): $(GO_DEVTOOLS_DIR)/go.mod

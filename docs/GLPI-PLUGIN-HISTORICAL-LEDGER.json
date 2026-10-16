@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "purpose": "Preserve verified historical NINFA/GLPI integration evidence; not an exhaustive SIGAPS issue inventory.",
+  "source_catalog": "https://github.com/GeneralVini/ninfa/pull/1",
+  "reconciliation_state": "PARTIAL_SOURCE_RECOVERY",
+  "historical_events": [
+    {
+      "id": "GLPI-PR1-VALIDATION-01",
+      "kind": "historical_consumer_validation",
+      "consumer_context": "SIGAPS",
+      "source_ref": "https://github.com/GeneralVini/ninfa/pull/1",
+      "observation": "PR description records a successful complete composer check at the time, including Rector, PHPStan, Psalm, tests, Composer Audit, Psalm taint and Semgrep.",
+      "current_consumer_verified": false
+    },
+    {
+      "id": "GLPI-PR1-CONFIG-ADVISORY-01",
+      "kind": "synthetic_infrastructure_coverage_observation",
+      "source_ref": "https://github.com/GeneralVini/ninfa/pull/15",
+      "observation": "A GLPI-only external workspace advisory now records detected custom PHPStan/Psalm/ECS/Rector files and warns that Ninfa-generated configs do not automatically merge their rules.",
+      "current_consumer_verified": false,
+      "linked_case_id": "GLPI-PR1-REVIEW-03"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "GLPI-PR1-REVIEW-01",
+      "source_kind": "ninfa_pr_review",
+      "source_ref": "https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260114",
+      "source_comment_id": 3998260114,
+      "origin_priority": "P1",
+      "contract": "GLPI-specific PHPStan parameters require the phpstan-glpi extension.",
+      "current_status": "SYNTHETIC_REGRESSION_PASSED",
+      "evidence_scope": "synthetic GLPI host with and without extension",
+      "not_consumer_issue": true,
+      "closure_evidence": null,
+      "regression_evidence": {
+        "test": "tests/glpi-historical-pr1.php",
+        "ci_run": "https://github.com/GeneralVini/ninfa/actions/runs/38824632638",
+        "validated_commit": "843f725afe943d93025cf2f817cc210c823e15a8",
+        "scope": "Synthetic GLPI hosts only; historical review remains traceable."
+      }
+    },
+    {
+      "case_id": "GLPI-PR1-REVIEW-02",
+      "source_kind": "ninfa_pr_review",
+      "source_ref": "https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260120",
+      "source_comment_id": 3998260120,
+      "origin_priority": "P1",
+      "contract": "Regenerated analyzer configuration must use the current GLPI host.",
+      "current_status": "SYNTHETIC_REGRESSION_PASSED",
+      "evidence_scope": "synthetic same-plugin host A to B switch",
+      "not_consumer_issue": true,
+      "closure_evidence": null,
+      "regression_evidence": {
+        "test": "tests/glpi-historical-pr1.php",
+        "ci_run": "https://github.com/GeneralVini/ninfa/actions/runs/38824632638",
+        "validated_commit": "843f725afe943d93025cf2f817cc210c823e15a8",
+        "scope": "Synthetic GLPI hosts only; historical review remains traceable."
+      }
+    },
+    {
+      "case_id": "GLPI-PR1-REVIEW-03",
+      "source_kind": "ninfa_pr_review",
+      "source_ref": "https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260123",
+      "source_comment_id": 3998260123,
+      "origin_priority": "P1",
+      "contract": "Config generation/legacy --force must not overwrite consumer configs; whether consumers' custom analysis rules are honored is separately unresolved.",
+      "current_status": "PARTIAL_SYNTHETIC_REGRESSION_PASSED",
+      "evidence_scope": "hash protection for consumer configs including legacy --force",
+      "remaining_gap": "Confirm opt-in preservation/application of consumer-specific PHPStan, Psalm, ECS, Rector and PHPUnit rules without defeating external isolation.",
+      "not_consumer_issue": true,
+      "closure_evidence": null,
+      "regression_evidence": {
+        "test": "tests/glpi-historical-pr1.php",
+        "ci_run": "https://github.com/GeneralVini/ninfa/actions/runs/38824632638",
+        "validated_commit": "843f725afe943d93025cf2f817cc210c823e15a8",
+        "scope": "No overwrite, including --force, only. Consumer custom rule inheritance not yet proven."
+      },
+      "coverage_advisory": {
+        "artifact": "consumer-config-advisory.json",
+        "test": "tests/glpi-historical-pr1.php",
+        "policy": "not_merged_with_generated_configs",
+        "remaining_gap": "Consumer analyzer configurations are preserved, not automatically merged; actual custom rule application and real-consumer verification remain open."
+      }
+    }
+  ],
+  "queues": [
+    {
+      "id": "SIGAPS-LEGACY-CHAT",
+      "state": "AWAITING_FULL_PROJECT_CHAT_ACCESS",
+      "count": null
+    },
+    {
+      "id": "SIGAPS-LEGACY-REPORTS",
+      "state": "AWAITING_CONFIRMED_SOURCE",
+      "count": null
+    },
+    {
+      "id": "SIGAPS-CURRENT-FIELD-TEST",
+      "state": "NOT_EXECUTED",
+      "count": null
+    },
+    {
+      "id": "EGIDE-CURRENT-FIELD-TEST",
+      "state": "NOT_EXECUTED",
+      "count": null
+    }
+  ],
+  "non_deletion_policy": "Do not delete history when scan no longer reproduces, when EGIDE passes, or when a rule changes; record event and reviewer evidence separately.",
+  "source_inventory": {
+    "state": "PARTIAL_IDENTIFICATION",
+    "sigaps_git_reference": "GeneralVini/sigaps_glpi@d039aec352b45a89117fa7bf526562bc1a4645bc",
+    "egide_git_reference": "GeneralVini/egide@0c9d43105cee533537dccc8b3f5bddbf7adca81c",
+    "source_document": "docs/GLPI-PLUGIN-SIGAPS-SOURCE-INVENTORY.md",
+    "verified_sources": [
+      {
+        "id": "S-GH-PR-1",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/pull/1",
+        "kind": "closed_pull_request",
+        "count_as_verified_consumer_issue": false
+      },
+      {
+        "id": "S-GH-PR-2",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/pull/2",
+        "kind": "closed_pull_request",
+        "count_as_verified_consumer_issue": false
+      },
+      {
+        "id": "S-DOC-EAP",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP.md",
+        "kind": "project_document",
+        "reconciled": false
+      },
+      {
+        "id": "S-DOC-TRAIL",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP_TRILHA.md",
+        "kind": "historical_execution_log",
+        "reconciled": false
+      },
+      {
+        "id": "S-CHAT-SESSIONS",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/tree/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/chats/codex/sessions",
+        "kind": "archived_sessions",
+        "reconciled": false
+      },
+      {
+        "id": "S-CHAT-ARCHIVE",
+        "ref": "https://github.com/GeneralVini/sigaps_glpi/tree/d039aec352b45a89117fa7bf526562bc1a4645bc/scripts/backups/codex-chats",
+        "kind": "multipart_archived_sessions",
+        "reconciled": false
+      }
+    ],
+    "legacy_finding_count": null,
+    "not_exhaustive": true,
+    "reviewed_observations": [
+      {
+        "id": "S-EAP-SEC-01",
+        "source_ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP.md",
+        "kind": "documented_authorization_validation_gap",
+        "classification": "POTENTIAL_REVIEW_SCOPE_NOT_CONFIRMED_NINFA_FINDING",
+        "reconciled": false
+      },
+      {
+        "id": "S-EAP-WORKFLOW-01",
+        "source_ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP.md",
+        "kind": "functional_validation_pending",
+        "classification": "FUNCTIONAL_NOT_NINFA_FINDING",
+        "reconciled": false
+      },
+      {
+        "id": "S-TRAIL-20260928",
+        "source_ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP_TRILHA.md",
+        "kind": "historical_separation_ninfa_integration",
+        "classification": "HISTORICAL_EVENT",
+        "reconciled": false
+      },
+      {
+        "id": "S-CONFIG-PHPSTAN-01",
+        "source_ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/phpstan.neon.dist",
+        "kind": "consumer_owned_analyzer_config",
+        "classification": "COVERAGE_GAP_REQUIRES_FIELD_VERIFICATION",
+        "reconciled": false
+      }
+    ]
+  }
+}
