@@ -11,6 +11,14 @@
       "source_ref": "https://github.com/GeneralVini/ninfa/pull/1",
       "observation": "PR description records a successful complete composer check at the time, including Rector, PHPStan, Psalm, tests, Composer Audit, Psalm taint and Semgrep.",
       "current_consumer_verified": false
+    },
+    {
+      "id": "GLPI-PR1-CONFIG-ADVISORY-01",
+      "kind": "synthetic_infrastructure_coverage_observation",
+      "source_ref": "https://github.com/GeneralVini/ninfa/pull/15",
+      "observation": "A GLPI-only external workspace advisory now records detected custom PHPStan/Psalm/ECS/Rector files and warns that Ninfa-generated configs do not automatically merge their rules.",
+      "current_consumer_verified": false,
+      "linked_case_id": "GLPI-PR1-REVIEW-03"
     }
   ],
   "cases": [
@@ -67,6 +75,12 @@
         "ci_run": "https://github.com/GeneralVini/ninfa/actions/runs/38824632638",
         "validated_commit": "843f725afe943d93025cf2f817cc210c823e15a8",
         "scope": "No overwrite, including --force, only. Consumer custom rule inheritance not yet proven."
+      },
+      "coverage_advisory": {
+        "artifact": "consumer-config-advisory.json",
+        "test": "tests/glpi-historical-pr1.php",
+        "policy": "not_merged_with_generated_configs",
+        "remaining_gap": "Consumer analyzer configurations are preserved, not automatically merged; actual custom rule application and real-consumer verification remain open."
       }
     }
   ],
