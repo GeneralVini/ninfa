@@ -93,3 +93,15 @@ Não criar tickets com texto inventado. **Contagens de issues/finding SIGAPS per
 - A nova regressão `tests/glpi-consumer-config-coverage.php` exercita também os **comandos públicos** `ninfa check` e `ninfa-configure.php --assist` com scanners sintéticos. Ela exige aviso observável, manifesto externo indicando `not_merged_with_generated_configs`, preservação de hashes e ausência das regras customizadas nos arquivos efetivamente gerados. **Passar nesse teste não resolve P1-03**: confirma a transparência da lacuna, não a aplicação das regras do consumidor.
 
 
+
+## Revisão de código atual — 2026-10-15 (tranche P1)
+
+A inspeção estática da branch `feature/glpi-plugin-closure` encontrou em `scripts/ninfa-configure.php` o contrato de workspace externo e o aviso `ConsumerConfigAdvisory` para configurações personalizadas. O parâmetro `--force` continua aceito **apenas por compatibilidade** e é explicitamente descrito como incapaz de alterar o modelo de workspace externo regenerável. Em `tests/glpi-plugin-profile.sh`, a fixture cria host/plugin sintéticos em `mktemp`, confere `phpstan.neon` e `psalm.xml` externos e rejeita arquivos de configuração criados na raiz do consumidor.
+
+| Review histórica | Evidência presente | Classificação rigorosa |
+| --- | --- | --- |
+| `3998260114` (PHPStan extension) | Fixture GLPI valida configuração PHPStan gerada, mas não foi identificada nesta inspeção uma fixture específica **sem** `phpstan-glpi` que confirme o comportamento degradado | `PARTIALLY_COVERED_NEEDS_NEGATIVE_FIXTURE` |
+| `3998260120` (portabilidade) | Configuração é gerada no workspace externo, e fixture valida o host apontado por `NINFA_GLPI_ROOT`; ainda não foi demonstrado teste de **troca de host** entre duas execuções com base reutilizada | `PARTIALLY_COVERED_NEEDS_HOST_SWITCH_TEST` |
+| `3998260123` (CI overwrite) | O gerador atual mantém o consumidor externo e `--force` não o sobrescreve; a fixture verifica ausência de boilerplate. A antiga template `templates/github-actions/qa-security.yml` não está presente na branch atual | `MITIGATED_BY_DESIGN_PENDING_CONSUMER_CONFIG_PRESERVATION_TEST` |
+
+**Atenção:** a classificação acima decorre de leitura estática dos arquivos e não de execução dos três testes negativos. Não é evidência suficiente para `VERIFIED_FIXED`. É proibido baixar o status de uma issue do SIGAPS com base apenas nestes resultados de infraestrutura.
