@@ -99,6 +99,19 @@ final class PipelineRunner
 
         /** @var array<string,string> $configs Configurações externas geradas para esta execução. */
         $configs = $this->configGenerator->generate($context);
+        // A configuração externa protege o consumidor contra overwrite, mas
+        // regras personalizadas em configs locais não são mescladas no GLPI.
+        // Avisar explicitamente evita uma falsa declaração de cobertura.
+        if ($context->profile() === 'glpi-plugin') {
+            $advisory = GlpiConsumerConfigAdvisory::fromContext($context);
+            if ($advisory->requiresReview()) {
+                fwrite(
+                    STDERR,
+                    CliStyle::warning('! GLPI: configs personalizadas do consumidor detectadas e não mescladas; '
+                        . 'revisar consumer-config-advisory.json no workspace NINFA.') . PHP_EOL,
+                );
+            }
+        }
         /** @var list<array<string,mixed>> $hooks Plano em ordem de execução. */
         $hooks = match ($operation) {
             'check' => $this->plan->check($context),
