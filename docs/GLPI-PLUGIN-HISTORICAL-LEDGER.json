@@ -151,6 +151,36 @@
       }
     ],
     "legacy_finding_count": null,
-    "not_exhaustive": true
+    "not_exhaustive": true,
+    "reviewed_observations": [
+      {
+        "id": "S-EAP-SEC-01",
+        "source_ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP.md",
+        "kind": "documented_authorization_validation_gap",
+        "classification": "POTENTIAL_REVIEW_SCOPE_NOT_CONFIRMED_NINFA_FINDING",
+        "reconciled": false
+      },
+      {
+        "id": "S-EAP-WORKFLOW-01",
+        "source_ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP.md",
+        "kind": "functional_validation_pending",
+        "classification": "FUNCTIONAL_NOT_NINFA_FINDING",
+        "reconciled": false
+      },
+      {
+        "id": "S-TRAIL-20260928",
+        "source_ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/docs/EAP_TRILHA.md",
+        "kind": "historical_separation_ninfa_integration",
+        "classification": "HISTORICAL_EVENT",
+        "reconciled": false
+      },
+      {
+        "id": "S-CONFIG-PHPSTAN-01",
+        "source_ref": "https://github.com/GeneralVini/sigaps_glpi/blob/d039aec352b45a89117fa7bf526562bc1a4645bc/phpstan.neon.dist",
+        "kind": "consumer_owned_analyzer_config",
+        "classification": "COVERAGE_GAP_REQUIRES_FIELD_VERIFICATION",
+        "reconciled": false
+      }
+    ]
   }
 }
