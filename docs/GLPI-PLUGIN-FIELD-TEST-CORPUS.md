@@ -15,14 +15,14 @@ O plano vinculante de trabalho em duas trilhas, preservação de todas as issues
 
 Usar **dois projetos consumidores independentes** para calibrar o profile `glpi-plugin` do NINFA antes de declarar fechado o gate GLPI-6. A análise deve identificar acertos, falsos positivos, falsos negativos verificáveis e casos `unknown`, sem alterar o código original nem copiar código privado para o repositório NINFA.
 
-**O repositório privado do ÉGIDE foi confirmado:** [GeneralVini/egide](https://github.com/GeneralVini/egide), branch `main` (inspeção estática read-only em 2026-10-15). Foram verificados `setup.php`, `hook.php`, `composer.json` com `type: glpi-plugin`, layout `src/`, autoload PSR-4 e declaração de plataforma GLPI 11. **Não foi confirmada uma instalação local nem o host GLPI correspondente**; análise por GitHub não equivale a executar `ninfa check/assist/security` no projeto real.
+**O repositório privado do ÉGIDE foi confirmado:** [GeneralVini/egide](https://github.com/GeneralVini/egide), branch `main`, revisão fixada `0c9d43105cee533537dccc8b3f5bddbf7adca81c` (inspeção estática read-only em 2026-10-15). Foram verificados `setup.php`, `hook.php`, `composer.json` com `type: glpi-plugin`, layout `src/`, autoload PSR-4 e declaração de plataforma GLPI 11. **A referência GitHub foi fixada em `0c9d43105cee533537dccc8b3f5bddbf7adca81c`.** Não foi confirmada uma instalação local nem o host GLPI correspondente**; análise por GitHub não equivale a executar `ninfa check/assist/security` no projeto real.
 
 ## Corpus e autorização
 
 | Projeto | Origem | Estado | Restrição de escrita |
 | --- | --- | --- | --- |
 | SIGAPS | `/var/www/psglpi/plugins/sigaps` | Conhecido por contexto; não montado aqui | **Somente leitura absoluta** |
-| ÉGIDE | [Repositório privado `GeneralVini/egide`](https://github.com/GeneralVini/egide), branch `main` | Estrutura de plugin GLPI 11 confirmada por leitura estática; host/cópia de campo pendentes | **Somente leitura absoluta** |
+| ÉGIDE | [Repositório privado `GeneralVini/egide`](https://github.com/GeneralVini/egide), branch `main`, SHA `0c9d43105cee533537dccc8b3f5bddbf7adca81c` | Estrutura de plugin GLPI 11 confirmada por leitura estática; host/cópia de campo pendentes | **Somente leitura absoluta** |
 | Fixtures `sigaps`/`egide` | `tests/glpi-field-test.sh` | Sintéticas, sem código dos consumidores | Mutação permitida somente na fixture descartável |
 
 Antes de executar um estudo real, confirmar: checkout local do plugin, nome técnico preservado (o registry observado utiliza `egide`; não usar o nome visual acentuado como basename), host GLPI 11 associado e isolamento sem escrita no original/host. O repositório é **privado**: não publicar achados com trechos proprietários, paths internos ou detalhes de implementação. Não pressupor que esteja na mesma instalação do SIGAPS.
