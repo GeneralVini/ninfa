@@ -11,7 +11,7 @@ Maturar o `glpi-plugin` do NINFA através de **duas trilhas permanentes e indepe
 | Consumidor | Fonte de código autorizada | Baseline de referência | Evidência e limites |
 | --- | --- | --- | --- |
 | SIGAPS GLPI | [`GeneralVini/sigaps_glpi`](https://github.com/GeneralVini/sigaps_glpi) (privado) | `main@d039aec352b45a89117fa7bf526562bc1a4645bc` | Metadados de plugin GLPI, `setup.php`, `hook.php`, PSR-4; checkout local `/var/www/psglpi/plugins/sigaps` ainda requer correlação inequívoca de remote/commit e host |
-| ÉGIDE GLPI | [`GeneralVini/egide`](https://github.com/GeneralVini/egide) (privado) | `main` inspecionado; **SHA ainda a fixar na baseline operacional** | Metadados GLPI 11 e PSR-4 observados; checkout/host local e field test não confirmados |
+| ÉGIDE GLPI | [`GeneralVini/egide`](https://github.com/GeneralVini/egide) (privado) | `main@0c9d43105cee533537dccc8b3f5bddbf7adca81c` (referência GitHub fixada; homologação local pendente) | Metadados GLPI 11 e PSR-4 observados; checkout/host local e field test não confirmados |
 
 **`GeneralVini/sigaps` não é a fonte autorizada da trilha SIGAPS GLPI.** A validação histórica no PR #1 não equivale à validação atual. Os três P1 históricos do PR #1 são preocupações de infraestrutura NINFA, não bugs automaticamente comprovados do código SIGAPS.
 
@@ -49,7 +49,7 @@ Fontes normativas sem duplicação: [plano dual de custódia](GLPI-PLUGIN-DUAL-C
 | Check | EAP | Entrega / atividade | Estado | Dependência | Início confirmado (UTC−03) | Entrega validada (UTC−03) | Evidência necessária |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | - [ ] | EAP-01 | Onda 1 — baseline, fontes e custódia | `IN_PROGRESS` | — | — | — | Dossiês independentes e históricos reconciliados |
-| - [ ] | EAP-01.01 | Origem, SHA, identidade e host dos dois consumidores | `IN_PROGRESS` | — | — | — | URLs/SHAs e correlação checkout-host |
+| - [ ] | EAP-01.01 | Origem, SHA, identidade e host dos dois consumidores | `IN_PROGRESS` | — | 2026-10-15 22:27 UTC−03 (início deste ciclo registrado) | — | URLs/SHAs e correlação checkout-host |
 | - [ ] | EAP-01.02 | Ledger histórico SIGAPS e reconciliação das fontes | `BLOCKED` | 01.01 | — | — | Todas as fontes históricas, IDs e decisões conciliados |
 | - [ ] | EAP-01.03 | Baseline check/assist/security em cópias isoladas | `BLOCKED` | 01.01 | — | — | Hosts/isolamento comprovados; relatórios por SHA |
 | - [ ] | EAP-02 | Onda 2 — motor semântico GLPI | `IN_PROGRESS` | 01.01 | — | — | Modelo e regressão cruzada |
@@ -95,6 +95,7 @@ REVIEWER: <identidade quando aprovado>
 
 | Data/hora UTC−03 | EAP | Evento | Prova / limite |
 | --- | --- | --- | --- |
+| 2026-10-15 22:27 | EAP-01.01 | Iniciada verificação de revisões GitHub; fixado ÉGIDE `0c9d43105cee533537dccc8b3f5bddbf7adca81c` e SIGAPS `d039aec352b45a89117fa7bf526562bc1a4645bc`; local/host continuam não verificados | GitHub API branch `main`, leitura somente; nenhum teste real ou alteração no consumidor |
 | 2026-10-15 22:26 | EAP-01..05 | Controle inicial dos checkboxes instituído; nenhuma conclusão presumida | [PR #15](https://github.com/GeneralVini/ninfa/pull/15); estados iniciais da EAP, sem field tests reais |
 | — | — | Próximos eventos devem ser acrescentados, sem substituir linhas anteriores | Incluir SHA, execução CI, consumidor e revisor quando aplicável |
 
@@ -103,7 +104,7 @@ REVIEWER: <identidade quando aprovado>
 | Trilha | Referência de código | Último field test validado | Histórico | Checkbox de homologação |
 | --- | --- | --- | --- | --- |
 | SIGAPS GLPI | `GeneralVini/sigaps_glpi@d039aec352b45a89117fa7bf526562bc1a4645bc` | — (não executado) | Fonte legada ainda não reconciliada | - [ ] |
-| ÉGIDE GLPI | `GeneralVini/egide@main` (SHA operacional pendente) | — (não executado) | Baseline independente ainda incompleta | - [ ] |
+| ÉGIDE GLPI | `GeneralVini/egide@0c9d43105cee533537dccc8b3f5bddbf7adca81c` (field test pendente) | — (não executado) | Baseline independente ainda incompleta | - [ ] |
 
 ## 5. Sequenciamento e estratégia de execução
 
@@ -140,7 +141,7 @@ Registrar, para **cada** consumidor: quantidade total e classificada de issues h
 
 ## 9. Próximas ações executáveis
 
-1. Fixar SHA do ÉGIDE e verificar metadata de origem para SIGAPS; manter `main` móvel apenas para descoberta, não como baseline de regressão.
+1. Preservar SHAs fixados SIGAPS/ÉGIDE e verificar identidade de checkouts locais/hosts; usar `main` móvel somente para descoberta, não como baseline de regressão.
 2. Reconciliar issues/relatórios históricos SIGAPS a partir de fontes rastreáveis, preservando todos os IDs; preparar evidência privada.
 3. Completar EAP-03.01 com CI do head e testes negativos; avançar EAP-03.02 somente com aceitação explícita do modo opt-in.
 4. Criar matrizes sintéticas dos hooks e classes observados nos dois consumidores; executar field tests apenas quando host/isolamento estiverem comprovados.
