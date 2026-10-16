@@ -79,11 +79,6 @@ final class GlpiConsumerConfigAdvisory implements JsonSerializable
     }
 
     /**
-     * Serializa o limite de cobertura sem presumir aplicação de regras.
-     *
-     * @return array{schema_version:int,profile:string,consumer_config_policy:string,detected:array<string,list<string>>,review_required:bool} Evidência auditável.
-     */
-    /**
      * Comprova somente o config gerado e selecionado pelo NINFA.
      * Não prova carregamento interno pelo scanner, nem aplicação de regras do consumidor.
      *
@@ -118,6 +113,11 @@ final class GlpiConsumerConfigAdvisory implements JsonSerializable
         return $report;
     }
 
+    /**
+     * Serializa o inventário legado sem afirmar aplicação de configurações locais.
+     *
+     * @return array{schema_version:int,profile:string,consumer_config_policy:string,detected:array<string,list<string>>,review_required:bool}
+     */
     public function jsonSerialize(): array
     {
         return [
