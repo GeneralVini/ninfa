@@ -89,6 +89,19 @@ try {
         'rector' => ['rector.php'],
     ]);
 
+    // A cobertura por ferramenta é explícita: config selecionada não é regra local aplicada.
+    assert($manifest['coverage_schema_version'] === 1);
+    assert($manifest['mode'] === 'generated-only');
+    foreach (['phpstan' => 'phpstan.neon', 'psalm' => 'psalm.xml', 'ecs' => 'ecs.php', 'rector' => 'rector.php'] as $tool => $generatedFile) {
+        $coverage = $manifest['analyzers'][$tool];
+        assert($coverage['consumer_config_detected'] === true);
+        assert($coverage['consumer_config_applied'] === false);
+        assert($coverage['effective_config_origin'] === 'ninfa-generated');
+        assert($coverage['consumer_config_policy'] === 'not_merged_with_generated_configs');
+        assert($coverage['verification_scope'] === 'generated_config_file_only');
+        assert($coverage['effective_config_sha256'] === hash_file('sha256', $context->workspace()->file($generatedFile)));
+    }
+
     // As configs efetivamente entregues aos analyzers são externas, não as do plugin.
     $phpstan = (string) file_get_contents($context->workspace()->file('phpstan.neon'));
     $psalm = (string) file_get_contents($context->workspace()->file('psalm.xml'));
