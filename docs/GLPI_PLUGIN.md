@@ -1,5 +1,7 @@
 # Profile GLPI Plugin 11
 
+> **EAP mestre:** [GLPI-PLUGIN-EAP.md](GLPI-PLUGIN-EAP.md) — coordenação das cinco ondas, IDs, prioridades, evidências e gates. Este arquivo mantém seu escopo especializado e não deve ser usado como segunda fonte concorrente de status.
+
 O profile `glpi-plugin` é dedicado a plugins GLPI 11 e faz parte do MVP inicial do Ninfa.
 
 Os exemplos abaixo assumem `/opt/ninfa/bin` no `PATH`:
