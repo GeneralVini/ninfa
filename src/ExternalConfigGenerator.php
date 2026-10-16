@@ -182,7 +182,12 @@ final class ExternalConfigGenerator
             $advisory = GlpiConsumerConfigAdvisory::fromContext($context);
             $audit = $workspace->file('consumer-config-advisory.json');
             $encoded = json_encode(
-                $advisory,
+                $advisory->coverage([
+                    'phpstan' => $phpstan,
+                    'psalm' => $psalm,
+                    'ecs' => $ecs,
+                    'rector' => $rector,
+                ]),
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
             );
             if (file_put_contents($audit, $encoded . PHP_EOL) === false) {
