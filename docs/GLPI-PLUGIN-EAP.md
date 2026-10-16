@@ -95,6 +95,7 @@ REVIEWER: <identidade quando aprovado>
 
 | Data/hora UTC−03 | EAP | Evento | Prova / limite |
 | --- | --- | --- | --- |
+| 2026-10-15 23:02 | EAP-01.01 | Fontes SIGAPS/ÉGIDE cotejadas para identificar host GLPI documentado; criado protocolo de atestação de campo read-only. Identidade de instalação segue desconhecida. | [Atestação de identidade e host](GLPI-PLUGIN-HOST-IDENTITY-ATTESTATION.md); documentação ≠ observação local |
 | 2026-10-15 22:50 | EAP-01.02 | Revisadas evidências selecionadas da EAP, trilha e configuração PHPStan de SIGAPS; classificadas fontes históricas e lacunas de homologação, sem declarar findings NINFA nem encerrar fila | [Inventário de fontes](GLPI-PLUGIN-SIGAPS-SOURCE-INVENTORY.md) e [ledger](GLPI-PLUGIN-HISTORICAL-LEDGER.json); revisão parcial, sem execução real |
 | 2026-10-15 22:38 | EAP-01.02 | Catalogadas fontes históricas adicionais no repositório SIGAPS, inclusive trilha, EAP e arquivos de sessão; ledger não encerrado | [Inventário de fontes](GLPI-PLUGIN-SIGAPS-SOURCE-INVENTORY.md); não houve leitura exaustiva |
 | 2026-10-15 22:27 | EAP-02.01/02.02/03.02 | Comparação textual de `setup.php` e `composer.json` de ambos os consumidores com SHAs fixos; categorias sintetizadas na matriz 4.4 | Leitura somente; nenhum teste/scan GLPI executado |
@@ -133,7 +134,9 @@ Amostragem fixada nos respectivos arquivos `setup.php` e `composer.json` das rev
 - [x] ÉGIDE: repositório `GeneralVini/egide` + SHA `0c9d43105cee533537dccc8b3f5bddbf7adca81c` fixados (mesma inspeção).
 - [x] Entrypoints e PSR-4 de ambos documentados; dependência `phpstan-glpi` declarada, não presumida instalada.
 - [ ] SIGAPS: checkout local/remote/commit comprovadamente associados à mesma revisão; host efetivamente observado, e não apenas citado em documentação.
+  - Evidência documental: SIGAPS `README.md` e `docs/infra.md` referem-se a `/var/www/psglpi` e GLPI 11.0.8; documentação **não comprova estado atual do host**.
 - [ ] ÉGIDE: checkout/host GLPI efetivamente observados e correlacionados.
+  - Evidência documental: ÉGIDE `README.md` e `docs/ambientes.md` descrevem GLPI 11.0.8; a documentação declara impedimento de ambiente isolado em máquina de trabalho. **Nenhuma execução local foi observada**.
 
 **EAP-01.02 — fontes históricas e reconciliação:**
 - [x] Registro de PR #1 NINFA e três apontamentos P1 com IDs de origem preservados ([ledger](GLPI-PLUGIN-HISTORICAL-LEDGER.json)).
@@ -141,6 +144,8 @@ Amostragem fixada nos respectivos arquivos `setup.php` e `composer.json` das rev
 - [ ] Reconciliar integralmente registros de EAP/trilha, chats, backups e outros relatórios privados, com identificadores verificáveis e status explícito por ocorrência. **Já foram classificadas amostras de EAP/trilha/config PHPStan**, sem inventário exaustivo ([catálogo](GLPI-PLUGIN-SIGAPS-SOURCE-INVENTORY.md)).
 - [ ] Auditar fontes externas aos repositórios e o histórico completo das conversas do Projeto, sem supor que a busca GitHub cubra tudo.
 - [ ] Revisar a completude do inventário e registrar a decisão formal; manter contagem de findings SIGAPS **desconhecida** enquanto houver fontes não reconciliadas.
+
+**Protocolo formal de conclusão:** [atestado de checkout e host, somente leitura](GLPI-PLUGIN-HOST-IDENTITY-ATTESTATION.md), com checklist de remote/SHA/host, versão instalada e isolamento, registrado em evidência privada antes do aceite.
 
 **Fechamento:** ambos os itens mestres EAP-01.01 e EAP-01.02 continuam `[ ]`. Subtarefas `[x]` significam apenas evidência **da subentrega**, e jamais encerramento automático da EAP pai.
 
