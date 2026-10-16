@@ -46,6 +46,7 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-pr1-regressions.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-check.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-historical-pr1.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-consumer-config-coverage.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-historical-ledger.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-hook-registry.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/glpi-class-index.php
