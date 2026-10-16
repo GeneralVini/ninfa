@@ -156,6 +156,14 @@ ninfa security /caminho/do/plugin
 
 Executa Composer Audit, OSV, Psalm Taint e Semgrep. DAST não integra o comando público `ninfa security` nesta baseline; a configuração `NINFA_DAST=1` não executa OWASP ZAP automaticamente.
 
+### Configurações próprias do consumidor — advertência de cobertura
+
+A configuração externa protege o plugin contra sobrescrita, inclusive no modo legado `--force`. **Entretanto, preservação não equivale a aplicação**: as etapas PHPStan, Psalm, ECS e Rector recebem configurações geradas pelo NINFA, sem mesclagem automática dos arquivos `phpstan.neon[.dist]`, `psalm.xml[.dist]`, `ecs.php` ou `rector.php` já existentes no consumidor.
+
+Quando detectados, o NINFA emite um aviso não bloqueante e cria o manifesto externo `consumer-config-advisory.json`, com nomes relativos e `review_required=true`. O manifesto não lê, executa ou modifica configurações do plugin. Scripts de teste e PHPUnit têm contratos próprios e não são classificados automaticamente como ignorados por esta advertência.
+
+Essa distinção preserva o apontamento histórico P1 [PR #1 comentário 3998260123](https://github.com/GeneralVini/ninfa/pull/1#discussion_r3998260123) como **parcialmente aberto**: o bloqueio contra overwrite tem regressão, mas aplicar corretamente regras personalizadas ainda exige política de composição explícita.
+
 ## Field test seguro
 
 A homologação em **SIGAPS e ÉGIDE** deve usar `scripts/glpi-field-test.sh` sobre **cópias isoladas**; jamais direcione `ninfa fix` a qualquer original. SIGAPS tem caminho conhecido `/var/www/psglpi/plugins/sigaps`; o caminho real do ÉGIDE ainda precisa ser informado e confirmado. O harness preserva o nome técnico do plugin na cópia (essencial para resolver callbacks), rejeita symlinks e compara o estado do original no início e no fim, mantendo seus artefatos em diretório temporário. Consulte o [gate de fechamento](GLPI-PLUGIN-CLOSURE.md) e a [matriz comparativa SIGAPS/ÉGIDE](GLPI-PLUGIN-FIELD-TEST-CORPUS.md) para critérios, evidências e limitações do isolamento.
