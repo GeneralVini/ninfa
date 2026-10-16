@@ -41,3 +41,9 @@ Não publicar código nem configurações proprietárias de nenhum dos consumido
 5. DUAL-6/7: regressões cruzadas por tranche, revisão das pendências P0/P1 e gate formal; PR #15 permanece draft e sem merge até aprovação explícita.
 
 **Não há homologação real nesta tranche.** A classificação `GLPI-PR1-REVIEW-03` segue `PARTIAL_SYNTHETIC_REGRESSION_PASSED`; `DUAL-0` e `DUAL-7` seguem abertos.
+
+## Implementação incremental — DUAL-P1-03A
+
+O manifesto `consumer-config-advisory.json` mantém os campos anteriores e acrescenta `coverage_schema_version=1`, `mode=generated-only` e um bloco `analyzers` para PHPStan, Psalm, ECS e Rector. Cada ferramenta informa `consumer_config_detected`, `consumer_config_applied=false`, origem `ninfa-generated`, SHA-256 do arquivo gerado, política e `verification_scope=generated_config_file_only`.
+
+O SHA-256 atesta a identidade do arquivo gerado naquele momento, **não** que o scanner concluiu com sucesso nem que aplicou regras internas. A regressão `tests/glpi-consumer-config-coverage.php` verifica proveniência e hashes nos comandos `check/assist`, além de argv simulado. Não se implementou modo `consumer-aware`; P1-03 segue parcial. SIGAPS e ÉGIDE reais não foram executados.
