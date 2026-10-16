@@ -43,12 +43,25 @@ foreach ($customConfigFiles as $name => $content) {
     $hashes[$name] = hash_file('sha256', $plugin . '/' . $name);
 }
 
-// Scanners fictícios somente imprimem JSON válido/exit 0; nunca carregam PHP do consumidor.
+// Os scanners simulados capturam argv fora do consumidor para provar qual
+// configuração foi realmente entregue pelo runner, não apenas qual foi gerada.
+$argsDir = $fixture . '/arguments';
+mkdir($argsDir, 0775, true);
 foreach (['ecs' => '', 'rector' => '', 'phpstan' => '{"files":[]}', 'psalm' => '[]'] as $name => $output) {
     $path = $bin . '/' . $name;
-    file_put_contents($path, "#!/usr/bin/env php\n<?php echo " . var_export($output, true) . ";\n");
+    $mock = <<<'PHP'
+#!/usr/bin/env php
+<?php
+file_put_contents(
+    getenv('NINFA_TEST_ARGS_DIR') . '/' . basename($_SERVER['argv'][0]) . '.json',
+    json_encode(array_slice($_SERVER['argv'], 1), JSON_THROW_ON_ERROR),
+);
+echo REPLACE_OUTPUT;
+PHP;
+    file_put_contents($path, str_replace('REPLACE_OUTPUT', var_export($output, true), $mock));
     chmod($path, 0755);
 }
+putenv('NINFA_TEST_ARGS_DIR=' . $argsDir);
 putenv('NINFA_GLPI_ROOT=' . $host);
 putenv('NINFA_WORKSPACE_ROOT=' . $workspaceRoot);
 putenv('NO_COLOR=1');
@@ -87,6 +100,27 @@ try {
     assert(str_contains($psalm, 'errorLevel="8"'));
     assert(!str_contains($psalm, 'errorLevel="1"'));
 
+    // O contrato de P1-03 verifica também os argumentos recebidos por cada
+    // ferramenta. As configurações locais ficam intocadas e não são passadas
+    // implicitamente aos scanners; o manifesto explica essa lacuna.
+    /** @var array<string,list<string>> $actualArgs Argumentos capturados no workspace sintético. */
+    $actualArgs = [];
+    foreach (['phpstan', 'psalm', 'ecs', 'rector'] as $tool) {
+        $file = $argsDir . '/' . $tool . '.json';
+        assert(is_file($file));
+        $actualArgs[$tool] = json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+    }
+    assert(in_array($context->workspace()->file('phpstan.neon'), $actualArgs['phpstan'], true));
+    assert(in_array('--config=' . $context->workspace()->file('psalm.xml'), $actualArgs['psalm'], true));
+    assert(in_array($context->workspace()->file('ecs.php'), $actualArgs['ecs'], true));
+    assert(in_array($context->workspace()->file('rector.php'), $actualArgs['rector'], true));
+    foreach ($actualArgs as $args) {
+        foreach ($customConfigFiles as $name => $content) {
+            assert(!in_array($plugin . '/' . $name, $args, true));
+            assert(!in_array('--config=' . $plugin . '/' . $name, $args, true));
+        }
+    }
+
     // Assist também deve reportar a limitação operacional, mesmo com scanners limpos.
     $assist = $runner->runCaptured([
         PHP_BINARY, dirname(__DIR__) . '/scripts/ninfa-configure.php', $plugin, '--assist',
@@ -105,6 +139,7 @@ try {
 } finally {
     putenv('NINFA_GLPI_ROOT');
     putenv('NINFA_WORKSPACE_ROOT');
+    putenv('NINFA_TEST_ARGS_DIR');
     putenv('NO_COLOR');
     $iterator = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($fixture, FilesystemIterator::SKIP_DOTS),
