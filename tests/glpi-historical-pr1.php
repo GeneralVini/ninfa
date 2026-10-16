@@ -62,6 +62,16 @@ try {
     assert(!str_contains($stanA, 'includes:'));
     assert(str_contains($stanA, $hostA . '/src'));
     assert(!str_contains($stanA, $hostB . '/src'));
+    // O PR1 P1-03 não está fechado: preservar a configuração não é usá-la.
+    $coverageFile = $contextA->workspace()->file('consumer-config-advisory.json');
+    $coverage = json_decode((string) file_get_contents($coverageFile), true, 512, JSON_THROW_ON_ERROR);
+    assert($coverage['review_required'] === true);
+    assert($coverage['consumer_config_policy'] === 'not_merged_with_generated_configs');
+    assert($coverage['detected']['phpstan'] === ['phpstan.neon.dist']);
+    assert($coverage['detected']['psalm'] === ['psalm.xml']);
+    assert($coverage['detected']['ecs'] === ['ecs.php']);
+    assert($coverage['detected']['rector'] === ['rector.php']);
+    assert(!str_contains($stanA, 'custom-consumer-pattern'));
 
     // P1-01: quando instalada no host, a extensão deve ser incluída e
     // só então é permitido produzir parâmetros específicos phpstan-glpi.
@@ -101,6 +111,7 @@ try {
     assert($forceRun->exitCode === 0);
     assert(str_contains($forceRun->stdout, '--force mantido apenas por compatibilidade'));
     assert(str_contains($forceRun->stdout, '[NINFA] Profile: glpi-plugin'));
+    assert(str_contains($forceRun->stderr, 'configs personalizadas do consumidor não mescladas'));
 
     // P1-03: a geração só pode alterar artefatos externos. A preservação
     // não implica que todas as customizações do consumidor sejam aplicadas
