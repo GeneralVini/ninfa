@@ -1,5 +1,7 @@
 # EAP — amadurecimento GLPI Plugin por dois consumidores independentes
 
+> **EAP mestre:** [GLPI-PLUGIN-EAP.md](GLPI-PLUGIN-EAP.md) — coordenação das cinco ondas, IDs, prioridades, evidências e gates. Este arquivo mantém seu escopo especializado e não deve ser usado como segunda fonte concorrente de status.
+
 ## Atualização da origem SIGAPS — 2026-10-15 (referência GitHub confirmada)
 
 Por indicação explícita do mantenedor e verificação de leitura via GitHub, o corpus **SIGAPS GLPI** adota como referência canônica de código o repositório privado [`GeneralVini/sigaps_glpi`](https://github.com/GeneralVini/sigaps_glpi), branch `main`, revisão imutável `d039aec352b45a89117fa7bf526562bc1a4645bc`. `composer.json` declara `type=glpi-plugin`, PSR-4 `GlpiPlugin\\Sigaps\\`, PHP >=8.2, PHPStan e `glpi-project/phpstan-glpi` em require-dev; `setup.php` e `hook.php` estão presentes. A existência das dependências em Composer **não comprova instalação no host**.
