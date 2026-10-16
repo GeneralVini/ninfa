@@ -1,5 +1,7 @@
 [Português](README.md) | [English](README.en.md)
 
+> **GLPI 11 master work breakdown structure:** [docs/GLPI-PLUGIN-EAP.md](docs/GLPI-PLUGIN-EAP.md) (Portuguese) — roadmap, SIGAPS and ÉGIDE independent evidence, dependencies, acceptance gates and PR #15. This planning record does not imply real-consumer validation.
+
 # Ninfa
 
 **Ninfa** is an external quality and security pipeline for PHP projects. The current state is an **experimental MVP / 0.1.0-alpha**, intended for controlled testing on real projects.
