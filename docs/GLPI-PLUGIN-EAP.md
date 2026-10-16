@@ -95,6 +95,7 @@ REVIEWER: <identidade quando aprovado>
 
 | Data/hora UTC−03 | EAP | Evento | Prova / limite |
 | --- | --- | --- | --- |
+| 2026-10-15 22:27 | EAP-02.01/02.02/03.02 | Comparação textual de `setup.php` e `composer.json` de ambos os consumidores com SHAs fixos; categorias sintetizadas na matriz 4.4 | Leitura somente; nenhum teste/scan GLPI executado |
 | 2026-10-15 22:27 | EAP-01.01 | Iniciada verificação de revisões GitHub; fixado ÉGIDE `0c9d43105cee533537dccc8b3f5bddbf7adca81c` e SIGAPS `d039aec352b45a89117fa7bf526562bc1a4645bc`; local/host continuam não verificados | GitHub API branch `main`, leitura somente; nenhum teste real ou alteração no consumidor |
 | 2026-10-15 22:26 | EAP-01..05 | Controle inicial dos checkboxes instituído; nenhuma conclusão presumida | [PR #15](https://github.com/GeneralVini/ninfa/pull/15); estados iniciais da EAP, sem field tests reais |
 | — | — | Próximos eventos devem ser acrescentados, sem substituir linhas anteriores | Incluir SHA, execução CI, consumidor e revisor quando aplicável |
@@ -105,6 +106,22 @@ REVIEWER: <identidade quando aprovado>
 | --- | --- | --- | --- | --- |
 | SIGAPS GLPI | `GeneralVini/sigaps_glpi@d039aec352b45a89117fa7bf526562bc1a4645bc` | — (não executado) | Fonte legada ainda não reconciliada | - [ ] |
 | ÉGIDE GLPI | `GeneralVini/egide@0c9d43105cee533537dccc8b3f5bddbf7adca81c` (field test pendente) | — (não executado) | Baseline independente ainda incompleta | - [ ] |
+
+
+### 4.4 Primeira matriz de padrões observados — inspeção textual read-only
+
+Amostragem fixada nos respectivos arquivos `setup.php` e `composer.json` das revisões de referência. **Contagens são ocorrências textuais nessas entradas, não findings NINFA, cobertura total ou execução de scanner.** Nenhum código dos consumidores está reproduzido aqui.
+
+| Padrão | SIGAPS GLPI | ÉGIDE GLPI | Implicação EAP |
+| --- | --- | --- | --- |
+| `type=glpi-plugin`, PHP >=8.2, PSR-4 | Confirmado | Confirmado | 01.01: identidade GitHub confirmada; host ainda não |
+| Constantes `Hooks::*` distintas em `setup.php` | 8 | 13 | 02.01: corpus sintético precisa incluir contratos conhecidos e hooks complexos sem diagnóstico especulativo |
+| Chamadas `Plugin::registerClass` em `setup.php` | 5 | 11 | 02.02: resolver aliases, `::class` e índices locais de forma conservadora |
+| PHPStan + `phpstan-glpi` no `require-dev` | Declarado | Declarado | 03.02: dependência declarada não implica extensão instalada ou config aplicada |
+| Configurações/toolchain | Composer script PHPStan com `phpstan.neon.dist` | Script PHPStan; PHP-CS-Fixer/TwigCS | 03.01–03.03: verificar configurações e comandos próprios, sem inferir cobertura a partir do Composer |
+| `check/assist/security` real e integridade original | Não executado | Não executado | 01.03 e 05.01 bloqueados por host/isolation |
+
+**Revisões:** SIGAPS `d039aec352b45a89117fa7bf526562bc1a4645bc`; ÉGIDE `0c9d43105cee533537dccc8b3f5bddbf7adca81c`. Amostra estática não justifica alterar estados das issues anteriores nem fechar P1-03.
 
 ## 5. Sequenciamento e estratégia de execução
 
