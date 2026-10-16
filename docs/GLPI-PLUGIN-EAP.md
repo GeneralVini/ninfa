@@ -95,6 +95,7 @@ REVIEWER: <identidade quando aprovado>
 
 | Data/hora UTC−03 | EAP | Evento | Prova / limite |
 | --- | --- | --- | --- |
+| 2026-10-15 22:38 | EAP-01.02 | Catalogadas fontes históricas adicionais no repositório SIGAPS, inclusive trilha, EAP e arquivos de sessão; ledger não encerrado | [Inventário de fontes](GLPI-PLUGIN-SIGAPS-SOURCE-INVENTORY.md); não houve leitura exaustiva |
 | 2026-10-15 22:27 | EAP-02.01/02.02/03.02 | Comparação textual de `setup.php` e `composer.json` de ambos os consumidores com SHAs fixos; categorias sintetizadas na matriz 4.4 | Leitura somente; nenhum teste/scan GLPI executado |
 | 2026-10-15 22:27 | EAP-01.01 | Iniciada verificação de revisões GitHub; fixado ÉGIDE `0c9d43105cee533537dccc8b3f5bddbf7adca81c` e SIGAPS `d039aec352b45a89117fa7bf526562bc1a4645bc`; local/host continuam não verificados | GitHub API branch `main`, leitura somente; nenhum teste real ou alteração no consumidor |
 | 2026-10-15 22:26 | EAP-01..05 | Controle inicial dos checkboxes instituído; nenhuma conclusão presumida | [PR #15](https://github.com/GeneralVini/ninfa/pull/15); estados iniciais da EAP, sem field tests reais |
@@ -122,6 +123,25 @@ Amostragem fixada nos respectivos arquivos `setup.php` e `composer.json` das rev
 | `check/assist/security` real e integridade original | Não executado | Não executado | 01.03 e 05.01 bloqueados por host/isolation |
 
 **Revisões:** SIGAPS `d039aec352b45a89117fa7bf526562bc1a4645bc`; ÉGIDE `0c9d43105cee533537dccc8b3f5bddbf7adca81c`. Amostra estática não justifica alterar estados das issues anteriores nem fechar P1-03.
+
+
+### 4.5 EAP-01 — critérios de encerramento e subtarefas rastreáveis
+
+**EAP-01.01 — fonte e identidade:**
+- [x] SIGAPS: repositório correto `GeneralVini/sigaps_glpi` + SHA `d039aec352b45a89117fa7bf526562bc1a4645bc` fixados (inspeção GitHub somente leitura, 2026-10-15 22:27 UTC−03).
+- [x] ÉGIDE: repositório `GeneralVini/egide` + SHA `0c9d43105cee533537dccc8b3f5bddbf7adca81c` fixados (mesma inspeção).
+- [x] Entrypoints e PSR-4 de ambos documentados; dependência `phpstan-glpi` declarada, não presumida instalada.
+- [ ] SIGAPS: checkout local/remote/commit comprovadamente associados à mesma revisão; host efetivamente observado, e não apenas citado em documentação.
+- [ ] ÉGIDE: checkout/host GLPI efetivamente observados e correlacionados.
+
+**EAP-01.02 — fontes históricas e reconciliação:**
+- [x] Registro de PR #1 NINFA e três apontamentos P1 com IDs de origem preservados ([ledger](GLPI-PLUGIN-HISTORICAL-LEDGER.json)).
+- [x] Localizados dois PRs fechados no repositório SIGAPS, documentação `EAP.md`, trilha `EAP_TRILHA.md`, backups de sessões Codex e arquivo compactado fracionado ([inventário de fontes](GLPI-PLUGIN-SIGAPS-SOURCE-INVENTORY.md)). Esta é **descoberta de fontes**, não reconciliação de seu conteúdo.
+- [ ] Reconciliar integralmente registros de EAP/trilha, chats, backups e outros relatórios privados, com identificadores verificáveis e status explícito por ocorrência.
+- [ ] Auditar fontes externas aos repositórios e o histórico completo das conversas do Projeto, sem supor que a busca GitHub cubra tudo.
+- [ ] Revisar a completude do inventário e registrar a decisão formal; manter contagem de findings SIGAPS **desconhecida** enquanto houver fontes não reconciliadas.
+
+**Fechamento:** ambos os itens mestres EAP-01.01 e EAP-01.02 continuam `[ ]`. Subtarefas `[x]` significam apenas evidência **da subentrega**, e jamais encerramento automático da EAP pai.
 
 ## 5. Sequenciamento e estratégia de execução
 
