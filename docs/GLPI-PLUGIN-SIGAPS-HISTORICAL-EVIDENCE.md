@@ -47,6 +47,12 @@ Além do configurador, o workflow atual [`.github/workflows/profile-test.yml`](h
 
 **Não fechar os três registros históricos** com base apenas na leitura da implementação: o resultado é específico à infraestrutura atual do NINFA, em hosts sintéticos, e requer regressão verde e validação de campo para a combinação GLPI/SIGAPS. Não marca issues do SIGAPS como resolvidas; os três IDs são ocorrências de review do NINFA. A reclassificação final exige decisão explícita vinculada à URL original.
 
+### Desdobramento do P1-03: cobertura observável, aplicação ainda pendente
+
+A verificação de `ExternalConfigGenerator` confirma que a configuração externa passa por caminhos gerados pelo NINFA. O novo `GlpiConsumerConfigAdvisory` registra em `consumer-config-advisory.json` quais arquivos de configuração usuais existem no plugin, e os comandos avisam quando regras personalizadas podem não estar efetivamente aplicadas. `tests/glpi-historical-pr1.php` agora distingue configuração preservada de configuração mesclada.
+
+**Estado mantido:** `GLPI-PR1-REVIEW-03 = PARTIAL_SYNTHETIC_REGRESSION_PASSED`; nenhuma configuração versionada é sobrescrita, mas composição das regras customizadas e validação nos dois consumidores reais continuam pendentes. O aviso é transparência operacional, **não uma correção completa**.
+
 ## Evidências de regressão, ainda não atribuídas a achados do SIGAPS
 
 - [Commit `b6c4700`](https://github.com/GeneralVini/ninfa/commit/b6c4700af826233983f6d621092a4331e86ccfdc): evolução das regras Semgrep GLPI, inclusive SQL e redirecionamento.
