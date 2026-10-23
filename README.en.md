@@ -290,6 +290,10 @@ make setup
 
 `make profile-test` includes general contracts and Yii2 fixtures for correctness, query performance/conditions, deprecations, SAFE modernization, magic-property PHPDoc and architecture advisories.
 
+## Integrated security work breakdown
+
+The [security orchestration WBS (Portuguese)](docs/EAP-SECURITY-ORCHESTRATION.md) tracks ZAP and Nuclei integration, retained Semgrep support, duplicate-test scheduling controls, and Markdown/PDF reports. Tasks include checkboxes, dependencies, acceptance criteria, and actual start/completion timestamps. New integrations remain planned until validated.
+
 ## Development status
 
 **Current stage: 4 — SAST contracts and profiles.**

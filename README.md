@@ -291,6 +291,10 @@ make setup
 
 `make profile-test` inclui os contratos gerais e fixtures Yii2 para correctness, query performance/conditions, deprecations, modernization SAFE, PHPDoc mágico e architecture advisory.
 
+## EAP de segurança integrada
+
+A [EAP de orquestração de segurança](docs/EAP-SECURITY-ORCHESTRATION.md) organiza as entregas de ZAP e Nuclei, preservação do Semgrep, controle de repetição e relatórios próprios em Markdown/PDF. Cada tarefa tem checkbox, dependências, critério de aceite e campos de início e fim reais. As novas integrações permanecem planejadas até sua validação.
+
 ## Acompanhamento da evolução
 
 **Etapa atual: 4 — Contratos SAST e profiles.**
