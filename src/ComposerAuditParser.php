@@ -22,7 +22,7 @@ final class ComposerAuditParser
     /**
      * Normaliza o documento JSON produzido por `composer audit --format=json`.
      *
-     * Advisories sem nome de package são ignorados porque não podem ser
+     * Advisories sem nome de package são rejeitados porque não podem ser
      * correlacionados ao inventário. Package abandonado é emitido como policy
      * finding separado. O método não assume que exit code do Composer define a
      * existência de vulnerabilidade; essa decisão permanece no runner.
@@ -43,7 +43,7 @@ final class ComposerAuditParser
 
         /** @var list<Finding> $findings Findings SCA/policy preservados na ordem da fonte. */
         $findings = [];
-        $advisories = $data['advisories'] ?? [];
+        $advisories = $data['advisories'] ?? null;
         if (!is_array($advisories)) {
             throw new UnexpectedValueException('Campo advisories inválido na saída do Composer Audit.');
         }
@@ -51,12 +51,12 @@ final class ComposerAuditParser
         // Cada chave de package pode conter múltiplos advisories independentes.
         foreach ($advisories as $packageKey => $packageAdvisories) {
             if (!is_array($packageAdvisories)) {
-                continue;
+                throw new UnexpectedValueException('Lista de advisories inválida para o pacote.');
             }
 
             foreach ($packageAdvisories as $advisory) {
                 if (!is_array($advisory)) {
-                    continue;
+                    throw new UnexpectedValueException('Advisory inválido na saída do Composer Audit.');
                 }
 
                 // O payload pode trazer packageName no advisory ou somente como chave externa.
@@ -65,7 +65,7 @@ final class ComposerAuditParser
                     is_string($packageKey) ? $packageKey : null,
                 );
                 if ($packageName === null) {
-                    continue;
+                    throw new UnexpectedValueException('Advisory sem nome de pacote na saída do Composer Audit.');
                 }
 
                 // ID oficial tem precedência; CVE/fonte remota funcionam como fallback auditável.
@@ -109,7 +109,7 @@ final class ComposerAuditParser
 
                 $findings[] = new Finding(
                     tool: 'composer-audit',
-                    file: 'composer.lock',
+                    file: $inventory->packageSource() === 'composer.lock' ? 'composer.lock' : 'vendor/composer/installed.json',
                     line: 0,
                     rule: $advisoryId,
                     problem: $problem,
@@ -135,11 +135,15 @@ final class ComposerAuditParser
         }
 
         // Abandono é informação de manutenção/policy e nunca recebe evidenceType de vulnerabilidade.
-        $abandoned = $data['abandoned'] ?? [];
+        $abandoned = array_key_exists('abandoned', $data) ? $data['abandoned'] : [];
+        if (!is_array($abandoned)) {
+            throw new UnexpectedValueException('Campo abandoned inválido na saída do Composer Audit.');
+        }
         if (is_array($abandoned)) {
             foreach ($abandoned as $packageName => $replacement) {
-                if (!is_string($packageName) || $packageName === '') {
-                    continue;
+                if (!is_string($packageName) || trim($packageName) === ''
+                    || ($replacement !== null && !is_string($replacement) && $replacement !== true)) {
+                    throw new UnexpectedValueException('Pacote/replacement inválido em abandoned.');
                 }
 
                 $package = $inventory->package($packageName);
@@ -150,7 +154,7 @@ final class ComposerAuditParser
 
                 $findings[] = new Finding(
                     tool: 'composer-audit',
-                    file: 'composer.lock',
+                    file: $inventory->packageSource() === 'composer.lock' ? 'composer.lock' : 'vendor/composer/installed.json',
                     line: 0,
                     rule: 'composer.abandoned',
                     problem: 'Pacote abandonado: ' . $packageName

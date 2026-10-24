@@ -152,8 +152,8 @@ Findings de correctness, performance, modernization, deprecation, PHPDoc ou arch
 No Semgrep:
 
 ```text
-ERROR    finding bloqueante
-WARNING  hotspot para revisão, não bloqueia sozinho
+ERROR/HIGH/CRITICAL  finding bloqueante
+WARNING/MEDIUM       hotspot para revisão, não bloqueia sozinho
 ```
 
 Falha do mecanismo ou cobertura parcial inesperada continua sendo erro do gate. Exclusões deliberadas de `vendor`, `runtime` e assets gerados são registradas como política e não são confundidas com perda de cobertura.
@@ -218,3 +218,7 @@ O setup completo executa ambos:
 ```bash
 make setup
 ```
+
+## Ambiente nativo de segurança
+
+`make web-security-tools` instala as ferramentas fora do consumidor; `make web-security-doctor` diagnostica fontes/runtimes e acesso OSV; `make security-contract-test` verifica contratos e evidências. Detalhes e instalação em raiz nova: [WEB-SECURITY-TOOLS.md](WEB-SECURITY-TOOLS.md). Esses comandos não iniciam auditoria web de consumidores.

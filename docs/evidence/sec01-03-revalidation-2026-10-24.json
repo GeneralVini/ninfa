@@ -1,0 +1,143 @@
+{
+  "reviewed_on": "2026-10-24",
+  "timezone": "America/Sao_Paulo",
+  "baseline": "main@438de43 + preserved local changes",
+  "previous_delivery": "sec01-03-validation.json",
+  "changes": [
+    "Resolve tools-dir symlinks before consumer isolation check",
+    "Use isolated temporary ZAP profile for version preflight; preserve user instance"
+  ],
+  "checks": [
+    {
+      "command": "make syntax profile-test security-contract-test",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/tests.log",
+      "sha256": "95c691289634023eeb9048fa08fe1fdd95c96653ab59a405c6c5186303f894c8"
+    },
+    {
+      "command": "python3 tests/web-security-tools.py",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/native-tests.log",
+      "sha256": "e8fb618af447dc8f94a9264a7d7fa98eb3a7725146d8959869f9c9313135e7e1"
+    },
+    {
+      "command": "python3 tests/web-security-tools.py NativeToolsTest.test_resolver_uses_cli_and_refuses_untrusted_override",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/zap-isolation-test.log",
+      "sha256": "791fe2fc0eed4e5cdf815a65048a0eb024d568016e6cb8da9ca8725ac31519e2"
+    }
+  ],
+  "preflight": {
+    "checked_at": "2026-10-24T16:11:34.320810+00:00",
+    "audit_executed": false,
+    "supply_chain_status": "official release SHA-256 corroborated for ZAP/Nuclei/Psalm; templates commit and local tree pinned; npm SRI and PyPI wheel hashes locked; host runtime snapshots are platform-specific",
+    "sources": {
+      "php": {
+        "state": "completed",
+        "effect": null,
+        "path": "/usr/bin/php",
+        "integrity": "local-baseline-verified",
+        "version_output": "PHP 8.5.4 (cli) (built: Oct 19 2026 14:35:18) (NTS)\nCopyright (c) The PHP Group\nBuilt by Ubuntu\nZend Engine v4.5.4, Copyright (c) Zend Technologies\n    with Xdebug v3.5.0, Copyright (c) 2002-2025, by Derick Rethans\n    with Zend OPcache v8.5.4, Copyright (c), by Zend Technologies"
+      },
+      "java": {
+        "state": "completed",
+        "effect": null,
+        "path": "$USER_HOME/tools/java/jdk-22/bin/java",
+        "integrity": "local-baseline-verified",
+        "version_output": "openjdk version \"22.0.2\" 2024-07-16\nOpenJDK Runtime Environment Temurin-22.0.2+9 (build 22.0.2+9)\nOpenJDK 64-Bit Server VM Temurin-22.0.2+9 (build 22.0.2+9, mixed mode, sharing)"
+      },
+      "node": {
+        "state": "completed",
+        "effect": null,
+        "path": "$USER_HOME/.config/nvm/versions/node/v24.16.0/bin/node",
+        "integrity": "local-baseline-verified",
+        "version_output": "v24.16.0"
+      },
+      "python3": {
+        "state": "completed",
+        "effect": null,
+        "path": "/usr/bin/python3",
+        "integrity": "local-baseline-verified",
+        "version_output": "Python 3.14.4"
+      },
+      "npm": {
+        "state": "completed",
+        "effect": null,
+        "path": "$USER_HOME/.config/nvm/versions/node/v24.16.0/bin/npm",
+        "integrity": "local-baseline-verified",
+        "version_output": "11.13.0"
+      },
+      "composer": {
+        "state": "completed",
+        "effect": null,
+        "path": "/usr/bin/composer",
+        "integrity": "local-baseline-verified",
+        "version_output": "Composer version 2.9.5 2026-01-29 11:40:53\n\nPHP version 8.5.4 (/usr/bin/php8.5)\nRun the \"diagnose\" command to get more detailed diagnostics output."
+      },
+      "semgrep": {
+        "state": "completed",
+        "effect": null,
+        "path": "/opt/ninfa/.tools/semgrep/bin/semgrep",
+        "integrity": "local-baseline-verified",
+        "version_output": "1.177.0"
+      },
+      "psalm": {
+        "state": "completed",
+        "effect": null,
+        "path": "/opt/ninfa/.tools/psalm/bin/psalm",
+        "integrity": "local-baseline-verified",
+        "version_output": "Psalm 6.20.1@376425b8e67b79773add388e16b4f6be5693dc87"
+      },
+      "zap": {
+        "state": "completed",
+        "effect": null,
+        "path": "/opt/ninfa/.tools/zap/bin/zap",
+        "integrity": "local-baseline-verified",
+        "version_output": "Found Java version 22.0.2\nAvailable memory: 5818 MB\nUsing JVM args: -Xmx1454m\n756 [main] INFO  org.parosproxy.paros.Constant - Copying default configuration to /tmp/ninfa-zap-doctor-lma0lmro/profile/config.xml\n957 [main] INFO  org.parosproxy.paros.Constant - Creating directory /tmp/ninfa-zap-doctor-lma0lmro/profile/session\n957 [main] INFO  org.parosproxy.paros.Constant - Creating directory /tmp/ninfa-zap-doctor-lma0lmro/profile/dirbuster\n958 [main] INFO  org.parosproxy.paros.Constant - Creating "
+      },
+      "nuclei": {
+        "state": "completed",
+        "effect": null,
+        "path": "/opt/ninfa/.tools/nuclei/bin/nuclei",
+        "integrity": "local-baseline-verified",
+        "version_output": "[\u001b[34mINF\u001b[0m] Nuclei Engine Version: v3.11.1\n[\u001b[34mINF\u001b[0m] Nuclei Config Directory: /home/dexter/.config/nuclei\n[\u001b[34mINF\u001b[0m] Nuclei Cache Directory: /home/dexter/.cache/nuclei\n[\u001b[34mINF\u001b[0m] PDCP Directory: /home/dexter/.pdcp"
+      },
+      "playwright": {
+        "state": "completed",
+        "effect": null,
+        "path": "/opt/ninfa/.tools/playwright/bin/playwright",
+        "integrity": "local-baseline-verified",
+        "browser_smoke": "passed; local DOM only",
+        "version_output": "Version 1.64.1"
+      },
+      "nuclei-templates": {
+        "state": "completed",
+        "effect": null,
+        "path": "/opt/ninfa/.tools/nuclei-templates",
+        "integrity": "local-baseline-verified",
+        "version": "10.5.0",
+        "revision": "f8b8b8dcd70d93826c3767e1829ef8243af9f03b"
+      },
+      "chromium": {
+        "state": "completed",
+        "effect": null,
+        "path": "/opt/ninfa/.tools/playwright/browsers/chromium-1248/chrome-linux64/chrome",
+        "integrity": "local-baseline-verified",
+        "version_output": "Google Chrome for Testing 156.0.8078.4"
+      },
+      "osv": {
+        "state": "completed",
+        "effect": null,
+        "path": null,
+        "integrity": "https-service",
+        "api": "https://api.osv.dev/v1/querybatch",
+        "checked_at": "2026-10-24T16:11:33.304882+00:00"
+      }
+    },
+    "full_web_ready": false
+  },
+  "native_tests": 7,
+  "capture_and_manifest_integrity": "six real captures and all locked manifest hashes rechecked",
+  "eap": "12 SEC-01/02/03 acceptances preserved; SEC-04 onward remain pending",
+  "uncommitted": true
+}

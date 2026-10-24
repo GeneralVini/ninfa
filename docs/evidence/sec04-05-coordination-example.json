@@ -1,0 +1,317 @@
+{
+    "coordination_schema_version": 1,
+    "plan_id": "sec-plan-v1:999bbf35950d5fa71f0ba50de9212050b17bba2b8ea62ca0295e56db191c7228",
+    "run_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "scope": "web-full",
+    "required_sources": {
+        "composer-audit": "selected",
+        "osv": "selected",
+        "semgrep": "selected",
+        "psalm": "selected",
+        "zap": "selected",
+        "nuclei": "selected"
+    },
+    "source_selection_complete": true,
+    "attempts_in_this_plan": 0,
+    "reuse_events_in_this_plan": 8,
+    "selected_units": [
+        {
+            "capability": "composer.advisories",
+            "unit": "sec-test-v1:4bde052e62624b9670fc0e6c6c5f99d463571bb2212c47d9c37db1fa82281afb",
+            "owner": "composer-audit",
+            "execution_id": "sec-execution-v1:40cac4c38ac42cb9e6857e9da2e3511579777772580af9a18beccd3665c17885",
+            "latest_decision": "reused"
+        },
+        {
+            "capability": "osv.packagist",
+            "unit": "sec-test-v1:b0bacbd1a4ca62e5278ba421bffa1a9c4dcd59364870bd60270fedb71b36278c",
+            "owner": "osv",
+            "execution_id": "sec-execution-v1:b66a01fa20a9181c1f0445e9b21cc2c79d8a64343c8d280db10cf600a3d65708",
+            "latest_decision": "reused"
+        },
+        {
+            "capability": "ninfa.php.xss.request-to-output",
+            "unit": "sec-test-v1:1195ac3db86fed93ce05e9d4f430adbbc5583317ef33f9ddab874f5203ed4e0b",
+            "owner": "semgrep",
+            "execution_id": "sec-execution-v1:05ef86ef4e356b44781334612a487e422c208f31e39b8024ffe56b4c131282c6",
+            "latest_decision": "reused"
+        },
+        {
+            "capability": "psalm.TaintedHtml",
+            "unit": "sec-test-v1:75e1157110556fd81cd6b7c228df7c153e71a7524fe573f53d21d71e10ef2b48",
+            "owner": "psalm",
+            "execution_id": "sec-execution-v1:9e23aa630cef659fd107cae8d4d958f51afb349de12e33d0fa6ba646d851377a",
+            "latest_decision": "reused"
+        },
+        {
+            "capability": "psalm.TaintedSql",
+            "unit": "sec-test-v1:e6e4740e4b4cdc374d1edeedc1b9ddd12c93cf171f81e5616df67217decca9d4",
+            "owner": "psalm",
+            "execution_id": "sec-execution-v1:9e23aa630cef659fd107cae8d4d958f51afb349de12e33d0fa6ba646d851377a",
+            "latest_decision": "reused"
+        },
+        {
+            "capability": "zap.passive.csp",
+            "unit": "sec-test-v1:53ddaa6940481971582639fb0b0fae247787cb80bda77c6cf4af312bfb1ec042",
+            "owner": "zap",
+            "execution_id": "sec-execution-v1:bb7debd5e99ab3cc2fdafeaabf79f61addf69c5207b6ca44dfa664a549345a84",
+            "latest_decision": "reused"
+        },
+        {
+            "capability": "zap.active.reflected-xss",
+            "unit": "sec-test-v1:7d333c46f3207e4708602b8d8192b7a8766037a06001454d10122f8e3fdebe5a",
+            "owner": "zap",
+            "execution_id": "sec-execution-v1:a6def7f4254ce3cbf9ac5d96ca298e64cd4dfafe4544e28be5a878a2ff9a3239",
+            "latest_decision": "reused"
+        },
+        {
+            "capability": "nuclei.CVE-2023-23752",
+            "unit": "sec-test-v1:49a7f906b077a111f5809fb16695c9ff2fcb965e1bababb8405658ae839a930e",
+            "owner": "nuclei",
+            "execution_id": "sec-execution-v1:6c1dcadcfb65d9283b8f4afa066217aa588488472fc173bf5d9f15e87950ef56",
+            "latest_decision": "reused"
+        },
+        {
+            "capability": "nuclei.security-headers-bundle",
+            "unit": "sec-test-v1:6cafb09551bce301f1019117be1b2c5f82f554f901c281292dda197f0be7c166",
+            "owner": "nuclei",
+            "execution_id": "sec-execution-v1:99b2ebf54bad1fa08c8a6fb87063d4d208b27f1e8a37951a2b01b5d9687874a2",
+            "latest_decision": "reused"
+        }
+    ],
+    "suppression_events": [
+        {
+            "capability": "ninfa.php.xss.request-to-output",
+            "unit": "sec-test-v1:1195ac3db86fed93ce05e9d4f430adbbc5583317ef33f9ddab874f5203ed4e0b",
+            "reason": "identical-verifiable-unit",
+            "kind": "duplicate-proposal",
+            "covered_by": "sec-test-v1:1195ac3db86fed93ce05e9d4f430adbbc5583317ef33f9ddab874f5203ed4e0b",
+            "explanation": "Mesma unidade verificável agendada uma vez no plano; nenhuma execução anterior presumida."
+        },
+        {
+            "kind": "valid-coverage-reused",
+            "capability": "composer.advisories",
+            "unit": "sec-test-v1:4bde052e62624b9670fc0e6c6c5f99d463571bb2212c47d9c37db1fa82281afb",
+            "execution_id": "sec-execution-v1:40cac4c38ac42cb9e6857e9da2e3511579777772580af9a18beccd3665c17885",
+            "at": 1792866603,
+            "reason": "valid-coverage-at-decision-time",
+            "provenance": {
+                "status": "captured-at-decision-time",
+                "attempt": "1351bc85bcce2e32d9f7729f2768b30f",
+                "source_plan_id": "sec-plan-v1:59a6ade7ada89dd4c5de5ec08288a0a499ec88b9b2f2b43b673c4f7ddd2d4803",
+                "evidence_reference": "safe-f84ee2f1b0a040b065600515.json",
+                "evidence_sha256": "40ee2297cb27c440b52b72dfac3c72ebf18f6dd19fd1646fc8b4f1069c4e8b95"
+            },
+            "explanation": "Ledger validou identidade, contexto, operação, cobertura, sessão, prazo e evidência no momento da decisão; adapter não chamado."
+        },
+        {
+            "kind": "valid-coverage-reused",
+            "capability": "osv.packagist",
+            "unit": "sec-test-v1:b0bacbd1a4ca62e5278ba421bffa1a9c4dcd59364870bd60270fedb71b36278c",
+            "execution_id": "sec-execution-v1:b66a01fa20a9181c1f0445e9b21cc2c79d8a64343c8d280db10cf600a3d65708",
+            "at": 1792866603,
+            "reason": "valid-coverage-at-decision-time",
+            "provenance": {
+                "status": "captured-at-decision-time",
+                "attempt": "8f21afffed3f1ad0f2efc7f1a868f5bc",
+                "source_plan_id": "sec-plan-v1:59a6ade7ada89dd4c5de5ec08288a0a499ec88b9b2f2b43b673c4f7ddd2d4803",
+                "evidence_reference": "safe-61308969438871e8bfd2724f.json",
+                "evidence_sha256": "0a510c04819bd00f8a4d72569e11f56b2d67985a88e66ded44851f71bdebd24c"
+            },
+            "explanation": "Ledger validou identidade, contexto, operação, cobertura, sessão, prazo e evidência no momento da decisão; adapter não chamado."
+        },
+        {
+            "kind": "valid-coverage-reused",
+            "capability": "ninfa.php.xss.request-to-output",
+            "unit": "sec-test-v1:1195ac3db86fed93ce05e9d4f430adbbc5583317ef33f9ddab874f5203ed4e0b",
+            "execution_id": "sec-execution-v1:05ef86ef4e356b44781334612a487e422c208f31e39b8024ffe56b4c131282c6",
+            "at": 1792866603,
+            "reason": "valid-coverage-at-decision-time",
+            "provenance": {
+                "status": "captured-at-decision-time",
+                "attempt": "a1cd4cfbb9a7a5248ce66461d31fc739",
+                "source_plan_id": "sec-plan-v1:59a6ade7ada89dd4c5de5ec08288a0a499ec88b9b2f2b43b673c4f7ddd2d4803",
+                "evidence_reference": "safe-4a38c3d741e26f6603984d9f.json",
+                "evidence_sha256": "b114a8a6b35bf1552b833b7c52468c4ac5023f9a2051b81294f4fa98be47675e"
+            },
+            "explanation": "Ledger validou identidade, contexto, operação, cobertura, sessão, prazo e evidência no momento da decisão; adapter não chamado."
+        },
+        {
+            "kind": "valid-coverage-reused",
+            "capability": "psalm.TaintedHtml",
+            "unit": "sec-test-v1:75e1157110556fd81cd6b7c228df7c153e71a7524fe573f53d21d71e10ef2b48",
+            "execution_id": "sec-execution-v1:9e23aa630cef659fd107cae8d4d958f51afb349de12e33d0fa6ba646d851377a",
+            "at": 1792866603,
+            "reason": "valid-coverage-at-decision-time",
+            "provenance": {
+                "status": "captured-at-decision-time",
+                "attempt": "7a0b2a3c7d05d0c15ccb26a746359bea",
+                "source_plan_id": "sec-plan-v1:59a6ade7ada89dd4c5de5ec08288a0a499ec88b9b2f2b43b673c4f7ddd2d4803",
+                "evidence_reference": "safe-c70fe794f8ed0338933c9aec.json",
+                "evidence_sha256": "cc57949cadab9c10cb1e2dbb02f8db9136f42f9374ade173e1a0ff20ed62fae4"
+            },
+            "explanation": "Ledger validou identidade, contexto, operação, cobertura, sessão, prazo e evidência no momento da decisão; adapter não chamado."
+        },
+        {
+            "kind": "valid-coverage-reused",
+            "capability": "psalm.TaintedSql",
+            "unit": "sec-test-v1:e6e4740e4b4cdc374d1edeedc1b9ddd12c93cf171f81e5616df67217decca9d4",
+            "execution_id": "sec-execution-v1:9e23aa630cef659fd107cae8d4d958f51afb349de12e33d0fa6ba646d851377a",
+            "at": 1792866603,
+            "reason": "valid-coverage-at-decision-time",
+            "provenance": {
+                "status": "captured-at-decision-time",
+                "attempt": "7a0b2a3c7d05d0c15ccb26a746359bea",
+                "source_plan_id": "sec-plan-v1:59a6ade7ada89dd4c5de5ec08288a0a499ec88b9b2f2b43b673c4f7ddd2d4803",
+                "evidence_reference": "safe-c70fe794f8ed0338933c9aec.json",
+                "evidence_sha256": "cc57949cadab9c10cb1e2dbb02f8db9136f42f9374ade173e1a0ff20ed62fae4"
+            },
+            "explanation": "Ledger validou identidade, contexto, operação, cobertura, sessão, prazo e evidência no momento da decisão; adapter não chamado."
+        },
+        {
+            "kind": "valid-coverage-reused",
+            "capability": "zap.passive.csp",
+            "unit": "sec-test-v1:53ddaa6940481971582639fb0b0fae247787cb80bda77c6cf4af312bfb1ec042",
+            "execution_id": "sec-execution-v1:bb7debd5e99ab3cc2fdafeaabf79f61addf69c5207b6ca44dfa664a549345a84",
+            "at": 1792866603,
+            "reason": "valid-coverage-at-decision-time",
+            "provenance": {
+                "status": "captured-at-decision-time",
+                "attempt": "0cb190152bc1fe47428940518e660cb5",
+                "source_plan_id": "sec-plan-v1:59a6ade7ada89dd4c5de5ec08288a0a499ec88b9b2f2b43b673c4f7ddd2d4803",
+                "evidence_reference": "safe-db5e45c2a696bec1c60627b4.json",
+                "evidence_sha256": "951a36f269ad89ff5b1e20b5fd9007e1169303100f9f792bb03f5e73cf40e5e5"
+            },
+            "explanation": "Ledger validou identidade, contexto, operação, cobertura, sessão, prazo e evidência no momento da decisão; adapter não chamado."
+        },
+        {
+            "kind": "valid-coverage-reused",
+            "capability": "zap.active.reflected-xss",
+            "unit": "sec-test-v1:7d333c46f3207e4708602b8d8192b7a8766037a06001454d10122f8e3fdebe5a",
+            "execution_id": "sec-execution-v1:a6def7f4254ce3cbf9ac5d96ca298e64cd4dfafe4544e28be5a878a2ff9a3239",
+            "at": 1792866603,
+            "reason": "valid-coverage-at-decision-time",
+            "provenance": {
+                "status": "captured-at-decision-time",
+                "attempt": "42f3f4be78a124b6097a9c8215cd0e55",
+                "source_plan_id": "sec-plan-v1:59a6ade7ada89dd4c5de5ec08288a0a499ec88b9b2f2b43b673c4f7ddd2d4803",
+                "evidence_reference": "safe-7ef37954aff2669d9dbd4b76.json",
+                "evidence_sha256": "0f9bf90d3a34123a07416d0f073ea5adfc1b4fe84ee146d64cc92e1e816c0aa1"
+            },
+            "explanation": "Ledger validou identidade, contexto, operação, cobertura, sessão, prazo e evidência no momento da decisão; adapter não chamado."
+        },
+        {
+            "kind": "valid-coverage-reused",
+            "capability": "nuclei.CVE-2023-23752",
+            "unit": "sec-test-v1:49a7f906b077a111f5809fb16695c9ff2fcb965e1bababb8405658ae839a930e",
+            "execution_id": "sec-execution-v1:6c1dcadcfb65d9283b8f4afa066217aa588488472fc173bf5d9f15e87950ef56",
+            "at": 1792866603,
+            "reason": "valid-coverage-at-decision-time",
+            "provenance": {
+                "status": "captured-at-decision-time",
+                "attempt": "8b02974ff0316286587c5f74ce391807",
+                "source_plan_id": "sec-plan-v1:59a6ade7ada89dd4c5de5ec08288a0a499ec88b9b2f2b43b673c4f7ddd2d4803",
+                "evidence_reference": "safe-67e5080d298bcb085a1e4f1f.json",
+                "evidence_sha256": "f83f415652a56cb6de04f075723ee2919f6c488b2507db2685e3de2b09d7ffc6"
+            },
+            "explanation": "Ledger validou identidade, contexto, operação, cobertura, sessão, prazo e evidência no momento da decisão; adapter não chamado."
+        },
+        {
+            "kind": "valid-coverage-reused",
+            "capability": "nuclei.security-headers-bundle",
+            "unit": "sec-test-v1:6cafb09551bce301f1019117be1b2c5f82f554f901c281292dda197f0be7c166",
+            "execution_id": "sec-execution-v1:99b2ebf54bad1fa08c8a6fb87063d4d208b27f1e8a37951a2b01b5d9687874a2",
+            "at": 1792866603,
+            "reason": "valid-coverage-at-decision-time",
+            "provenance": {
+                "status": "captured-at-decision-time",
+                "attempt": "8920146f4addb59d24d1592e53db89e4",
+                "source_plan_id": "sec-plan-v1:59a6ade7ada89dd4c5de5ec08288a0a499ec88b9b2f2b43b673c4f7ddd2d4803",
+                "evidence_reference": "safe-164b221c189b239f34383e93.json",
+                "evidence_sha256": "c5d667bf93c3ebfb0c19322d933289ef3266f6c9716a02b1c42ecf0a61b0c37b"
+            },
+            "explanation": "Ledger validou identidade, contexto, operação, cobertura, sessão, prazo e evidência no momento da decisão; adapter não chamado."
+        }
+    ],
+    "other_exclusions": [],
+    "blocked": [],
+    "unrequested_capabilities": [
+        "ninfa.php.command-injection.request-to-shell",
+        "ninfa.php.command-injection.dangerous-primitive",
+        "ninfa.php.sql-injection.request-to-query",
+        "ninfa.php.path-traversal.request-to-filesystem",
+        "ninfa.php.file-access.dynamic-delete",
+        "ninfa.php.ssrf.request-to-curl",
+        "ninfa.php.unsafe-redirect.request-location",
+        "ninfa.php.header-injection.request-to-header",
+        "ninfa.php.dynamic-include-require.request-path",
+        "ninfa.php.unsafe-deserialization.unserialize",
+        "ninfa.php.dangerous-eval-assert.eval",
+        "ninfa.php.cryptographic-misuse.weak-password-hash",
+        "ninfa.yii2.sql-injection.request-to-create-command",
+        "ninfa.yii2.xss.request-to-output",
+        "ninfa.yii2.unsafe-redirect.request-target",
+        "ninfa.yii2.header-injection.request-to-header",
+        "ninfa.yii2.path-traversal.request-to-send-file",
+        "ninfa.yii3.sql-injection.request-to-create-command",
+        "ninfa.yii3.sql-injection.concatenated-command",
+        "ninfa.yii3.xss.request-to-output",
+        "ninfa.yii3.html.encoding-disabled",
+        "ninfa.yii3.header-injection.request-to-header",
+        "ninfa.yii3.unsafe-redirect.request-to-location-header",
+        "ninfa.glpi11.sql-injection.request-to-query",
+        "ninfa.glpi11.sql-injection.concatenated-query",
+        "ninfa.glpi11.unsafe-redirect.request-target",
+        "ninfa.glpi11.unsafe-redirect.dynamic-target",
+        "ninfa.glpi11.ssrf.request-to-url-content",
+        "ninfa.glpi11.file-access.request-to-file-content",
+        "psalm.TaintedTextWithQuotes",
+        "psalm.TaintedShell",
+        "psalm.TaintedSSRF",
+        "psalm.TaintedFile",
+        "psalm.TaintedHeader",
+        "psalm.TaintedInclude",
+        "psalm.TaintedUnserialize",
+        "psalm.TaintedEval",
+        "zap.passive.anti-clickjacking",
+        "zap.passive.hsts",
+        "zap.passive.nosniff",
+        "zap.passive.cookie-httponly",
+        "zap.passive.cookie-secure",
+        "zap.active.sql-injection"
+    ],
+    "warnings": [
+        {
+            "code": "complementary-overlap",
+            "left": "composer.advisories",
+            "right": "osv.packagist",
+            "reason": "Bases e snapshots distintos; aliases permitem correlacionar resultados, sem eliminar consultas.",
+            "suppressed": false
+        },
+        {
+            "code": "complementary-overlap",
+            "left": "ninfa.php.xss.request-to-output",
+            "right": "psalm.TaintedHtml",
+            "reason": "Modelos e fontes/sinks distintos; CWE/posição não demonstram teste igual.",
+            "suppressed": false
+        },
+        {
+            "code": "indivisible-engine-analysis",
+            "owner": "psalm",
+            "reason": "Tipos de issue compartilham análise do programa; checks fora do catálogo podem ocorrer. Seletores são projeções de cobertura, não filtros de execução."
+        },
+        {
+            "code": "uncontrolled-overlap",
+            "left": "zap.passive.csp",
+            "right": "nuclei.security-headers-bundle",
+            "reason": "Somente matcher content-security-policy se sobrepõe. Elegibilidade, valores, status, redirects e subalertas diferem; exclusão do bundle perderia outros checks.",
+            "suppressed": false
+        }
+    ],
+    "limits": [
+        "Histórico de coordenação, sem revalidação atual de cobertura/evidência.",
+        "Eventos de supressão não são contagem de vulnerabilidades nem de requisições HTTP poupadas.",
+        "Seleção das fontes não comprova baseline completo ou auditoria concluída.",
+        "Sem equivalência entre motores aprovada no catálogo v1."
+    ]
+}

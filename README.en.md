@@ -244,8 +244,8 @@ make semgrep-rules
 Gate policy:
 
 ```text
-ERROR    blocking
-WARNING  review hotspot; does not block by itself
+ERROR/HIGH/CRITICAL  blocking
+WARNING/MEDIUM       review hotspot; does not block by itself
 ```
 
 Engine errors or unexpected partial coverage remain blocking. Deliberate exclusions are recorded separately.
@@ -294,6 +294,12 @@ make setup
 
 The [security orchestration WBS (Portuguese)](docs/EAP-SECURITY-ORCHESTRATION.md) tracks ZAP and Nuclei integration, retained Semgrep support, duplicate-test scheduling controls, and Markdown/PDF reports. Tasks include checkboxes, dependencies, acceptance criteria, and actual start/completion timestamps. New integrations remain planned until validated.
 
+The [SEC-04.01 catalog (Portuguese)](docs/SECURITY-CAPABILITY-CATALOG.md) records 52 capabilities across six sources with reviewed selectors and hashes. It does not schedule engines or authorize equivalent-test suppression; public workflow integration remains subsequent work.
+
+The [SEC-04.02 identity contract (Portuguese)](docs/SECURITY-TEST-IDENTITY.md) distinguishes units by context, asset, role, vector, technique and effective hashes. Incomplete contexts prevent deduplication comparisons. Public workflow integration remains pending.
+
+The [SEC-04.03 planner (Portuguese)](docs/SECURITY-SCAN-PLAN.md) produces a selection, grouping, exclusion and blocking snapshot before engines start, with overlap and missing-source warnings. The [SEC-04.04 ledger (Portuguese)](docs/SECURITY-EXECUTION-LEDGER.md) persists attempts, holds a lock during the adapter and requires valid coverage/evidence for reuse. Public workflow integration remains subsequent work; cross-engine fallback remains blocked without approved equivalence. The [SEC-04.05 proof (Portuguese)](docs/SECURITY-NON-REPETITION.md) validates the workflow with synthetic adapters and generates a Markdown/JSON section explaining exclusions and reuse with historical provenance.
+
 ## Development status
 
 **Current stage: 4 — SAST contracts and profiles.**
@@ -326,7 +332,7 @@ The [security orchestration WBS (Portuguese)](docs/EAP-SECURITY-ORCHESTRATION.md
 - [x] Implement the Yii3 overlay.
 - [x] Implement GLPI Plugin 11 specializations.
 - [x] Keep `php-generic` free of invented framework semantics.
-- [x] Treat Semgrep `WARNING` as a hotspot and `ERROR` as blocking.
+- [x] Treat Semgrep `WARNING`/`MEDIUM` as hotspots and `ERROR`/`HIGH`/`CRITICAL` as blocking.
 
 ### Roadmap
 
@@ -368,3 +374,5 @@ Portuguese:
 - [Security architecture](docs/SECURITY-ARCHITECTURE.md)
 - [Internal architecture and code documentation](docs/INTERNAL-ARCHITECTURE.md)
 - [Upstream integration WBS (PT-BR)](docs/EAP-UPSTREAM-INTEGRATION.md)
+
+Native security environment: [installation and doctor](docs/WEB-SECURITY-TOOLS.md), [execution contract](docs/SECURITY-EXECUTION-CONTRACT.md), [output contracts and evidence](docs/SECURITY-OUTPUT-CONTRACTS.md).

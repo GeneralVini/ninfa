@@ -1,0 +1,27 @@
+{
+  "origin": "real",
+  "tool": "zap",
+  "version": "2.17.0",
+  "captured_at": "2026-10-23T23:58:59.383606+00:00",
+  "native_exit_code": null,
+  "artifact": "zap.json",
+  "sha256": "3d55bb218ad0284664839f39e3535c19ee6808dcea81366c83e6e79405e231a4",
+  "configuration": {
+    "mode": "one URL passive",
+    "report": "traditional-json",
+    "api_version": {
+      "version": "2.17.0"
+    },
+    "remaining_passive": 0
+  },
+  "configuration_sha256": "d8ef6b1ff2e9e13f6a5ebf66b7a7083844797a0639eac3a8d128fa230928dc27",
+  "stderr": "",
+  "transformations": [
+    "EvidenceSanitizer before persistence",
+    "temporary root -> /fixture",
+    "target loopback port -> 18080",
+    "payload fields redacted",
+    "site @port normalized to match fixture URI 18080"
+  ],
+  "limits": "controlled fixture; positive output contract, not production coverage"
+}

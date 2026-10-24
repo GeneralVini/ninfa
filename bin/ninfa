@@ -75,7 +75,7 @@ try {
 } catch (Throwable $error) {
     // O entrypoint converte falhas de preparação/execução em erro CLI conciso;
     // stack trace não integra a interface pública normal.
-    fwrite(STDERR, '[ERRO] ' . $error->getMessage() . PHP_EOL);
+    fwrite(STDERR, '[ERRO] ' . EvidenceSanitizer::text($error->getMessage()) . PHP_EOL);
     exit(1);
 }
 

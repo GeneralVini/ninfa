@@ -1,0 +1,67 @@
+{
+  "task": "SEC-04.01",
+  "status": "VALIDATED",
+  "responsible": "Codex",
+  "started_at": "2026-10-24T13:14:28-03:00",
+  "completed_at": "2026-10-24T13:19:56-03:00",
+  "catalog_version": "1.0.0",
+  "capabilities": 52,
+  "sources": 6,
+  "relationships": {
+    "candidate": 4,
+    "complementary": 4,
+    "approved_equivalent": 0
+  },
+  "checks": [
+    {
+      "command": "make syntax profile-test",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-01-regression.log"
+    },
+    {
+      "command": "php -d zend.assertions=1 -d assert.exception=1 tests/capability-catalog.php",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-01-catalog.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "security/capabilities.v1.json",
+      "sha256": "07966ff5added13926b4a368717489e4d03057af2d78808a08bbbc19483964c0"
+    },
+    {
+      "path": "src/CapabilityCatalog.php",
+      "sha256": "6f49e2ed1c5f30900edbfc777e914cc328944793c655852b482357fe08728d14"
+    },
+    {
+      "path": "tests/capability-catalog.php",
+      "sha256": "ca4c494c712cc4cca9ec507f8e7fda8b20be8205a26aebc55051738da28d099c"
+    },
+    {
+      "path": "docs/SECURITY-CAPABILITY-CATALOG.md",
+      "sha256": "f257132ced0c93f190493f5bd9e409da6c1899378c41fb2de31aa8f62a61b9b9"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-01-regression.log",
+      "sha256": "46761f7918c6f2f6c603768f24cf1244b3e0849eb2315bd3065417892f49eb8a"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-01-catalog.log",
+      "sha256": "191a52c2ff562828d08504f734a5730676e5bbc4a6c7c334984bbe0f47acc20e"
+    }
+  ],
+  "limits": [
+    "Catalog only; no engine scheduling or suppression enabled.",
+    "Tool-lock bindings describe reviewed artifacts; actual runtime still requires doctor and effective configuration hashes.",
+    "Initial allowlist; unlisted upstream rules have uncontrolled overlap.",
+    "No real consumer or external target scanned."
+  ],
+  "next_task": "SEC-04.02",
+  "notes": [
+    "Regression exited 0; pre-existing mkdir File exists warning in tests/yii2-view-resolution.php:15 remains."
+  ]
+}

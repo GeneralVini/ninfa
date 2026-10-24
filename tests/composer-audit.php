@@ -101,6 +101,27 @@ try {
     } catch (JsonException) {
     }
 
+    foreach (['{}', '{"advisories":{"acme/runtime":null}}', '{"advisories":{"acme/runtime":[null]}}',
+        '{"advisories":[[{}]]}', '{"advisories":[],"abandoned":"invalid"}',
+        '{"advisories":[],"abandoned":{"acme/runtime":[]}}'] as $invalid) {
+        try {
+            ComposerAuditParser::parse($invalid, $inventory);
+            assert(false, 'Saída incompleta não pode ser tratada como auditoria limpa.');
+        } catch (UnexpectedValueException) {
+        }
+    }
+
+    unlink($root . '/composer.lock');
+    mkdir($root . '/vendor/composer', 0775, true);
+    file_put_contents($root . '/vendor/composer/installed.json', json_encode([
+        'packages' => [['name' => 'acme/runtime', 'version' => '1.2.3']],
+    ], JSON_THROW_ON_ERROR));
+    $installedInventory = SecurityInventory::fromContext(ProjectContext::fromRoot($root));
+    $installedFindings = ComposerAuditParser::parse($audit, $installedInventory);
+    assert($installedFindings[0]->file === 'vendor/composer/installed.json');
+    assert($installedFindings[2]->file === 'vendor/composer/installed.json');
+    assert($installedFindings[0]->metadata['component']['inventory_source'] === 'installed.json');
+
     echo "[OK] Composer Audit normaliza advisories e policy findings com contexto do inventário.\n";
 } finally {
     if (is_dir($root)) {

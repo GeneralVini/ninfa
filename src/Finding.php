@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . "/EvidenceSanitizer.php";
 
 /**
  * Representa um achado normalizado produzido por uma ferramenta ou fonte.
@@ -97,6 +98,6 @@ final class Finding implements JsonSerializable
             $data['metadata'] = $this->metadata;
         }
 
-        return $data;
+        return EvidenceSanitizer::value($data);
     }
 }

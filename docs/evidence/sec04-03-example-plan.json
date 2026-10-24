@@ -1,0 +1,573 @@
+{
+    "plan_version": 1,
+    "catalog_version": "1.0.0",
+    "run_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "project_digest": "660752609f7270159b02ef1d4079c2af65d50b027d78851e69ce73091339bd28",
+    "profile": "php-generic",
+    "scope": "web-full",
+    "execution_status": "not-started",
+    "required_sources": {
+        "composer-audit": "selected",
+        "osv": "selected",
+        "semgrep": "selected",
+        "psalm": "selected",
+        "zap": "selected",
+        "nuclei": "selected"
+    },
+    "source_selection_complete": true,
+    "executions": [
+        {
+            "owner": "composer-audit",
+            "phase": "sca",
+            "selection_mode": "exact-selectors",
+            "units": [
+                {
+                    "identity": {
+                        "key": "sec-test-v1:75d29b8f369c327daf4ad9e96ee233b0bac644faaa22adfc384b0f3f08f52b9e",
+                        "verifiable": true,
+                        "descriptor": {
+                            "identity_version": 1,
+                            "catalog_version": "1.0.0",
+                            "capability": "composer.advisories",
+                            "owner": "composer-audit",
+                            "technique": "dependency-advisory",
+                            "granularity": "Pacote/versão/advisory; consulta em lote.",
+                            "context": {
+                                "project_digest": "660752609f7270159b02ef1d4079c2af65d50b027d78851e69ce73091339bd28",
+                                "scope_digest": "5f161c9149882e0e10124bc5dd5c11f0fbe8ec452edd52bcec76b01e9252cb33",
+                                "authorization_digest": "cbb82ebec6051b780ad26655ee48b5b42658c4ac49438888aac829e82195584f",
+                                "code_digest": "34a36fe4e85bce3ee3d0df787228ffb4d6acffe075a91dae58c8ae35c6667f4d",
+                                "deployment_digest": null,
+                                "deployment_link": "not-applicable",
+                                "host_digest": null,
+                                "profile": "php-generic",
+                                "role_digest": null,
+                                "session_context_digest": null
+                            },
+                            "asset": {
+                                "kind": "component-inventory",
+                                "digest": "fc93694eb0146e6fba063656ad7ffe696d8e714bfd9be92950e5e57b418f13bd"
+                            },
+                            "request": {
+                                "method": null,
+                                "parameter_location": null,
+                                "parameter_digest": null
+                            },
+                            "bindings": {
+                                "engine_version": "2.9.5",
+                                "engine_digest": "abe237beee191d9a569bb28c01730e1f8c7a98b6625669a05559919006e74a46",
+                                "runtime_digest": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+                                "configuration_digest": "1bbd1f9c41260f9c0aec7a24abdc242ac2ff5343f41849c77edadecaeaf0e846",
+                                "rules_digest": "f2d9fa917c6f8661e87fd0dd0e6dfaa119180650afccfb82b0b492c5f6c0bb62",
+                                "data_digest": "d500a93105b1744fe0794783cb2d51c591a4751e99b8baeda977f352a32e0af9",
+                                "conditions_digest": "f2d18349c7d0242a7b3ee81621162269479eeca451ccaabc0362b4791ee3bc7a",
+                                "payload_family_digest": null
+                            }
+                        },
+                        "limitations": []
+                    },
+                    "capability": "composer.advisories",
+                    "owner": "composer-audit",
+                    "selectors": [
+                        {
+                            "kind": "operation",
+                            "id": "composer --no-plugins --no-scripts --no-interaction audit --locked --format=json",
+                            "artifact": "src/PipelineRunner.php"
+                        }
+                    ],
+                    "controls": {
+                        "applicability_verified": true,
+                        "selection_control": "exact",
+                        "limits_verified": true
+                    }
+                }
+            ],
+            "execution_id": "sec-execution-v1:474a863c7572a60ef4d38cc15302bc6a9bd148cc75cbafeb9b0d9f4d96bb5696"
+        },
+        {
+            "owner": "osv",
+            "phase": "sca",
+            "selection_mode": "exact-selectors",
+            "units": [
+                {
+                    "identity": {
+                        "key": "sec-test-v1:7a0406d6198d21e0f546a9512a5e10186ae6796beccb87acbe1e023b0d0475bd",
+                        "verifiable": true,
+                        "descriptor": {
+                            "identity_version": 1,
+                            "catalog_version": "1.0.0",
+                            "capability": "osv.packagist",
+                            "owner": "osv",
+                            "technique": "dependency-advisory",
+                            "granularity": "Pacote/versão/advisory; paginação por componente.",
+                            "context": {
+                                "project_digest": "660752609f7270159b02ef1d4079c2af65d50b027d78851e69ce73091339bd28",
+                                "scope_digest": "5f161c9149882e0e10124bc5dd5c11f0fbe8ec452edd52bcec76b01e9252cb33",
+                                "authorization_digest": "cbb82ebec6051b780ad26655ee48b5b42658c4ac49438888aac829e82195584f",
+                                "code_digest": "34a36fe4e85bce3ee3d0df787228ffb4d6acffe075a91dae58c8ae35c6667f4d",
+                                "deployment_digest": null,
+                                "deployment_link": "not-applicable",
+                                "host_digest": null,
+                                "profile": "php-generic",
+                                "role_digest": null,
+                                "session_context_digest": null
+                            },
+                            "asset": {
+                                "kind": "component-inventory",
+                                "digest": "fc93694eb0146e6fba063656ad7ffe696d8e714bfd9be92950e5e57b418f13bd"
+                            },
+                            "request": {
+                                "method": null,
+                                "parameter_location": null,
+                                "parameter_digest": null
+                            },
+                            "bindings": {
+                                "engine_version": "v1",
+                                "engine_digest": "5148d04a6c781343f70c5fcc0cf73dc6d166e243156ccf83e9031a74b98c1c90",
+                                "runtime_digest": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+                                "configuration_digest": "1bbd1f9c41260f9c0aec7a24abdc242ac2ff5343f41849c77edadecaeaf0e846",
+                                "rules_digest": "3d575e7429e73cdacb49d5f7aefbb36efb6fe03a2111233117fae7f3d052d258",
+                                "data_digest": "d500a93105b1744fe0794783cb2d51c591a4751e99b8baeda977f352a32e0af9",
+                                "conditions_digest": "f2d18349c7d0242a7b3ee81621162269479eeca451ccaabc0362b4791ee3bc7a",
+                                "payload_family_digest": null
+                            }
+                        },
+                        "limitations": []
+                    },
+                    "capability": "osv.packagist",
+                    "owner": "osv",
+                    "selectors": [
+                        {
+                            "kind": "operation",
+                            "id": "POST /v1/querybatch; GET /v1/vulns/{id}",
+                            "artifact": "src/OsvClient.php"
+                        }
+                    ],
+                    "controls": {
+                        "applicability_verified": true,
+                        "selection_control": "exact",
+                        "limits_verified": true
+                    }
+                }
+            ],
+            "execution_id": "sec-execution-v1:71188cbbeef1968cc96d441f959a70fa06f0664c55f1f2f5167f49880188660c"
+        },
+        {
+            "owner": "semgrep",
+            "phase": "sast",
+            "selection_mode": "exact-selectors",
+            "units": [
+                {
+                    "identity": {
+                        "key": "sec-test-v1:29d5fe05aa4f7d851b5979a098c9282bc3524b31c54855470d79a6fe2b9f8e49",
+                        "verifiable": true,
+                        "descriptor": {
+                            "identity_version": 1,
+                            "catalog_version": "1.0.0",
+                            "capability": "ninfa.php.xss.request-to-output",
+                            "owner": "semgrep",
+                            "technique": "static-pattern-or-taint",
+                            "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+                            "context": {
+                                "project_digest": "660752609f7270159b02ef1d4079c2af65d50b027d78851e69ce73091339bd28",
+                                "scope_digest": "5f161c9149882e0e10124bc5dd5c11f0fbe8ec452edd52bcec76b01e9252cb33",
+                                "authorization_digest": "cbb82ebec6051b780ad26655ee48b5b42658c4ac49438888aac829e82195584f",
+                                "code_digest": "34a36fe4e85bce3ee3d0df787228ffb4d6acffe075a91dae58c8ae35c6667f4d",
+                                "deployment_digest": null,
+                                "deployment_link": "not-applicable",
+                                "host_digest": null,
+                                "profile": "php-generic",
+                                "role_digest": null,
+                                "session_context_digest": null
+                            },
+                            "asset": {
+                                "kind": "codebase",
+                                "digest": "fc93694eb0146e6fba063656ad7ffe696d8e714bfd9be92950e5e57b418f13bd"
+                            },
+                            "request": {
+                                "method": null,
+                                "parameter_location": null,
+                                "parameter_digest": null
+                            },
+                            "bindings": {
+                                "engine_version": "1.177.0",
+                                "engine_digest": "d4d70e72310a016cd32f3f66a7b09895c94662e3e226934fd5c07dbfe45e74a3",
+                                "runtime_digest": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+                                "configuration_digest": "1bbd1f9c41260f9c0aec7a24abdc242ac2ff5343f41849c77edadecaeaf0e846",
+                                "rules_digest": "1b3c201899a5297f410ff4e9b5b2b24ee535f9c99ea9ffe27ff8998e17e03a9a",
+                                "data_digest": null,
+                                "conditions_digest": "f2d18349c7d0242a7b3ee81621162269479eeca451ccaabc0362b4791ee3bc7a",
+                                "payload_family_digest": null
+                            }
+                        },
+                        "limitations": []
+                    },
+                    "capability": "ninfa.php.xss.request-to-output",
+                    "owner": "semgrep",
+                    "selectors": [
+                        {
+                            "kind": "semgrep-rule",
+                            "id": "ninfa.php.xss.request-to-output",
+                            "artifact": "security/semgrep/common.yml"
+                        }
+                    ],
+                    "controls": {
+                        "applicability_verified": true,
+                        "selection_control": "exact",
+                        "limits_verified": true
+                    }
+                }
+            ],
+            "execution_id": "sec-execution-v1:95d889c0d09ced2bd7ab28490394ffa9164ade3b1b2b92d6536d3a6d960f7b82"
+        },
+        {
+            "owner": "psalm",
+            "phase": "sast",
+            "selection_mode": "whole-program",
+            "units": [
+                {
+                    "identity": {
+                        "key": "sec-test-v1:18bc3c6fd0ed3607a5f6dd2a4c5face6e0beb6dc411391da9de644e4c936928b",
+                        "verifiable": true,
+                        "descriptor": {
+                            "identity_version": 1,
+                            "catalog_version": "1.0.0",
+                            "capability": "psalm.TaintedHtml",
+                            "owner": "psalm",
+                            "technique": "static-interprocedural-taint",
+                            "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+                            "context": {
+                                "project_digest": "660752609f7270159b02ef1d4079c2af65d50b027d78851e69ce73091339bd28",
+                                "scope_digest": "5f161c9149882e0e10124bc5dd5c11f0fbe8ec452edd52bcec76b01e9252cb33",
+                                "authorization_digest": "cbb82ebec6051b780ad26655ee48b5b42658c4ac49438888aac829e82195584f",
+                                "code_digest": "34a36fe4e85bce3ee3d0df787228ffb4d6acffe075a91dae58c8ae35c6667f4d",
+                                "deployment_digest": null,
+                                "deployment_link": "not-applicable",
+                                "host_digest": null,
+                                "profile": "php-generic",
+                                "role_digest": null,
+                                "session_context_digest": null
+                            },
+                            "asset": {
+                                "kind": "codebase",
+                                "digest": "fc93694eb0146e6fba063656ad7ffe696d8e714bfd9be92950e5e57b418f13bd"
+                            },
+                            "request": {
+                                "method": null,
+                                "parameter_location": null,
+                                "parameter_digest": null
+                            },
+                            "bindings": {
+                                "engine_version": "6.20.1",
+                                "engine_digest": "c4e43a392e33f9c9cce38c1acb34f998ce8437f80abe74e4a47a31eb5473e5ea",
+                                "runtime_digest": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+                                "configuration_digest": "1bbd1f9c41260f9c0aec7a24abdc242ac2ff5343f41849c77edadecaeaf0e846",
+                                "rules_digest": "5fe29da2103da138f7c7ad22d1d101a3d1a211648666721d1f69bab19e6a7037",
+                                "data_digest": null,
+                                "conditions_digest": "f2d18349c7d0242a7b3ee81621162269479eeca451ccaabc0362b4791ee3bc7a",
+                                "payload_family_digest": null
+                            }
+                        },
+                        "limitations": []
+                    },
+                    "capability": "psalm.TaintedHtml",
+                    "owner": "psalm",
+                    "selectors": [
+                        {
+                            "kind": "psalm-issue",
+                            "id": "TaintedHtml",
+                            "artifact": "psalm:psalm.phar"
+                        }
+                    ],
+                    "controls": {
+                        "applicability_verified": true,
+                        "selection_control": "exact",
+                        "limits_verified": true
+                    }
+                }
+            ],
+            "execution_id": "sec-execution-v1:6a813ecfaa0778a909b6100d055f9f0afef2bd47424f5ff039065e3b29370d65"
+        },
+        {
+            "owner": "zap",
+            "phase": "zap-passive",
+            "selection_mode": "exact-selectors",
+            "units": [
+                {
+                    "identity": {
+                        "key": "sec-test-v1:206043c002e5f8bdf0fff75d00f2091eaf13ee6da718e04ffc534b0266ded9bc",
+                        "verifiable": true,
+                        "descriptor": {
+                            "identity_version": 1,
+                            "catalog_version": "1.0.0",
+                            "capability": "zap.passive.csp",
+                            "owner": "zap",
+                            "technique": "passive-response",
+                            "granularity": "Regra por resposta/cookie; subalertas não são seletores independentes.",
+                            "context": {
+                                "project_digest": "660752609f7270159b02ef1d4079c2af65d50b027d78851e69ce73091339bd28",
+                                "scope_digest": "5f161c9149882e0e10124bc5dd5c11f0fbe8ec452edd52bcec76b01e9252cb33",
+                                "authorization_digest": "cbb82ebec6051b780ad26655ee48b5b42658c4ac49438888aac829e82195584f",
+                                "code_digest": "34a36fe4e85bce3ee3d0df787228ffb4d6acffe075a91dae58c8ae35c6667f4d",
+                                "deployment_digest": "94ce84d0f579ad57408c153c70b25dbaf2798946d6b37775690c2932f64b1957",
+                                "deployment_link": "verified",
+                                "host_digest": null,
+                                "profile": "php-generic",
+                                "role_digest": "dbc8470431f1815ed93defc27af779a7a2d29624649f83a47a4a64ce22402f36",
+                                "session_context_digest": "16f568df5390336e92f1f6afb8b0b746e634e956e7220d2c5f35bc180c92647a"
+                            },
+                            "asset": {
+                                "kind": "http-response",
+                                "digest": "cc15f571c91d8ca8655e58a62261e1be3f789c0262234d7cd13c304ad7bb41ee"
+                            },
+                            "request": {
+                                "method": "GET",
+                                "parameter_location": null,
+                                "parameter_digest": null
+                            },
+                            "bindings": {
+                                "engine_version": "2.17.0",
+                                "engine_digest": "b4c5ae2ae961fe88d12821bdf945b15482ef021703e1f900ccbe1a27f22df07f",
+                                "runtime_digest": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+                                "configuration_digest": "1bbd1f9c41260f9c0aec7a24abdc242ac2ff5343f41849c77edadecaeaf0e846",
+                                "rules_digest": "24f81401c8b33a6dee43382cb795fff97cbf0f40ffb2154234bcbf90b1fc3097",
+                                "data_digest": null,
+                                "conditions_digest": "f2d18349c7d0242a7b3ee81621162269479eeca451ccaabc0362b4791ee3bc7a",
+                                "payload_family_digest": null
+                            }
+                        },
+                        "limitations": []
+                    },
+                    "capability": "zap.passive.csp",
+                    "owner": "zap",
+                    "selectors": [
+                        {
+                            "kind": "zap-passive-rule",
+                            "id": "10038",
+                            "artifact": "zap:plugin/pscanrules-release-70.zap",
+                            "reference": "https://www.zaproxy.org/docs/alerts/10038/"
+                        }
+                    ],
+                    "controls": {
+                        "applicability_verified": true,
+                        "selection_control": "exact",
+                        "limits_verified": true
+                    }
+                }
+            ],
+            "execution_id": "sec-execution-v1:bda3f9b3ab51a7ab96750b92d99e690a51e1c25d2160a33a1a60e80fff8261eb"
+        },
+        {
+            "owner": "zap",
+            "phase": "zap-active",
+            "selection_mode": "exact-selectors",
+            "units": [
+                {
+                    "identity": {
+                        "key": "sec-test-v1:4c1f7ff6191b1a8b79cd3d15040219ce796954bfcfbabc1346048c0463047b38",
+                        "verifiable": true,
+                        "descriptor": {
+                            "identity_version": 1,
+                            "catalog_version": "1.0.0",
+                            "capability": "zap.active.reflected-xss",
+                            "owner": "zap",
+                            "technique": "active-injection",
+                            "granularity": "Regra por parâmetro/vetor; requisições internas podem ser necessárias.",
+                            "context": {
+                                "project_digest": "660752609f7270159b02ef1d4079c2af65d50b027d78851e69ce73091339bd28",
+                                "scope_digest": "5f161c9149882e0e10124bc5dd5c11f0fbe8ec452edd52bcec76b01e9252cb33",
+                                "authorization_digest": "cbb82ebec6051b780ad26655ee48b5b42658c4ac49438888aac829e82195584f",
+                                "code_digest": "34a36fe4e85bce3ee3d0df787228ffb4d6acffe075a91dae58c8ae35c6667f4d",
+                                "deployment_digest": "94ce84d0f579ad57408c153c70b25dbaf2798946d6b37775690c2932f64b1957",
+                                "deployment_link": "verified",
+                                "host_digest": null,
+                                "profile": "php-generic",
+                                "role_digest": "dbc8470431f1815ed93defc27af779a7a2d29624649f83a47a4a64ce22402f36",
+                                "session_context_digest": "16f568df5390336e92f1f6afb8b0b746e634e956e7220d2c5f35bc180c92647a"
+                            },
+                            "asset": {
+                                "kind": "http-target",
+                                "digest": "cc15f571c91d8ca8655e58a62261e1be3f789c0262234d7cd13c304ad7bb41ee"
+                            },
+                            "request": {
+                                "method": "GET",
+                                "parameter_location": "query",
+                                "parameter_digest": "abf698b7b0f6291174792862b45bfc11968a68b613e2630b028ad953ca42ef49"
+                            },
+                            "bindings": {
+                                "engine_version": "2.17.0",
+                                "engine_digest": "b4c5ae2ae961fe88d12821bdf945b15482ef021703e1f900ccbe1a27f22df07f",
+                                "runtime_digest": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+                                "configuration_digest": "1bbd1f9c41260f9c0aec7a24abdc242ac2ff5343f41849c77edadecaeaf0e846",
+                                "rules_digest": "98eb0160285b43beb720fd25da935c3c009d471c288f428037654525d732aead",
+                                "data_digest": null,
+                                "conditions_digest": "f2d18349c7d0242a7b3ee81621162269479eeca451ccaabc0362b4791ee3bc7a",
+                                "payload_family_digest": "ba1a38c3fe596c240e575cffe0f49351687b31f683627d7977af9eebba7d2a69"
+                            }
+                        },
+                        "limitations": []
+                    },
+                    "capability": "zap.active.reflected-xss",
+                    "owner": "zap",
+                    "selectors": [
+                        {
+                            "kind": "zap-active-rule",
+                            "id": "40012",
+                            "artifact": "zap:plugin/ascanrules-release-78.zap",
+                            "reference": "https://www.zaproxy.org/docs/alerts/40012/"
+                        }
+                    ],
+                    "controls": {
+                        "applicability_verified": true,
+                        "selection_control": "exact",
+                        "limits_verified": true
+                    }
+                }
+            ],
+            "execution_id": "sec-execution-v1:3b4959cdef59df78c1bc314c1e036b5bca195e29a0449354016975cb1ad224a6"
+        },
+        {
+            "owner": "nuclei",
+            "phase": "nuclei-http",
+            "selection_mode": "exact-selectors",
+            "units": [
+                {
+                    "identity": {
+                        "key": "sec-test-v1:b72525c6041de2d4ae29b0fcea333267ff7f60c83fcd076b9e82ec633804c13b",
+                        "verifiable": true,
+                        "descriptor": {
+                            "identity_version": 1,
+                            "catalog_version": "1.0.0",
+                            "capability": "nuclei.CVE-2023-23752",
+                            "owner": "nuclei",
+                            "technique": "http-specific-cve",
+                            "granularity": "Template específico de CVE; caminhos alternativos; não confirma exploração.",
+                            "context": {
+                                "project_digest": "660752609f7270159b02ef1d4079c2af65d50b027d78851e69ce73091339bd28",
+                                "scope_digest": "5f161c9149882e0e10124bc5dd5c11f0fbe8ec452edd52bcec76b01e9252cb33",
+                                "authorization_digest": "cbb82ebec6051b780ad26655ee48b5b42658c4ac49438888aac829e82195584f",
+                                "code_digest": "34a36fe4e85bce3ee3d0df787228ffb4d6acffe075a91dae58c8ae35c6667f4d",
+                                "deployment_digest": "94ce84d0f579ad57408c153c70b25dbaf2798946d6b37775690c2932f64b1957",
+                                "deployment_link": "verified",
+                                "host_digest": null,
+                                "profile": "php-generic",
+                                "role_digest": "dbc8470431f1815ed93defc27af779a7a2d29624649f83a47a4a64ce22402f36",
+                                "session_context_digest": "16f568df5390336e92f1f6afb8b0b746e634e956e7220d2c5f35bc180c92647a"
+                            },
+                            "asset": {
+                                "kind": "http-target",
+                                "digest": "cc15f571c91d8ca8655e58a62261e1be3f789c0262234d7cd13c304ad7bb41ee"
+                            },
+                            "request": {
+                                "method": "GET",
+                                "parameter_location": null,
+                                "parameter_digest": null
+                            },
+                            "bindings": {
+                                "engine_version": "3.11.1",
+                                "engine_digest": "ae0e7b77c1e3861661e63f0c615b842232851b8021f24eefd63ce9f88023012d",
+                                "runtime_digest": "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23",
+                                "configuration_digest": "1bbd1f9c41260f9c0aec7a24abdc242ac2ff5343f41849c77edadecaeaf0e846",
+                                "rules_digest": "f835baf38e90536589a50a0ac64536af8d602d4a5f8d98f23d07a7d30ab0551d",
+                                "data_digest": null,
+                                "conditions_digest": "f2d18349c7d0242a7b3ee81621162269479eeca451ccaabc0362b4791ee3bc7a",
+                                "payload_family_digest": "ba1a38c3fe596c240e575cffe0f49351687b31f683627d7977af9eebba7d2a69"
+                            }
+                        },
+                        "limitations": []
+                    },
+                    "capability": "nuclei.CVE-2023-23752",
+                    "owner": "nuclei",
+                    "selectors": [
+                        {
+                            "kind": "nuclei-template",
+                            "id": "CVE-2023-23752",
+                            "artifact": "nuclei-templates:http/cves/2023/CVE-2023-23752.yaml",
+                            "matchers": [
+                                "unnamed-and"
+                            ]
+                        }
+                    ],
+                    "controls": {
+                        "applicability_verified": true,
+                        "selection_control": "exact",
+                        "limits_verified": true
+                    }
+                }
+            ],
+            "execution_id": "sec-execution-v1:9c1a20fe375ff406214095586eb47259af8f3548219dfc5e94da997e204b15fd"
+        }
+    ],
+    "excluded": [],
+    "blocked": [],
+    "unrequested_capabilities": [
+        "ninfa.php.command-injection.request-to-shell",
+        "ninfa.php.command-injection.dangerous-primitive",
+        "ninfa.php.sql-injection.request-to-query",
+        "ninfa.php.path-traversal.request-to-filesystem",
+        "ninfa.php.file-access.dynamic-delete",
+        "ninfa.php.ssrf.request-to-curl",
+        "ninfa.php.unsafe-redirect.request-location",
+        "ninfa.php.header-injection.request-to-header",
+        "ninfa.php.dynamic-include-require.request-path",
+        "ninfa.php.unsafe-deserialization.unserialize",
+        "ninfa.php.dangerous-eval-assert.eval",
+        "ninfa.php.cryptographic-misuse.weak-password-hash",
+        "ninfa.yii2.sql-injection.request-to-create-command",
+        "ninfa.yii2.xss.request-to-output",
+        "ninfa.yii2.unsafe-redirect.request-target",
+        "ninfa.yii2.header-injection.request-to-header",
+        "ninfa.yii2.path-traversal.request-to-send-file",
+        "ninfa.yii3.sql-injection.request-to-create-command",
+        "ninfa.yii3.sql-injection.concatenated-command",
+        "ninfa.yii3.xss.request-to-output",
+        "ninfa.yii3.html.encoding-disabled",
+        "ninfa.yii3.header-injection.request-to-header",
+        "ninfa.yii3.unsafe-redirect.request-to-location-header",
+        "ninfa.glpi11.sql-injection.request-to-query",
+        "ninfa.glpi11.sql-injection.concatenated-query",
+        "ninfa.glpi11.unsafe-redirect.request-target",
+        "ninfa.glpi11.unsafe-redirect.dynamic-target",
+        "ninfa.glpi11.ssrf.request-to-url-content",
+        "ninfa.glpi11.file-access.request-to-file-content",
+        "psalm.TaintedTextWithQuotes",
+        "psalm.TaintedSql",
+        "psalm.TaintedShell",
+        "psalm.TaintedSSRF",
+        "psalm.TaintedFile",
+        "psalm.TaintedHeader",
+        "psalm.TaintedInclude",
+        "psalm.TaintedUnserialize",
+        "psalm.TaintedEval",
+        "zap.passive.anti-clickjacking",
+        "zap.passive.hsts",
+        "zap.passive.nosniff",
+        "zap.passive.cookie-httponly",
+        "zap.passive.cookie-secure",
+        "zap.active.sql-injection",
+        "nuclei.security-headers-bundle"
+    ],
+    "cross_engine_equivalence_exclusions": [],
+    "warnings": [
+        {
+            "code": "complementary-overlap",
+            "left": "composer.advisories",
+            "right": "osv.packagist",
+            "reason": "Bases e snapshots distintos; aliases permitem correlacionar resultados, sem eliminar consultas.",
+            "suppressed": false
+        },
+        {
+            "code": "complementary-overlap",
+            "left": "ninfa.php.xss.request-to-output",
+            "right": "psalm.TaintedHtml",
+            "reason": "Modelos e fontes/sinks distintos; CWE/posição não demonstram teste igual.",
+            "suppressed": false
+        },
+        {
+            "code": "indivisible-engine-analysis",
+            "owner": "psalm",
+            "reason": "Tipos de issue compartilham análise do programa; checks fora do catálogo podem ocorrer. Seletores são projeções de cobertura, não filtros de execução."
+        }
+    ],
+    "plan_id": "sec-plan-v1:563a66ce5654f57fd5c7962bb4259184ef9cb916588721f73e6803a2cc8f59e1"
+}

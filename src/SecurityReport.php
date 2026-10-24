@@ -49,7 +49,7 @@ final class SecurityReport implements JsonSerializable
     {
         /** @var list<string> $scaToolIds Fontes SCA reconhecidas pelo schema atual. */
         $scaToolIds = ['composer-audit', 'osv'];
-        /** @var list<array{id:string,state:string,exit_code:?int,detail:?string,duration_ms:?int}> $sourceResults */
+        /** @var list<array{id:string,state:string,exit_code:?int,detail:?string,duration_ms:?int,coverage:array<string,mixed>}> $sourceResults */
         $sourceResults = [];
         /** @var list<Finding> $scaFindings Advisories usados na deduplicação canônica. */
         $scaFindings = [];
@@ -88,6 +88,13 @@ final class SecurityReport implements JsonSerializable
                 'exit_code' => $result->exitCode,
                 'detail' => $result->detail,
                 'duration_ms' => $result->durationMs,
+                'coverage' => [
+                    ...$result->coverage,
+                    'inventory_source' => $this->inventory->packageSource(),
+                    'original_lock_present' => $this->inventory->packageSource() === 'composer.lock',
+                    'inventory_status' => $this->inventory->packageSource() === 'composer.lock' ? 'declared' : 'partial',
+                    'inventory_limit' => $this->inventory->packageSource() === 'composer.lock' ? null : 'installed/absent inventory does not reproduce the original dependency resolution',
+                ],
             ];
 
             // Evidence type define a seção; outros tipos futuros não são reclassificados implicitamente.
@@ -101,7 +108,7 @@ final class SecurityReport implements JsonSerializable
         }
 
         $canonical = ScaFindingDeduplicator::canonicalize($scaFindings);
-        return [
+        return EvidenceSanitizer::value([
             'schema_version' => 3,
             'generated_at' => gmdate(DATE_ATOM),
             'operation' => 'security',
@@ -122,6 +129,6 @@ final class SecurityReport implements JsonSerializable
             'run' => [
                 'final_exit_code' => $this->runResult->finalExitCode,
             ],
-        ];
+        ]);
     }
 }

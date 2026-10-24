@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . "/EvidenceStore.php";
 
 /**
  * Representa o workspace externo e descartável associado a um projeto.
@@ -61,9 +62,8 @@ final class Workspace
      */
     public function __construct(private readonly string $path)
     {
-        if (!is_dir($this->path) && !mkdir($this->path, 0775, true) && !is_dir($this->path)) {
-            throw new RuntimeException('Não foi possível criar workspace Ninfa: ' . $this->path);
-        }
+        EvidenceStore::privateDirectory($this->path);
+        EvidenceStore::cleanupReports($this->path);
     }
 
     /**

@@ -1,0 +1,1380 @@
+{
+  "schema_version": 1,
+  "catalog_version": "1.0.0",
+  "scope": "Initial reviewed allowlist, not complete upstream inventories.",
+  "policy": {
+    "unlisted_rules": "uncontrolled-overlap",
+    "equivalence": "No approved cross-engine equivalence in v1; suppression forbidden.",
+    "runtime_binding": "Require effective engine/config/rule hashes, context and valid coverage before reuse; catalog never proves execution."
+  },
+  "tool_lock": {
+    "path": "security/web-tools.lock.json",
+    "sha256": "a0f0af558a0ea82c37b6a3303159791a7d709fb927a79d4eec74054ecec83d28"
+  },
+  "tools": {
+    "zap": {
+      "version": "2.17.0"
+    },
+    "nuclei": {
+      "version": "3.11.1"
+    },
+    "psalm": {
+      "version": "6.20.1"
+    },
+    "semgrep": {
+      "version": "1.177.0"
+    },
+    "nuclei-templates": {
+      "version": "10.5.0",
+      "revision": "f8b8b8dcd70d93826c3767e1829ef8243af9f03b"
+    }
+  },
+  "artifacts": {
+    "src/ExternalConfigGenerator.php": {
+      "origin": "repository",
+      "path": "src/ExternalConfigGenerator.php",
+      "sha256": "090771c651f16d039824edaffc175ffec0d668e711a84802e90117de3b78fa7b"
+    },
+    "security/semgrep/common.yml": {
+      "origin": "repository",
+      "path": "security/semgrep/common.yml",
+      "sha256": "7b960b27ac3db4886f69971e041f8726dcfbe069eebb920103cb98b9b1b100a9"
+    },
+    "security/semgrep/profiles/yii2.yml": {
+      "origin": "repository",
+      "path": "security/semgrep/profiles/yii2.yml",
+      "sha256": "97438fede303916518177e72ece5570aecc6ca5e2feab83ae844f4f532c6c38b"
+    },
+    "security/semgrep/profiles/yii3.yml": {
+      "origin": "repository",
+      "path": "security/semgrep/profiles/yii3.yml",
+      "sha256": "1c434e70b1fcd86fa4e9ef51bed09a508d9a77817a326c0347046a5e1a04e496"
+    },
+    "security/semgrep/profiles/glpi-plugin-11.yml": {
+      "origin": "repository",
+      "path": "security/semgrep/profiles/glpi-plugin-11.yml",
+      "sha256": "492660a6e1852f7ceea1de0343ba4117055cd19d3ca4746057861bb63fcaf0dc"
+    },
+    "psalm:psalm.phar": {
+      "origin": "tool-lock",
+      "path": "psalm.phar",
+      "sha256": "f0f01ef4d78361d3a2e188fd0eba25bfbd634c2c49b321021a25f64a4e684c51",
+      "tool": "psalm"
+    },
+    "src/PipelineRunner.php": {
+      "origin": "repository",
+      "path": "src/PipelineRunner.php",
+      "sha256": "3096b76de3074e082801f31c4ef2033de4b236fd428b4eb210a475527aafbd12"
+    },
+    "src/OsvClient.php": {
+      "origin": "repository",
+      "path": "src/OsvClient.php",
+      "sha256": "22271c51ef15ca482cff9b11ef04f715a16ce656ab70aac8477971f5b5a24e34"
+    },
+    "zap:plugin/pscanrules-release-70.zap": {
+      "origin": "tool-lock",
+      "path": "plugin/pscanrules-release-70.zap",
+      "sha256": "ee159095941028ca96bed8988f019d15aec16ef52f207fe5c2a54457647215ef",
+      "tool": "zap"
+    },
+    "zap:plugin/ascanrules-release-78.zap": {
+      "origin": "tool-lock",
+      "path": "plugin/ascanrules-release-78.zap",
+      "sha256": "764a9f803304b6aa266d13f4c39f23b013e206c9e831435cd405871919a021fe",
+      "tool": "zap"
+    },
+    "nuclei-templates:http/misconfiguration/http-missing-security-headers.yaml": {
+      "origin": "tool-lock",
+      "path": "http/misconfiguration/http-missing-security-headers.yaml",
+      "sha256": "7f45803f73ac6810b9b302df6be2c472a82d9164a7807328614efa83e6eac275",
+      "tool": "nuclei-templates"
+    },
+    "nuclei-templates:http/cves/2023/CVE-2023-23752.yaml": {
+      "origin": "tool-lock",
+      "path": "http/cves/2023/CVE-2023-23752.yaml",
+      "sha256": "562846ca14ecff169920291945b64eee0c94debbab2c937524f1bd55c37821b5",
+      "tool": "nuclei-templates"
+    }
+  },
+  "capabilities": [
+    {
+      "id": "ninfa.php.command-injection.request-to-shell",
+      "owner": "semgrep",
+      "objective": "Detectar command-injection.request-to-shell no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.command-injection.request-to-shell",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.command-injection.dangerous-primitive",
+      "owner": "semgrep",
+      "objective": "Detectar command-injection.dangerous-primitive no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.command-injection.dangerous-primitive",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.sql-injection.request-to-query",
+      "owner": "semgrep",
+      "objective": "Detectar sql-injection.request-to-query no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.sql-injection.request-to-query",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.xss.request-to-output",
+      "owner": "semgrep",
+      "objective": "Detectar xss.request-to-output no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.xss.request-to-output",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.path-traversal.request-to-filesystem",
+      "owner": "semgrep",
+      "objective": "Detectar path-traversal.request-to-filesystem no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.path-traversal.request-to-filesystem",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.file-access.dynamic-delete",
+      "owner": "semgrep",
+      "objective": "Detectar file-access.dynamic-delete no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.file-access.dynamic-delete",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.ssrf.request-to-curl",
+      "owner": "semgrep",
+      "objective": "Detectar ssrf.request-to-curl no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.ssrf.request-to-curl",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.unsafe-redirect.request-location",
+      "owner": "semgrep",
+      "objective": "Detectar unsafe-redirect.request-location no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.unsafe-redirect.request-location",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.header-injection.request-to-header",
+      "owner": "semgrep",
+      "objective": "Detectar header-injection.request-to-header no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.header-injection.request-to-header",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.dynamic-include-require.request-path",
+      "owner": "semgrep",
+      "objective": "Detectar dynamic-include-require.request-path no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.dynamic-include-require.request-path",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.unsafe-deserialization.unserialize",
+      "owner": "semgrep",
+      "objective": "Detectar unsafe-deserialization.unserialize no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.unsafe-deserialization.unserialize",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.dangerous-eval-assert.eval",
+      "owner": "semgrep",
+      "objective": "Detectar dangerous-eval-assert.eval no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.dangerous-eval-assert.eval",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.php.cryptographic-misuse.weak-password-hash",
+      "owner": "semgrep",
+      "objective": "Detectar cryptographic-misuse.weak-password-hash no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile common; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.php.cryptographic-misuse.weak-password-hash",
+          "artifact": "security/semgrep/common.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii2.sql-injection.request-to-create-command",
+      "owner": "semgrep",
+      "objective": "Detectar sql-injection.request-to-create-command no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii2; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii2.sql-injection.request-to-create-command",
+          "artifact": "security/semgrep/profiles/yii2.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii2.xss.request-to-output",
+      "owner": "semgrep",
+      "objective": "Detectar xss.request-to-output no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii2; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii2.xss.request-to-output",
+          "artifact": "security/semgrep/profiles/yii2.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii2.unsafe-redirect.request-target",
+      "owner": "semgrep",
+      "objective": "Detectar unsafe-redirect.request-target no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii2; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii2.unsafe-redirect.request-target",
+          "artifact": "security/semgrep/profiles/yii2.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii2.header-injection.request-to-header",
+      "owner": "semgrep",
+      "objective": "Detectar header-injection.request-to-header no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii2; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii2.header-injection.request-to-header",
+          "artifact": "security/semgrep/profiles/yii2.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii2.path-traversal.request-to-send-file",
+      "owner": "semgrep",
+      "objective": "Detectar path-traversal.request-to-send-file no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii2; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii2.path-traversal.request-to-send-file",
+          "artifact": "security/semgrep/profiles/yii2.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii3.sql-injection.request-to-create-command",
+      "owner": "semgrep",
+      "objective": "Detectar sql-injection.request-to-create-command no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii3; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii3.sql-injection.request-to-create-command",
+          "artifact": "security/semgrep/profiles/yii3.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii3.sql-injection.concatenated-command",
+      "owner": "semgrep",
+      "objective": "Detectar sql-injection.concatenated-command no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii3; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii3.sql-injection.concatenated-command",
+          "artifact": "security/semgrep/profiles/yii3.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii3.xss.request-to-output",
+      "owner": "semgrep",
+      "objective": "Detectar xss.request-to-output no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii3; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii3.xss.request-to-output",
+          "artifact": "security/semgrep/profiles/yii3.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii3.html.encoding-disabled",
+      "owner": "semgrep",
+      "objective": "Detectar html.encoding-disabled no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii3; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii3.html.encoding-disabled",
+          "artifact": "security/semgrep/profiles/yii3.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii3.header-injection.request-to-header",
+      "owner": "semgrep",
+      "objective": "Detectar header-injection.request-to-header no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii3; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii3.header-injection.request-to-header",
+          "artifact": "security/semgrep/profiles/yii3.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.yii3.unsafe-redirect.request-to-location-header",
+      "owner": "semgrep",
+      "objective": "Detectar unsafe-redirect.request-to-location-header no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile yii3; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.yii3.unsafe-redirect.request-to-location-header",
+          "artifact": "security/semgrep/profiles/yii3.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.glpi11.sql-injection.request-to-query",
+      "owner": "semgrep",
+      "objective": "Detectar sql-injection.request-to-query no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile glpi-plugin; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.glpi11.sql-injection.request-to-query",
+          "artifact": "security/semgrep/profiles/glpi-plugin-11.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.glpi11.sql-injection.concatenated-query",
+      "owner": "semgrep",
+      "objective": "Detectar sql-injection.concatenated-query no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile glpi-plugin; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.glpi11.sql-injection.concatenated-query",
+          "artifact": "security/semgrep/profiles/glpi-plugin-11.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.glpi11.unsafe-redirect.request-target",
+      "owner": "semgrep",
+      "objective": "Detectar unsafe-redirect.request-target no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile glpi-plugin; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.glpi11.unsafe-redirect.request-target",
+          "artifact": "security/semgrep/profiles/glpi-plugin-11.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.glpi11.unsafe-redirect.dynamic-target",
+      "owner": "semgrep",
+      "objective": "Detectar unsafe-redirect.dynamic-target no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile glpi-plugin; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.glpi11.unsafe-redirect.dynamic-target",
+          "artifact": "security/semgrep/profiles/glpi-plugin-11.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.glpi11.ssrf.request-to-url-content",
+      "owner": "semgrep",
+      "objective": "Detectar ssrf.request-to-url-content no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile glpi-plugin; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.glpi11.ssrf.request-to-url-content",
+          "artifact": "security/semgrep/profiles/glpi-plugin-11.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "ninfa.glpi11.file-access.request-to-file-content",
+      "owner": "semgrep",
+      "objective": "Detectar file-access.request-to-file-content no código PHP.",
+      "technique": "static-pattern-or-taint",
+      "conditions": [
+        "PHP analisável; arquivos não excluídos.",
+        "Profile glpi-plugin; common aplica-se a todos os profiles PHP.",
+        "Usar somente configuração/hash registrado."
+      ],
+      "selectors": [
+        {
+          "kind": "semgrep-rule",
+          "id": "ninfa.glpi11.file-access.request-to-file-content",
+          "artifact": "security/semgrep/profiles/glpi-plugin-11.yml"
+        }
+      ],
+      "granularity": "Regra por arquivo/posição; análise interna pode ser compartilhada.",
+      "alternative": {
+        "capability": null,
+        "reason": "Psalm complementa o modelo; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedHtml",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para HTML.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedHtml",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedTextWithQuotes",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para texto com aspas.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedTextWithQuotes",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedSql",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para SQL.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedSql",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedShell",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para shell.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedShell",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedSSRF",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para requisição externa.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedSSRF",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedFile",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para arquivo.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedFile",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedHeader",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para header HTTP.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedHeader",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedInclude",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para inclusão PHP.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedInclude",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedUnserialize",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para desserialização.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedUnserialize",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "psalm.TaintedEval",
+      "owner": "psalm",
+      "objective": "Detectar fluxo não confiável para eval.",
+      "technique": "static-interprocedural-taint",
+      "conditions": [
+        "PHP e dependências analisáveis.",
+        "--taint-analysis com configuração gerada por src/ExternalConfigGenerator.php; registrar hash efetivo.",
+        "Tipo de issue não é agendamento isolável; compartilhar execução Psalm."
+      ],
+      "selectors": [
+        {
+          "kind": "psalm-issue",
+          "id": "TaintedEval",
+          "artifact": "psalm:psalm.phar"
+        }
+      ],
+      "granularity": "Tipo de resultado; execução indivisível do programa configurado.",
+      "alternative": {
+        "capability": null,
+        "reason": "Semgrep usa fontes/sinks e análise distintos; nenhum substituto comprovado."
+      }
+    },
+    {
+      "id": "composer.advisories",
+      "owner": "composer-audit",
+      "objective": "Consultar advisories dos pacotes Composer resolvidos.",
+      "technique": "dependency-advisory",
+      "conditions": [
+        "Lock válido e versões exatas.",
+        "Registrar versão real do Composer, hash do lock, comando efetivo, repositórios e instante/snapshot da base."
+      ],
+      "selectors": [
+        {
+          "kind": "operation",
+          "id": "composer --no-plugins --no-scripts --no-interaction audit --locked --format=json",
+          "artifact": "src/PipelineRunner.php"
+        }
+      ],
+      "granularity": "Pacote/versão/advisory; consulta em lote.",
+      "alternative": {
+        "capability": null,
+        "reason": "OSV usa outra base; aliases só permitem correlação."
+      }
+    },
+    {
+      "id": "osv.packagist",
+      "owner": "osv",
+      "objective": "Consultar advisories OSV no ecossistema Packagist.",
+      "technique": "dependency-advisory",
+      "conditions": [
+        "Nome/versão exatos no inventário.",
+        "querybatch seguido dos registros completos; ignorar withdrawn.",
+        "Registrar endpoint, instante e hash da resposta; API v1 não fixa snapshot da base."
+      ],
+      "selectors": [
+        {
+          "kind": "operation",
+          "id": "POST /v1/querybatch; GET /v1/vulns/{id}",
+          "artifact": "src/OsvClient.php"
+        }
+      ],
+      "granularity": "Pacote/versão/advisory; paginação por componente.",
+      "alternative": {
+        "capability": null,
+        "reason": "Composer complementa OSV; aliases não eliminam consultas."
+      }
+    },
+    {
+      "id": "zap.passive.anti-clickjacking",
+      "owner": "zap",
+      "objective": "Verificar anti-clickjacking em respostas observadas.",
+      "technique": "passive-response",
+      "conditions": [
+        "Escopo e sessão autorizados; tráfego efetivamente observado.",
+        "HTML elegível; avaliar X-Frame-Options e frame-ancestors, threshold e subalertas.",
+        "Registrar configuração/threshold; zero alertas não prova cobertura."
+      ],
+      "selectors": [
+        {
+          "kind": "zap-passive-rule",
+          "id": "10020",
+          "artifact": "zap:plugin/pscanrules-release-70.zap",
+          "reference": "https://www.zaproxy.org/docs/alerts/10020/"
+        }
+      ],
+      "granularity": "Regra por resposta/cookie; subalertas não são seletores independentes.",
+      "alternative": {
+        "capability": null,
+        "reason": "Nenhum fallback aprovado; Nuclei tem sobreposição parcial nos headers."
+      }
+    },
+    {
+      "id": "zap.passive.hsts",
+      "owner": "zap",
+      "objective": "Verificar hsts em respostas observadas.",
+      "technique": "passive-response",
+      "conditions": [
+        "Escopo e sessão autorizados; tráfego efetivamente observado.",
+        "HTTPS para ausência; outros subalertas têm condições próprias.",
+        "Registrar configuração/threshold; zero alertas não prova cobertura."
+      ],
+      "selectors": [
+        {
+          "kind": "zap-passive-rule",
+          "id": "10035",
+          "artifact": "zap:plugin/pscanrules-release-70.zap",
+          "reference": "https://www.zaproxy.org/docs/alerts/10035/"
+        }
+      ],
+      "granularity": "Regra por resposta/cookie; subalertas não são seletores independentes.",
+      "alternative": {
+        "capability": null,
+        "reason": "Nenhum fallback aprovado; Nuclei tem sobreposição parcial nos headers."
+      }
+    },
+    {
+      "id": "zap.passive.csp",
+      "owner": "zap",
+      "objective": "Verificar csp em respostas observadas.",
+      "technique": "passive-response",
+      "conditions": [
+        "Escopo e sessão autorizados; tráfego efetivamente observado.",
+        "Resposta elegível; distinguir ausência, obsoleto e report-only.",
+        "Registrar configuração/threshold; zero alertas não prova cobertura."
+      ],
+      "selectors": [
+        {
+          "kind": "zap-passive-rule",
+          "id": "10038",
+          "artifact": "zap:plugin/pscanrules-release-70.zap",
+          "reference": "https://www.zaproxy.org/docs/alerts/10038/"
+        }
+      ],
+      "granularity": "Regra por resposta/cookie; subalertas não são seletores independentes.",
+      "alternative": {
+        "capability": null,
+        "reason": "Nenhum fallback aprovado; Nuclei tem sobreposição parcial nos headers."
+      }
+    },
+    {
+      "id": "zap.passive.nosniff",
+      "owner": "zap",
+      "objective": "Verificar nosniff em respostas observadas.",
+      "technique": "passive-response",
+      "conditions": [
+        "Escopo e sessão autorizados; tráfego efetivamente observado.",
+        "Validar valor nosniff, tipo de resposta e threshold; não apenas presença.",
+        "Registrar configuração/threshold; zero alertas não prova cobertura."
+      ],
+      "selectors": [
+        {
+          "kind": "zap-passive-rule",
+          "id": "10021",
+          "artifact": "zap:plugin/pscanrules-release-70.zap",
+          "reference": "https://www.zaproxy.org/docs/alerts/10021/"
+        }
+      ],
+      "granularity": "Regra por resposta/cookie; subalertas não são seletores independentes.",
+      "alternative": {
+        "capability": null,
+        "reason": "Nenhum fallback aprovado; Nuclei tem sobreposição parcial nos headers."
+      }
+    },
+    {
+      "id": "zap.passive.cookie-httponly",
+      "owner": "zap",
+      "objective": "Verificar cookie-httponly em respostas observadas.",
+      "technique": "passive-response",
+      "conditions": [
+        "Escopo e sessão autorizados; tráfego efetivamente observado.",
+        "Set-Cookie; preservar nome, domínio e path do cookie.",
+        "Registrar configuração/threshold; zero alertas não prova cobertura."
+      ],
+      "selectors": [
+        {
+          "kind": "zap-passive-rule",
+          "id": "10010",
+          "artifact": "zap:plugin/pscanrules-release-70.zap",
+          "reference": "https://www.zaproxy.org/docs/alerts/10010/"
+        }
+      ],
+      "granularity": "Regra por resposta/cookie; subalertas não são seletores independentes.",
+      "alternative": {
+        "capability": null,
+        "reason": "Nenhum fallback aprovado; Nuclei tem sobreposição parcial nos headers."
+      }
+    },
+    {
+      "id": "zap.passive.cookie-secure",
+      "owner": "zap",
+      "objective": "Verificar cookie-secure em respostas observadas.",
+      "technique": "passive-response",
+      "conditions": [
+        "Escopo e sessão autorizados; tráfego efetivamente observado.",
+        "Set-Cookie; preservar esquema, nome, domínio e path.",
+        "Registrar configuração/threshold; zero alertas não prova cobertura."
+      ],
+      "selectors": [
+        {
+          "kind": "zap-passive-rule",
+          "id": "10011",
+          "artifact": "zap:plugin/pscanrules-release-70.zap",
+          "reference": "https://www.zaproxy.org/docs/alerts/10011/"
+        }
+      ],
+      "granularity": "Regra por resposta/cookie; subalertas não são seletores independentes.",
+      "alternative": {
+        "capability": null,
+        "reason": "Nenhum fallback aprovado; Nuclei tem sobreposição parcial nos headers."
+      }
+    },
+    {
+      "id": "zap.active.reflected-xss",
+      "owner": "zap",
+      "objective": "Investigar reflected-xss em parâmetros web.",
+      "technique": "active-injection",
+      "conditions": [
+        "Autorização de teste ativo, parâmetros e papel conhecidos.",
+        "Registrar política, strength, threshold, técnicas e exclusões.",
+        "Adapter deve comprovar limites de requisições/tempo antes do agendamento."
+      ],
+      "selectors": [
+        {
+          "kind": "zap-active-rule",
+          "id": "40012",
+          "artifact": "zap:plugin/ascanrules-release-78.zap",
+          "reference": "https://www.zaproxy.org/docs/alerts/40012/"
+        }
+      ],
+      "granularity": "Regra por parâmetro/vetor; requisições internas podem ser necessárias.",
+      "alternative": {
+        "capability": null,
+        "reason": "SAST não substitui teste do deploy; nenhum template equivalente revisado."
+      }
+    },
+    {
+      "id": "zap.active.sql-injection",
+      "owner": "zap",
+      "objective": "Investigar sql-injection em parâmetros web.",
+      "technique": "active-injection",
+      "conditions": [
+        "Autorização de teste ativo, parâmetros e papel conhecidos.",
+        "Registrar política, strength, threshold, técnicas e exclusões.",
+        "Adapter deve comprovar limites de requisições/tempo antes do agendamento."
+      ],
+      "selectors": [
+        {
+          "kind": "zap-active-rule",
+          "id": "40018",
+          "artifact": "zap:plugin/ascanrules-release-78.zap",
+          "reference": "https://www.zaproxy.org/docs/alerts/40018/"
+        }
+      ],
+      "granularity": "Regra por parâmetro/vetor; requisições internas podem ser necessárias.",
+      "alternative": {
+        "capability": null,
+        "reason": "SAST não substitui teste do deploy; nenhum template equivalente revisado."
+      }
+    },
+    {
+      "id": "nuclei.security-headers-bundle",
+      "owner": "nuclei",
+      "objective": "Identificar ausências de headers e problemas de Content-Type.",
+      "technique": "http-response-match",
+      "conditions": [
+        "GET BaseURL autorizado; limitar escopo dos redirects (template permite até três).",
+        "Headers usam status diferente de 301/302; Content-Type exige status 200.",
+        "Seleção independente de matcher não comprovada; cobertura parcial não exclui bundle."
+      ],
+      "selectors": [
+        {
+          "kind": "nuclei-template",
+          "id": "http-missing-security-headers",
+          "artifact": "nuclei-templates:http/misconfiguration/http-missing-security-headers.yaml",
+          "matchers": [
+            "strict-transport-security",
+            "content-security-policy",
+            "permissions-policy",
+            "x-frame-options",
+            "x-content-type-options",
+            "x-permitted-cross-domain-policies",
+            "referrer-policy",
+            "cross-origin-embedder-policy",
+            "cross-origin-opener-policy",
+            "cross-origin-resource-policy",
+            "missing-content-type",
+            "content-type-charset-specification"
+          ]
+        }
+      ],
+      "granularity": "Template com 12 matchers OR; seleção do template inteiro.",
+      "alternative": {
+        "capability": null,
+        "reason": "ZAP cobre parte com semântica distinta; fallback bloqueado."
+      }
+    },
+    {
+      "id": "nuclei.CVE-2023-23752",
+      "owner": "nuclei",
+      "objective": "Detectar exposição de configuração na API Joomla associada à CVE-2023-23752.",
+      "technique": "http-specific-cve",
+      "conditions": [
+        "Joomla 4.0.0–4.2.7 verificado e API no escopo.",
+        "Autorização explícita para acesso a configuração potencialmente sensível; evidência redigida.",
+        "GET com public=true em dois caminhos, stop-at-first-match; AND de body/header/status.",
+        "Catálogo não autoriza execução; adapter deve comprovar limites/exclusões."
+      ],
+      "selectors": [
+        {
+          "kind": "nuclei-template",
+          "id": "CVE-2023-23752",
+          "artifact": "nuclei-templates:http/cves/2023/CVE-2023-23752.yaml",
+          "matchers": [
+            "unnamed-and"
+          ]
+        }
+      ],
+      "granularity": "Template específico de CVE; caminhos alternativos; não confirma exploração.",
+      "alternative": {
+        "capability": null,
+        "reason": "Nenhuma regra ZAP equivalente revisada; SCA não verifica exposição do deploy."
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "left": "zap.passive.anti-clickjacking",
+      "right": "nuclei.security-headers-bundle",
+      "status": "candidate",
+      "suppress": false,
+      "reason": "Somente matcher x-frame-options se sobrepõe. Elegibilidade, valores, status, redirects e subalertas diferem; exclusão do bundle perderia outros checks."
+    },
+    {
+      "left": "zap.passive.hsts",
+      "right": "nuclei.security-headers-bundle",
+      "status": "candidate",
+      "suppress": false,
+      "reason": "Somente matcher strict-transport-security se sobrepõe. Elegibilidade, valores, status, redirects e subalertas diferem; exclusão do bundle perderia outros checks."
+    },
+    {
+      "left": "zap.passive.csp",
+      "right": "nuclei.security-headers-bundle",
+      "status": "candidate",
+      "suppress": false,
+      "reason": "Somente matcher content-security-policy se sobrepõe. Elegibilidade, valores, status, redirects e subalertas diferem; exclusão do bundle perderia outros checks."
+    },
+    {
+      "left": "zap.passive.nosniff",
+      "right": "nuclei.security-headers-bundle",
+      "status": "candidate",
+      "suppress": false,
+      "reason": "Somente matcher x-content-type-options se sobrepõe. Elegibilidade, valores, status, redirects e subalertas diferem; exclusão do bundle perderia outros checks."
+    },
+    {
+      "left": "composer.advisories",
+      "right": "osv.packagist",
+      "status": "complementary",
+      "suppress": false,
+      "reason": "Bases e snapshots distintos; aliases permitem correlacionar resultados, sem eliminar consultas."
+    },
+    {
+      "left": "ninfa.php.xss.request-to-output",
+      "right": "psalm.TaintedHtml",
+      "status": "complementary",
+      "suppress": false,
+      "reason": "Modelos e fontes/sinks distintos; CWE/posição não demonstram teste igual."
+    },
+    {
+      "left": "ninfa.php.sql-injection.request-to-query",
+      "right": "psalm.TaintedSql",
+      "status": "complementary",
+      "suppress": false,
+      "reason": "Modelos e fontes/sinks distintos; CWE/posição não demonstram teste igual."
+    },
+    {
+      "left": "ninfa.php.command-injection.request-to-shell",
+      "right": "psalm.TaintedShell",
+      "status": "complementary",
+      "suppress": false,
+      "reason": "Modelos e fontes/sinks distintos; CWE/posição não demonstram teste igual."
+    }
+  ]
+}

@@ -3,3 +3,7 @@
 /vendor/
 /.phpunit.cache/
 /build/
+
+# Bytecode gerado por instaladores/testes Python.
+__pycache__/
+*.pyc

@@ -1,0 +1,108 @@
+[
+    {
+        "link": "https://psalm.dev/245",
+        "severity": "error",
+        "line_from": 2,
+        "line_to": 2,
+        "type": "TaintedHtml",
+        "message": "Detected tainted HTML",
+        "file_name": "input.php",
+        "file_path": "/fixture/static/input.php",
+        "snippet": "[REDACTED]",
+        "selected_text": "[REDACTED]",
+        "from": 11,
+        "to": 25,
+        "snippet_from": 6,
+        "snippet_to": 26,
+        "column_from": 6,
+        "column_to": 20,
+        "shortcode": 245,
+        "error_level": -2,
+        "taint_trace": [
+            {
+                "label": "$_GET",
+                "entry_path_type": ""
+            },
+            {
+                "label": "$_GET['input']",
+                "line_from": 2,
+                "line_to": 2,
+                "file_name": "input.php",
+                "file_path": "/fixture/static/input.php",
+                "snippet": "[REDACTED]",
+                "from": 11,
+                "to": 16,
+                "snippet_from": 6,
+                "column_from": 6,
+                "column_to": 11
+            },
+            {
+                "label": "call to echo",
+                "line_from": 2,
+                "line_to": 2,
+                "file_name": "input.php",
+                "file_path": "/fixture/static/input.php",
+                "snippet": "[REDACTED]",
+                "from": 11,
+                "to": 25,
+                "snippet_from": 6,
+                "column_from": 6,
+                "column_to": 20
+            }
+        ],
+        "other_references": null
+    },
+    {
+        "link": "https://psalm.dev/274",
+        "severity": "error",
+        "line_from": 2,
+        "line_to": 2,
+        "type": "TaintedTextWithQuotes",
+        "message": "Detected tainted text with possible quotes",
+        "file_name": "input.php",
+        "file_path": "/fixture/static/input.php",
+        "snippet": "[REDACTED]",
+        "selected_text": "[REDACTED]",
+        "from": 11,
+        "to": 25,
+        "snippet_from": 6,
+        "snippet_to": 26,
+        "column_from": 6,
+        "column_to": 20,
+        "shortcode": 274,
+        "error_level": -2,
+        "taint_trace": [
+            {
+                "label": "$_GET",
+                "entry_path_type": ""
+            },
+            {
+                "label": "$_GET['input']",
+                "line_from": 2,
+                "line_to": 2,
+                "file_name": "input.php",
+                "file_path": "/fixture/static/input.php",
+                "snippet": "[REDACTED]",
+                "from": 11,
+                "to": 16,
+                "snippet_from": 6,
+                "column_from": 6,
+                "column_to": 11
+            },
+            {
+                "label": "call to echo",
+                "line_from": 2,
+                "line_to": 2,
+                "file_name": "input.php",
+                "file_path": "/fixture/static/input.php",
+                "snippet": "[REDACTED]",
+                "from": 11,
+                "to": 25,
+                "snippet_from": 6,
+                "column_from": 6,
+                "column_to": 20
+            }
+        ],
+        "other_references": null
+    }
+]

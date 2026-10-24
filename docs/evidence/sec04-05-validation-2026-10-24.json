@@ -1,0 +1,108 @@
+{
+  "task": "SEC-04.05",
+  "status": "VALIDATED",
+  "responsible": "Codex",
+  "started_at": "2026-10-24T15:27:38-03:00",
+  "completed_at": "2026-10-24T15:31:27-03:00",
+  "checks": [
+    {
+      "command": "make syntax profile-test",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-05-regression.log"
+    },
+    {
+      "command": "php -d zend.assertions=1 -d assert.exception=1 tests/security-non-repetition.php --export docs/evidence",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-05-proof.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "check": "Historical SEC-04.01/02/03/04 artifact hashes",
+      "result": "verified; SEC-04.04 source preserved before additive revision"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "src/SecurityCoordinationReport.php",
+      "sha256": "63748bab59b33860d247b790f83a3a4f3bdbfa20bbfdb1f5adf417153da5cc9f"
+    },
+    {
+      "path": "src/SecurityExecutionLedger.php",
+      "sha256": "ad1841e27d01b6c928568127b571855f4b4c30dc3d84e7e362c9fef3c5d9fb28"
+    },
+    {
+      "path": "tests/security-non-repetition.php",
+      "sha256": "01eca2b13a00443b141b4a04d34c9679393f3e67a2c14592d14ab5785d859b8d"
+    },
+    {
+      "path": "docs/SECURITY-NON-REPETITION.md",
+      "sha256": "f4423e14c7ca992d76f533b46e784156accdfd684e9ede7c9cc75d205d83b639"
+    },
+    {
+      "path": "docs/evidence/sec04-05-coordination-example.json",
+      "sha256": "3f06f571fbf3a97f9acbadc888c0b8f5a3444805bd30a20911671798e772b778"
+    },
+    {
+      "path": "docs/evidence/sec04-05-coordination-example.md",
+      "sha256": "6eb8c7feb23583fb719b60c33924f3659dc8d7f7493e3e41e60f2c2b056b3bb6"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-05-proof.log",
+      "sha256": "ce276927ad9e026cafb7f9251d9c66d11f9290f6bcea3a6a99451ea6af37d2e1"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-05-regression.log",
+      "sha256": "740aa690faea8817b2df24e6289beba7f6b835b84d947f6731d96f90eb6d8518"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-04-SecurityExecutionLedger.php",
+      "sha256": "13e3595b071ad04aea83e8d3bd3dfc6eca1a06c9602c1c1939a9a03010b25c52"
+    }
+  ],
+  "proof": {
+    "sources": 6,
+    "unique_selected_units": 9,
+    "execution_groups": 8,
+    "first_run_adapter_calls": 8,
+    "resumed_run_additional_adapter_calls": 0,
+    "resumed_run_attempts": 0,
+    "resumed_run_reuse_events": 8,
+    "resumed_run_suppression_events": 10,
+    "duplicate_proposal_events": 1,
+    "initial_simulated_internal_request_events": 8,
+    "initial_unique_simulated_internal_request_shapes": 1
+  },
+  "validated": [
+    "Catalog and identity validation, exact duplicate scheduling and context separation.",
+    "Six-source complementary selection including shared Psalm program and retained Nuclei header bundle.",
+    "Integrated resumed-run adapter counters prove no second execution for verified valid coverage.",
+    "Ledger suite exercises actual second process, interrupted process, global recovery barrier, retries and invalid coverage/evidence.",
+    "Cross-engine fallback remains denied without approved equivalence.",
+    "JSON/Markdown coordination section explains suppression and preserves historical evidence provenance after retry.",
+    "Legacy reuse decisions marked without fabricated provenance; busy is not treated as empty state."
+  ],
+  "revisions": [
+    {
+      "path": "src/SecurityExecutionLedger.php",
+      "previous_validation": "docs/evidence/sec04-04-validation-2026-10-24.json",
+      "previous_sha256": "13e3595b071ad04aea83e8d3bd3dfc6eca1a06c9602c1c1939a9a03010b25c52",
+      "previous_source_archive": "runtime/security-validation-2026-10-24/sec04-04-SecurityExecutionLedger.php",
+      "current_sha256": "ad1841e27d01b6c928568127b571855f4b4c30dc3d84e7e362c9fef3c5d9fb28",
+      "reason": "Additive journal v1: capture coverage_snapshot in reuse decisions and origin plan_id in coverage; prevent historical report from joining later replacement evidence."
+    }
+  ],
+  "limits": [
+    "Synthetic adapter proof of coordinator contract; no actual consumer scan or verification of native scanners HTTP transport.",
+    "Mandatory real adapter selection/limits/session/coverage proofs and public orchestration integration remain future work.",
+    "No approved cross-engine equivalence; no positive executable cross-engine fallback invented.",
+    "Markdown/JSON coordination section only; full findings report and PDF integration remain future report stages.",
+    "Example evidence references are synthetic/historical; test temporary directories removed."
+  ],
+  "notes": [
+    "Regression exited 0; pre-existing mkdir File exists warning in tests/yii2-view-resolution.php:15 remains."
+  ],
+  "next_task": "SEC-05.01"
+}

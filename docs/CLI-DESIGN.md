@@ -25,7 +25,7 @@ Não existem comandos públicos separados para PHPStan, Psalm, Rector, ECS ou Se
 
 `check` executa qualidade e testes. Os findings de PHPStan e Psalm são capturados em formato estruturado e apresentados por um renderer único do Ninfa, com arquivo, linha, regra e problema, em vez de expor a tabela nativa de cada ferramenta.
 
-`security` permanece separado e executa SCA + SAST. Composer Audit, OSV, Psalm Taint e Semgrep entregam resultados estruturados. No Semgrep, `ERROR` é bloqueante; `WARNING` é hotspot para revisão e não reprova sozinho o gate. Erro do mecanismo ou cobertura parcial inesperada continua bloqueante.
+`security` permanece separado e executa SCA + SAST. Composer Audit, OSV, Psalm Taint e Semgrep entregam resultados estruturados. No Semgrep, `ERROR`/`HIGH`/`CRITICAL` são bloqueantes; `WARNING`/`MEDIUM` são hotspots para revisão e não reprova sozinho o gate. Erro do mecanismo ou cobertura parcial inesperada continua bloqueante.
 
 O resumo de segurança expõe, quando disponível:
 

@@ -15,6 +15,8 @@ SAST  Psalm Taint + Semgrep
 
 DAST está fora do pipeline do Ninfa e é tratado por outra frente institucional.
 
+A evolução coordenada pelo Ninfa está registrada na [EAP de segurança](EAP-SECURITY-ORCHESTRATION.md). O [catálogo SEC-04.01](SECURITY-CAPABILITY-CATALOG.md) já descreve 52 capacidades SCA/SAST/DAST, com ownership, seletores, hashes e relações sem supressão aprovada. O [planejador SEC-04.03](SECURITY-SCAN-PLAN.md) gera seleção e decisões antes dos motores. O [ledger SEC-04.04](SECURITY-EXECUTION-LEDGER.md) coordena tentativas sob trava e valida cobertura para reuso. O pipeline público acima ainda não executa DAST; a integração permanece nas entregas seguintes.
+
 O ecossistema ativo é PHP:
 
 ```text
@@ -218,8 +220,8 @@ MISUSE
 Para Semgrep:
 
 ```text
-ERROR    bloqueia o gate
-WARNING  hotspot para revisão; não bloqueia sozinho
+ERROR/HIGH/CRITICAL  bloqueia o gate
+WARNING/MEDIUM       hotspot para revisão; não bloqueia sozinho
 ```
 
 O runner não usa `semgrep --error` para decidir política. A ferramenta retorna JSON e o Ninfa aplica a política sobre findings normalizados. Assim, WARNING continua visível sem ser transformado artificialmente em falha.

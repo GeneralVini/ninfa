@@ -22,19 +22,41 @@ final class SemgrepParser
      */
     public static function parse(string $json, string $root): array
     {
+        // A leitura como objeto distingue {} de [], que o decode associativo iguala.
+        $document = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
+        if (!$document instanceof stdClass || !is_array($document->results ?? null)) {
+            throw new UnexpectedValueException('Semgrep não retornou uma lista JSON results.');
+        }
+        foreach (['errors', 'skipped_rules'] as $field) {
+            if (property_exists($document, $field) && !is_array($document->{$field})) {
+                throw new UnexpectedValueException('Semgrep retornou coleção ' . $field . ' inválida.');
+            }
+        }
+        $rawPaths = $document->paths ?? null;
+        if ($rawPaths instanceof stdClass && property_exists($rawPaths, 'skipped') && !is_array($rawPaths->skipped)) {
+            throw new UnexpectedValueException('Semgrep retornou coleção paths.skipped inválida.');
+        }
         $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($data) || !is_array($data['results'] ?? null)) {
+        if (!is_array($data) || !is_array($data['results'] ?? null) || !array_is_list($data['results'])) {
             throw new UnexpectedValueException('Semgrep não retornou results em formato JSON.');
+        }
+        if (array_key_exists('errors', $data) && !is_array($data['errors'])) {
+            throw new UnexpectedValueException('Semgrep retornou coleção errors inválida.');
         }
 
         /** @var list<Finding> $findings Resultados válidos convertidos na ordem do Semgrep. */
         $findings = [];
-        // Resultado individual incompleto não invalida o documento; recebe defaults auditáveis.
+        // Identidade mínima é obrigatória para não ocultar resultados malformados.
         foreach ($data['results'] as $result) {
-            if (!is_array($result)) {
-                continue;
+            if (!is_array($result) || self::text($result['check_id'] ?? null) === null
+                || self::text($result['path'] ?? null) === null) {
+                throw new UnexpectedValueException('Semgrep retornou resultado sem regra/path válidos.');
             }
             $extra = is_array($result['extra'] ?? null) ? $result['extra'] : [];
+            $severity = strtolower(self::text($extra['severity'] ?? null) ?? '');
+            if (!in_array($severity, ['error', 'warning', 'info', 'critical', 'high', 'medium', 'low', 'inventory', 'experiment'], true)) {
+                throw new UnexpectedValueException('Semgrep retornou severidade ausente ou não suportada.');
+            }
             $metadata = is_array($extra['metadata'] ?? null) ? $extra['metadata'] : [];
             $rule = self::text($result['check_id'] ?? null) ?? 'semgrep';
             $findings[] = new Finding(
@@ -44,13 +66,17 @@ final class SemgrepParser
                 rule: $rule,
                 problem: self::text($extra['message'] ?? null) ?? 'Padrão inseguro detectado pelo Semgrep',
                 correction: self::text($metadata['fix'] ?? null) ?? 'Revise o uso e substitua por uma construção segura para dados não confiáveis.',
-                severity: strtolower(self::text($extra['severity'] ?? null) ?? 'warning'),
+                severity: $severity,
                 confidence: strtolower(self::text($metadata['confidence'] ?? null) ?? 'medium'),
                 evidenceType: 'sast-pattern',
                 provenance: ['semgrep', 'semgrep:' . $rule],
                 metadata: [
                     'evidence' => self::text($metadata['evidence'] ?? null) ?? 'DANGEROUS_PRIMITIVE',
                     'end_line' => max(0, (int) ($result['end']['line'] ?? 0)),
+                    'start' => $result['start'] ?? null,
+                    'end' => $result['end'] ?? null,
+                    'dataflow_trace' => $extra['dataflow_trace'] ?? null,
+                    'confirmation' => 'unverified',
                     'engine' => self::text($extra['engine_kind'] ?? null),
                     'rule_metadata' => $metadata,
                 ],
@@ -61,6 +87,13 @@ final class SemgrepParser
         $scanned = is_array($paths['scanned'] ?? null) ? array_values($paths['scanned']) : [];
         $skipped = is_array($paths['skipped'] ?? null) ? array_values($paths['skipped']) : [];
         $errors = is_array($data['errors'] ?? null) ? array_values($data['errors']) : [];
+        $skippedRules = $data['skipped_rules'] ?? [];
+        $validScanned = $rawPaths instanceof stdClass && is_array($rawPaths->scanned ?? null);
+        foreach ($scanned as $path) {
+            if (!is_string($path) || trim($path) === '') {
+                $validScanned = false;
+            }
+        }
 
         /** @var list<mixed> $excludedByPolicy Skips explicados por política de targeting/ignore. */
         $excludedByPolicy = [];
@@ -77,12 +110,13 @@ final class SemgrepParser
         return [
             'findings' => $findings,
             'coverage' => [
-                'status' => ($unexpectedSkips === [] && $errors === []) ? 'complete' : 'partial',
-                'scanned_files' => count($scanned),
+                'status' => ($unexpectedSkips === [] && $errors === [] && $skippedRules === [] && $validScanned) ? 'complete' : 'partial',
+                'scanned_files' => $validScanned ? count($scanned) : null,
                 'scanned' => $scanned,
                 'skipped' => $skipped,
                 'excluded_by_policy' => $excludedByPolicy,
                 'unexpected_skips' => $unexpectedSkips,
+                'skipped_rules' => $skippedRules,
             ],
             'errors' => $errors,
         ];
@@ -101,13 +135,6 @@ final class SemgrepParser
             return false;
         }
 
-        $path = strtolower(str_replace('\\', '/', self::text($skip['path'] ?? null) ?? ''));
-        foreach (['/vendor/', '/runtime/', '/public/assets/', '/web/assets/'] as $segment) {
-            if (str_contains('/' . ltrim($path, '/'), $segment)) {
-                return true;
-            }
-        }
-
         /** @var list<string> $reasonParts Fragmentos textuais usados para classificar o motivo do skip. */
         $reasonParts = [];
         foreach (['reason', 'details'] as $key) {
@@ -119,6 +146,19 @@ final class SemgrepParser
             }
         }
         $reason = implode(' ', $reasonParts);
+
+        // Erros operacionais têm precedência sobre diretórios normalmente excluídos.
+        if (preg_match('/timeout|timed.?out|parse.?error|analysis.?error|permission|crash/i', $reason) === 1) {
+            return false;
+        }
+        $path = strtolower(str_replace('\\', '/', self::text($skip['path'] ?? null) ?? ''));
+        if ($reason === 'cli_include_flags_do_not_match') {
+            foreach (['/vendor/', '/runtime/', '/public/assets/', '/web/assets/'] as $segment) {
+                if (str_contains('/' . ltrim($path, '/'), $segment)) {
+                    return true;
+                }
+            }
+        }
 
         return str_contains($reason, 'ignore') || str_contains($reason, 'exclude');
     }

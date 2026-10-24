@@ -245,8 +245,8 @@ make semgrep-rules
 No gate:
 
 ```text
-ERROR    bloqueante
-WARNING  hotspot para revisão; não bloqueia sozinho
+ERROR/HIGH/CRITICAL  bloqueante
+WARNING/MEDIUM       hotspot para revisão; não bloqueia sozinho
 ```
 
 Erro do motor ou cobertura parcial inesperada continua bloqueante. Exclusões deliberadas são registradas separadamente.
@@ -295,6 +295,12 @@ make setup
 
 A [EAP de orquestração de segurança](docs/EAP-SECURITY-ORCHESTRATION.md) organiza as entregas de ZAP e Nuclei, preservação do Semgrep, controle de repetição e relatórios próprios em Markdown/PDF. Cada tarefa tem checkbox, dependências, critério de aceite e campos de início e fim reais. As novas integrações permanecem planejadas até sua validação.
 
+O [catálogo SEC-04.01](docs/SECURITY-CAPABILITY-CATALOG.md) registra 52 capacidades das seis fontes, com seletores e hashes revisados. Ainda não agenda motores nem autoriza excluir testes por equivalência; a integração ao fluxo público permanece nas próximas entregas.
+
+A [identidade SEC-04.02](docs/SECURITY-TEST-IDENTITY.md) distingue unidades por contexto, ativo, papel, vetor, técnica e hashes efetivos. Contextos incompletos impedem comparação para deduplicação. A integração ao fluxo público ainda será implementada.
+
+O [planejador SEC-04.03](docs/SECURITY-SCAN-PLAN.md) gera o snapshot de seleção, agrupamento, exclusões e bloqueios antes dos motores, com avisos de sobreposição e fontes ausentes. O [ledger SEC-04.04](docs/SECURITY-EXECUTION-LEDGER.md) persiste tentativas, mantém trava durante o adapter e exige cobertura/evidência válidas para reutilização. A integração ao fluxo público permanece nas próximas entregas; fallback entre motores segue bloqueado sem equivalência aprovada. A [prova SEC-04.05](docs/SECURITY-NON-REPETITION.md) valida o fluxo com adapters sintéticos e gera uma seção Markdown/JSON que explica exclusões e reutilizações, preservando a proveniência histórica.
+
 ## Acompanhamento da evolução
 
 **Etapa atual: 4 — Contratos SAST e profiles.**
@@ -327,7 +333,7 @@ A [EAP de orquestração de segurança](docs/EAP-SECURITY-ORCHESTRATION.md) orga
 - [x] Implementar overlay Yii3.
 - [x] Implementar especializações GLPI Plugin 11.
 - [x] Manter `php-generic` sem semântica fictícia de framework.
-- [x] Tratar `WARNING` Semgrep como hotspot e `ERROR` como bloqueante.
+- [x] Tratar `WARNING`/`MEDIUM` Semgrep como hotspots e `ERROR`/`HIGH`/`CRITICAL` como bloqueantes.
 
 ### Roadmap
 
@@ -362,3 +368,5 @@ O NINFA mantém seus próprios contratos, IDs, políticas de segurança e implem
 - [Arquitetura de segurança](docs/SECURITY-ARCHITECTURE.md)
 - [Arquitetura interna e documentação de código](docs/INTERNAL-ARCHITECTURE.md)
 - [EAP de integração upstream](docs/EAP-UPSTREAM-INTEGRATION.md)
+
+Ambiente nativo de segurança: [instalação e diagnóstico](docs/WEB-SECURITY-TOOLS.md), [contrato de execução](docs/SECURITY-EXECUTION-CONTRACT.md), [saídas e proteção de evidências](docs/SECURITY-OUTPUT-CONTRACTS.md).

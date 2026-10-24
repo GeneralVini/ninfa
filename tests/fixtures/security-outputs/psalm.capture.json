@@ -1,0 +1,22 @@
+{
+  "origin": "real",
+  "tool": "psalm",
+  "version": "6.20.1",
+  "captured_at": "2026-10-23T23:58:08.682544+00:00",
+  "native_exit_code": 2,
+  "artifact": "psalm.json",
+  "sha256": "c020e4eecd6e946f5840d0def748426f87f2407722d0c3f0508e086ddf76de1d",
+  "configuration": {
+    "xml": "<psalm errorLevel=\"1\" resolveFromConfigFile=\"true\"><projectFiles><file name=\"input.php\" /></projectFiles></psalm>",
+    "mode": "taint-analysis"
+  },
+  "configuration_sha256": "6f2aae2279728edbb2d44bd39119a9dd7ead3a9be61e3fe31e305a44d3b6b12d",
+  "stderr": "",
+  "transformations": [
+    "EvidenceSanitizer before persistence",
+    "temporary root -> /fixture",
+    "target loopback port -> 18080",
+    "payload fields redacted"
+  ],
+  "limits": "controlled fixture; positive output contract, not production coverage"
+}

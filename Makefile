@@ -32,6 +32,12 @@ profile-test:
 	php -d zend.assertions=1 -d assert.exception=1 tests/project-context.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/result-contracts.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/security-contract.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/capability-catalog.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/security-test-identity.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/security-scan-plan.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/security-execution-ledger.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/security-non-repetition.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/security-stage-references.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/intelligence.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/internal-docs.php
 	php -d zend.assertions=1 -d assert.exception=1 tests/shell-docs.php
@@ -119,3 +125,18 @@ go-build:
 		-o "../$(GO_BUILD_DIR)/ninfa-go" ./cmd/ninfa-go
 
 go-check: go-fmt-check go-vet go-lint go-sast go-vuln go-test go-build
+
+.PHONY: web-security-tools web-security-doctor security-contract-test
+
+# Instalações e diagnóstico independentes de scans no consumidor.
+web-security-tools:
+	python3 scripts/web-security-tools.py install
+
+web-security-doctor:
+	python3 scripts/web-security-tools.py doctor --network
+
+security-contract-test:
+	python3 tests/web-security-tools.py
+	php -d zend.assertions=1 -d assert.exception=1 tests/dast-parsers.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/evidence-store.php
+	php -d zend.assertions=1 -d assert.exception=1 tests/security-output-fixtures.php

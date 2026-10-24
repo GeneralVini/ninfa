@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . "/EvidenceSanitizer.php";
 
 require_once __DIR__ . '/CliStyle.php';
 require_once __DIR__ . '/Finding.php';
@@ -145,13 +146,13 @@ final class FindingRenderer
                 'composer-audit' => 'Composer Audit',
                 default => $finding->tool,
             };
-            $where = $finding->file . ($finding->line > 0 ? ':' . $finding->line : '');
+            $where = EvidenceSanitizer::text($finding->file) . ($finding->line > 0 ? ':' . $finding->line : '');
 
-            echo '╭─ ' . CliStyle::info($tool) . ' ' . str_repeat('─', max(8, 61 - strlen($tool))) . PHP_EOL;
+            echo '╭─ ' . CliStyle::info(EvidenceSanitizer::text($tool)) . ' ' . str_repeat('─', max(8, 61 - strlen($tool))) . PHP_EOL;
             echo '│ Arquivo: ' . $where . PHP_EOL;
-            echo '│ Regra: ' . $finding->rule . PHP_EOL;
+            echo '│ Regra: ' . EvidenceSanitizer::text($finding->rule) . PHP_EOL;
             if ($finding->severity !== null) {
-                echo '│ Severidade: ' . $finding->severity . PHP_EOL;
+                echo '│ Severidade: ' . EvidenceSanitizer::text($finding->severity) . PHP_EOL;
             }
             self::renderMetadata($finding);
             echo '│' . PHP_EOL;
@@ -221,14 +222,14 @@ final class FindingRenderer
                     $qualifiers[] = $component[$key];
                 }
             }
-            echo '│ Componente: ' . $label
-                . ($qualifiers !== [] ? ' (' . implode(', ', $qualifiers) . ')' : '')
+            echo '│ Componente: ' . EvidenceSanitizer::text($label)
+                . ($qualifiers !== [] ? ' (' . EvidenceSanitizer::text(implode(', ', $qualifiers)) . ')' : '')
                 . PHP_EOL;
         }
 
         $aliases = $finding->metadata['advisory']['aliases'] ?? null;
         if (is_array($aliases) && $aliases !== []) {
-            echo '│ Aliases: ' . implode(', ', array_map('strval', $aliases)) . PHP_EOL;
+            echo '│ Aliases: ' . EvidenceSanitizer::text(implode(', ', array_map('strval', $aliases))) . PHP_EOL;
         }
     }
 
@@ -265,6 +266,7 @@ final class FindingRenderer
      */
     private static function renderWrapped(string $text): void
     {
+        $text = EvidenceSanitizer::text($text);
         foreach (explode("\n", wordwrap($text, 66, "\n", false)) as $line) {
             echo '│   ' . $line . PHP_EOL;
         }

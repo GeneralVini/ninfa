@@ -1,0 +1,22 @@
+{
+  "origin": "real",
+  "tool": "nuclei",
+  "version": "3.11.1",
+  "captured_at": "2026-10-23T23:58:09.396501+00:00",
+  "native_exit_code": 0,
+  "artifact": "nuclei.jsonl",
+  "sha256": "45eeb8b56ccf61d8ddfa10c483e82b5cd489f2daaf794be9126730867120745c",
+  "configuration": {
+    "template": "id: ninfa-contract\ninfo:\n  name: Ninfa controlled contract marker\n  author: ninfa\n  severity: info\nhttp:\n  - method: GET\n    path:\n      - \"{{BaseURL}}/\"\n    matchers:\n      - type: word\n        name: contract-marker\n        words:\n          - NINFA_CONTRACT_MARKER\n",
+    "flags": "-duc -ni -no-stdin -omit-raw -omit-template -rl 1 -c 1"
+  },
+  "configuration_sha256": "faad602a52b63e6e97473947ac5996bc6ca67d7471275a49abf9177c9dd46243",
+  "stderr": "",
+  "transformations": [
+    "EvidenceSanitizer before persistence",
+    "temporary root -> /fixture",
+    "target loopback port -> 18080",
+    "payload fields redacted"
+  ],
+  "limits": "controlled fixture; positive output contract, not production coverage"
+}

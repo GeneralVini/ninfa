@@ -1,0 +1,341 @@
+{
+  "validated_at": "2026-10-23T21:08:37-03:00",
+  "baseline": "438de43bae0c6ce380330200b06ebd16f2665124 + preserved local corrections",
+  "remote": "https://github.com/GeneralVini/ninfa.git",
+  "clean_tools_root": "/tmp/ninfa-sec02-clean/.tools",
+  "idempotence": [
+    {
+      "tool": "zap",
+      "state": "unchanged"
+    },
+    {
+      "tool": "nuclei",
+      "state": "unchanged"
+    },
+    {
+      "tool": "psalm",
+      "state": "unchanged"
+    },
+    {
+      "tool": "nuclei-templates",
+      "state": "unchanged"
+    },
+    {
+      "tool": "playwright",
+      "state": "unchanged"
+    },
+    {
+      "tool": "semgrep",
+      "state": "unchanged"
+    }
+  ],
+  "preflight": {
+    "checked_at": "2026-10-24T00:04:38.422851+00:00",
+    "audit_executed": false,
+    "supply_chain_status": "official release SHA-256 corroborated for ZAP/Nuclei/Psalm; templates commit and local tree pinned; npm SRI and PyPI wheel hashes locked; host runtime snapshots are platform-specific",
+    "sources": {
+      "php": {
+        "state": "completed",
+        "effect": null,
+        "path": "/usr/bin/php",
+        "integrity": "local-baseline-verified",
+        "version_output": "PHP 8.5.4 (cli) (built: Oct 19 2026 14:35:18) (NTS)\nCopyright (c) The PHP Group\nBuilt by Ubuntu\nZend Engine v4.5.4, Copyright (c) Zend Technologies\n    with Xdebug v3.5.0, Copyright (c) 2002-2025, by Derick Rethans\n    with Zend OPcache v8.5.4, Copyright (c), by Zend Technologies"
+      },
+      "java": {
+        "state": "completed",
+        "effect": null,
+        "path": "$USER_HOME/tools/java/jdk-22/bin/java",
+        "integrity": "local-baseline-verified",
+        "version_output": "openjdk version \"22.0.2\" 2024-07-16\nOpenJDK Runtime Environment Temurin-22.0.2+9 (build 22.0.2+9)\nOpenJDK 64-Bit Server VM Temurin-22.0.2+9 (build 22.0.2+9, mixed mode, sharing)"
+      },
+      "node": {
+        "state": "completed",
+        "effect": null,
+        "path": "$USER_HOME/.config/nvm/versions/node/v24.16.0/bin/node",
+        "integrity": "local-baseline-verified",
+        "version_output": "v24.16.0"
+      },
+      "python3": {
+        "state": "completed",
+        "effect": null,
+        "path": "/usr/bin/python3",
+        "integrity": "local-baseline-verified",
+        "version_output": "Python 3.14.4"
+      },
+      "npm": {
+        "state": "completed",
+        "effect": null,
+        "path": "$USER_HOME/.config/nvm/versions/node/v24.16.0/bin/npm",
+        "integrity": "local-baseline-verified",
+        "version_output": "11.13.0"
+      },
+      "composer": {
+        "state": "completed",
+        "effect": null,
+        "path": "/usr/bin/composer",
+        "integrity": "local-baseline-verified",
+        "version_output": "Composer version 2.9.5 2026-01-29 11:40:53\n\nPHP version 8.5.4 (/usr/bin/php8.5)\nRun the \"diagnose\" command to get more detailed diagnostics output."
+      },
+      "semgrep": {
+        "state": "completed",
+        "effect": null,
+        "path": "/tmp/ninfa-sec02-clean/.tools/semgrep/bin/semgrep",
+        "integrity": "local-baseline-verified",
+        "version_output": "1.177.0"
+      },
+      "psalm": {
+        "state": "completed",
+        "effect": null,
+        "path": "/tmp/ninfa-sec02-clean/.tools/psalm/bin/psalm",
+        "integrity": "local-baseline-verified",
+        "version_output": "Psalm 6.20.1@376425b8e67b79773add388e16b4f6be5693dc87"
+      },
+      "zap": {
+        "state": "completed",
+        "effect": null,
+        "path": "/tmp/ninfa-sec02-clean/.tools/zap/bin/zap",
+        "integrity": "local-baseline-verified",
+        "version_output": "Found Java version 22.0.2\nAvailable memory: 5818 MB\nUsing JVM args: -Xmx1454m\n2.17.0"
+      },
+      "nuclei": {
+        "state": "completed",
+        "effect": null,
+        "path": "/tmp/ninfa-sec02-clean/.tools/nuclei/bin/nuclei",
+        "integrity": "local-baseline-verified",
+        "version_output": "[\u001b[34mINF\u001b[0m] Nuclei Engine Version: v3.11.1\n[\u001b[34mINF\u001b[0m] Nuclei Config Directory: /home/dexter/.config/nuclei\n[\u001b[34mINF\u001b[0m] Nuclei Cache Directory: /home/dexter/.cache/nuclei\n[\u001b[34mINF\u001b[0m] PDCP Directory: /home/dexter/.pdcp"
+      },
+      "playwright": {
+        "state": "completed",
+        "effect": null,
+        "path": "/tmp/ninfa-sec02-clean/.tools/playwright/bin/playwright",
+        "integrity": "local-baseline-verified",
+        "browser_smoke": "passed; local DOM only",
+        "version_output": "Version 1.64.1"
+      },
+      "nuclei-templates": {
+        "state": "completed",
+        "effect": null,
+        "path": "/tmp/ninfa-sec02-clean/.tools/nuclei-templates",
+        "integrity": "local-baseline-verified",
+        "version": "10.5.0",
+        "revision": "f8b8b8dcd70d93826c3767e1829ef8243af9f03b"
+      },
+      "chromium": {
+        "state": "completed",
+        "effect": null,
+        "path": "/tmp/ninfa-sec02-clean/.tools/playwright/browsers/chromium-1248/chrome-linux64/chrome",
+        "integrity": "local-baseline-verified",
+        "version_output": "Google Chrome for Testing 156.0.8078.4"
+      },
+      "osv": {
+        "state": "completed",
+        "effect": null,
+        "path": null,
+        "integrity": "https-service",
+        "api": "https://api.osv.dev/v1/querybatch",
+        "checked_at": "2026-10-24T00:04:37.951515+00:00"
+      }
+    },
+    "full_web_ready": false
+  },
+  "captures": [
+    {
+      "origin": "real",
+      "tool": "composer",
+      "version": "2.9.5",
+      "captured_at": "2026-10-23T23:58:03.527308+00:00",
+      "native_exit_code": 3,
+      "artifact": "composer.json",
+      "sha256": "bfe4569488c982d190c6b1307b3c4f6729ed4b99f775ca14e4d738465c4210f6",
+      "configuration": {
+        "name": "ninfa/fixture-app",
+        "require": {
+          "ninfa/fixture": "1.0.0"
+        },
+        "repositories": {
+          "fixture": {
+            "type": "composer",
+            "url": "http://127.0.0.1:46423"
+          },
+          "packagist.org": false
+        },
+        "config": {
+          "secure-http": false,
+          "allow-plugins": false
+        }
+      },
+      "configuration_sha256": "9002ee9aeda8841c59becad10520b50dbe9495f636bb0565d9cf2e9ef9a8506f",
+      "stderr": "Composer could not detect the root package (ninfa/fixture-app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version\nWarning: Accessing 127.0.0.1 over http which is an insecure protocol.\n",
+      "transformations": [
+        "EvidenceSanitizer before persistence",
+        "temporary root -> /fixture",
+        "target loopback port -> 18080",
+        "payload fields redacted"
+      ],
+      "limits": "controlled fixture; positive output contract, not production coverage"
+    },
+    {
+      "origin": "real",
+      "tool": "nuclei",
+      "version": "3.11.1",
+      "captured_at": "2026-10-23T23:58:09.396501+00:00",
+      "native_exit_code": 0,
+      "artifact": "nuclei.jsonl",
+      "sha256": "45eeb8b56ccf61d8ddfa10c483e82b5cd489f2daaf794be9126730867120745c",
+      "configuration": {
+        "template": "id: ninfa-contract\ninfo:\n  name: Ninfa controlled contract marker\n  author: ninfa\n  severity: info\nhttp:\n  - method: GET\n    path:\n      - \"{{BaseURL}}/\"\n    matchers:\n      - type: word\n        name: contract-marker\n        words:\n          - NINFA_CONTRACT_MARKER\n",
+        "flags": "-duc -ni -no-stdin -omit-raw -omit-template -rl 1 -c 1"
+      },
+      "configuration_sha256": "faad602a52b63e6e97473947ac5996bc6ca67d7471275a49abf9177c9dd46243",
+      "stderr": "",
+      "transformations": [
+        "EvidenceSanitizer before persistence",
+        "temporary root -> /fixture",
+        "target loopback port -> 18080",
+        "payload fields redacted"
+      ],
+      "limits": "controlled fixture; positive output contract, not production coverage"
+    },
+    {
+      "origin": "real",
+      "tool": "osv",
+      "version": "HTTP v1",
+      "captured_at": "2026-10-23T23:58:11.362272+00:00",
+      "native_exit_code": null,
+      "artifact": "osv.json",
+      "sha256": "0efc32c97ca1185d673db63dfa6ca5f5eae98ff35ca08d9366fb1115eef23134",
+      "configuration": {
+        "queries": [
+          {
+            "package": {
+              "name": "monolog/monolog",
+              "ecosystem": "Packagist"
+            },
+            "version": "1.10.0"
+          }
+        ]
+      },
+      "configuration_sha256": "db1971332577692a4f3522a5760ee7ee9f91497a07c81a382eedc59245c88791",
+      "stderr": "",
+      "transformations": [
+        "EvidenceSanitizer before persistence",
+        "temporary root -> /fixture",
+        "target loopback port -> 18080",
+        "payload fields redacted"
+      ],
+      "limits": "controlled fixture; positive output contract, not production coverage"
+    },
+    {
+      "origin": "real",
+      "tool": "psalm",
+      "version": "6.20.1",
+      "captured_at": "2026-10-23T23:58:08.682544+00:00",
+      "native_exit_code": 2,
+      "artifact": "psalm.json",
+      "sha256": "c020e4eecd6e946f5840d0def748426f87f2407722d0c3f0508e086ddf76de1d",
+      "configuration": {
+        "xml": "<psalm errorLevel=\"1\" resolveFromConfigFile=\"true\"><projectFiles><file name=\"input.php\" /></projectFiles></psalm>",
+        "mode": "taint-analysis"
+      },
+      "configuration_sha256": "6f2aae2279728edbb2d44bd39119a9dd7ead3a9be61e3fe31e305a44d3b6b12d",
+      "stderr": "",
+      "transformations": [
+        "EvidenceSanitizer before persistence",
+        "temporary root -> /fixture",
+        "target loopback port -> 18080",
+        "payload fields redacted"
+      ],
+      "limits": "controlled fixture; positive output contract, not production coverage"
+    },
+    {
+      "origin": "real",
+      "tool": "semgrep",
+      "version": "1.177.0",
+      "captured_at": "2026-10-23T23:58:06.559811+00:00",
+      "native_exit_code": 0,
+      "artifact": "semgrep.json",
+      "sha256": "902000a013f2e48a7f7a560f8052aceca2c44e7f8464d89a8302d1013d4dbd0b",
+      "configuration": {
+        "rules": [
+          {
+            "id": "ninfa-contract-echo",
+            "languages": [
+              "php"
+            ],
+            "message": "Controlled output fixture",
+            "severity": "WARNING",
+            "pattern": "echo $X;"
+          }
+        ]
+      },
+      "configuration_sha256": "f8030792fdd8fe9c5293870d953b9728a5a933bf65666c513dd389050d4dc187",
+      "stderr": "               \n               \n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Scan Status \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n  Scanning 1 file with 1 Code rule:\n  Scanning 1 file.\n                \n                \n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Scan Summary \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n\u2705 Scan completed successfully.\n \u2022 Findings: 1 (1 blocking)\n \u2022 Rules run: 1\n \u2022 Targets scanned: 1\n \u2022 Parsed lines: ~100.0%\n \u2022 No ignore information available\nRan 1 rule on 1 file: 1 finding.\n",
+      "transformations": [
+        "EvidenceSanitizer before persistence",
+        "temporary root -> /fixture",
+        "target loopback port -> 18080",
+        "payload fields redacted",
+        "temporary Semgrep rule namespace -> fixture"
+      ],
+      "limits": "controlled fixture; positive output contract, not production coverage"
+    },
+    {
+      "origin": "real",
+      "tool": "zap",
+      "version": "2.17.0",
+      "captured_at": "2026-10-23T23:58:59.383606+00:00",
+      "native_exit_code": null,
+      "artifact": "zap.json",
+      "sha256": "3d55bb218ad0284664839f39e3535c19ee6808dcea81366c83e6e79405e231a4",
+      "configuration": {
+        "mode": "one URL passive",
+        "report": "traditional-json",
+        "api_version": {
+          "version": "2.17.0"
+        },
+        "remaining_passive": 0
+      },
+      "configuration_sha256": "d8ef6b1ff2e9e13f6a5ebf66b7a7083844797a0639eac3a8d128fa230928dc27",
+      "stderr": "",
+      "transformations": [
+        "EvidenceSanitizer before persistence",
+        "temporary root -> /fixture",
+        "target loopback port -> 18080",
+        "payload fields redacted",
+        "site @port normalized to match fixture URI 18080"
+      ],
+      "limits": "controlled fixture; positive output contract, not production coverage"
+    }
+  ],
+  "checks": [
+    {
+      "command": "make syntax profile-test security-contract-test",
+      "exit_code": 0,
+      "log_sha256": "42c7e13974967866dfa64adeab1c6a58aa349f543c9c24c3d836b219d4302ea4"
+    },
+    {
+      "command": "python3 tests/web-security-tools.py (including process-group timeout test)",
+      "exit_code": 0,
+      "tests": 6,
+      "log_sha256": "0c1423993f5f2d49729ac544622cb0e4cb04ca5feebf5e615586bae20d95b41b"
+    }
+  ],
+  "limits": [
+    "host runtime executable snapshots; not a portable OS/runtime distribution lock",
+    "public DAST orchestration and scheduling are SEC-04/05/06",
+    "regex redaction requires manual review of arbitrary text",
+    "preexisting nonfatal mkdir warning in Yii2 view-resolution test"
+  ],
+  "manifest_sha256": {
+    "security/web-tools.lock.json": "a0f0af558a0ea82c37b6a3303159791a7d709fb927a79d4eec74054ecec83d28",
+    "security/semgrep-wheels.lock.json": "69585366fe3f2a8a4325f0578af9d8e7f67fd24e005db708044bb21d332f6d9f",
+    "security/browser/package-lock.json": "f5e809f06ad20d46c3a3bd44557d0b69f4fce5e545014246a5fbd1d7420df8b4"
+  },
+  "additional_checks": [
+    "targeted PHP contracts/parsers/store/real fixtures passed after final sanitizer changes",
+    "internal documentation and shell documentation guards passed",
+    "diff whitespace and local document links passed",
+    "37 unique EAP tasks preserved; 12 SEC-01/02/03 validated; SEC-04+ pending",
+    "controlled fixtures reviewed for API keys, home paths and temporary rule namespace"
+  ]
+}

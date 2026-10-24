@@ -35,4 +35,4 @@ No resumo de segurança, a semântica esperada é:
 ✗ ERRO / COBERTURA PARCIAL
 ```
 
-`WARNING` do Semgrep é hotspot para revisão e não bloqueia sozinho o gate. `ERROR`, falha do motor ou cobertura inesperadamente parcial permanecem bloqueantes.
+`WARNING`/`MEDIUM` do Semgrep é hotspot para revisão e não bloqueia sozinho o gate. `ERROR`/`HIGH`/`CRITICAL`, falha do motor ou cobertura inesperadamente parcial permanecem bloqueantes.

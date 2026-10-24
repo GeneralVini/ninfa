@@ -137,8 +137,8 @@ Regras de fluxo usam `mode: taint` quando a evidência relevante é source → s
 ### Política de severidade
 
 ```text
-ERROR    finding bloqueante
-WARNING  hotspot para revisão; não bloqueia sozinho
+ERROR/HIGH/CRITICAL  finding bloqueante
+WARNING/MEDIUM       hotspot para revisão; não bloqueia sozinho
 ```
 
 A presença de um `WARNING` não é automaticamente chamada de vulnerabilidade confirmada. Erro do mecanismo ou cobertura parcial inesperada continua bloqueante independentemente da severidade dos findings.

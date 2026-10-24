@@ -1,0 +1,64 @@
+{
+  "task": "SEC-04.04",
+  "status": "VALIDATED",
+  "responsible": "Codex",
+  "started_at": "2026-10-24T14:41:21-03:00",
+  "completed_at": "2026-10-24T14:47:03-03:00",
+  "ledger_version": 1,
+  "checks": [
+    {
+      "command": "make syntax profile-test",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-04-regression.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "check": "Previous SEC-04.01/02/03 artifact hashes",
+      "result": "verified"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "src/SecurityExecutionLedger.php",
+      "sha256": "13e3595b071ad04aea83e8d3bd3dfc6eca1a06c9602c1c1939a9a03010b25c52"
+    },
+    {
+      "path": "tests/security-execution-ledger.php",
+      "sha256": "85875efd19b7bd83d9daa820f4b6f12b5f3db548b9a7f60ebe507e36300b4633"
+    },
+    {
+      "path": "docs/SECURITY-EXECUTION-LEDGER.md",
+      "sha256": "920944d030faa4e2d4441c80c61968ec24d35a6ffc97c62c53c9322b6a4d025c"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-04-regression.log",
+      "sha256": "3fab646632f871e665ea438dd3a2793eab272032bbd1f478173b692162cee0f6"
+    }
+  ],
+  "validated": [
+    "Plan persisted and running reservation committed before adapter callback.",
+    "Same-ledger second instance and second process cannot start another adapter while locked.",
+    "Actual child-process exit leaves running reservation; recovery requires explicit stopped confirmation and retry.",
+    "Uncertain reservations create global barrier, including changed nonce/context/group; targeted stopped confirmation audited.",
+    "Valid coverage/evidence reused across runs; changed context starts separate work and incomplete context cannot resume.",
+    "Retry checks intersecting unit histories, preventing regrouping bypass.",
+    "Partial group coverage requires replan; no automatic repetition of covered units.",
+    "Expired/corrupted/missing/raw evidence, failed operation, partial/unknown coverage and invalid session cannot be reused.",
+    "Attempts, reuse and blocking decisions persisted privately and atomically; journal corruption fails closed.",
+    "Fallback only evaluated after missing valid coverage and settled primary; catalog v1 denies unapproved cross-engine alternatives."
+  ],
+  "limits": [
+    "Standalone coordinator API; public CLI/adapters integration remains future work.",
+    "One global local-filesystem flock serializes groups in a ledger; no distributed lock or expiring lease.",
+    "Adapters/callers must attest context/session freshness, actual motor termination and semantic coverage.",
+    "No approved cross-engine equivalence in catalog v1; executable fallback remains blocked.",
+    "No actual consumer scan; adapters and evidence in tests are synthetic."
+  ],
+  "notes": [
+    "Regression exited 0; pre-existing mkdir File exists warning in tests/yii2-view-resolution.php:15 remains."
+  ],
+  "next_task": "SEC-04.05"
+}

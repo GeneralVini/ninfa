@@ -374,7 +374,7 @@ Correctness, performance, modernization, deprecation, PHPDoc e architecture advi
 
 ### `src/SemgrepParser.php`
 
-Normaliza Semgrep e diferencia scanned/skipped, exclusão deliberada, skip inesperado e erro do mecanismo. `ERROR` é bloqueante; `WARNING` é hotspot.
+Normaliza Semgrep e diferencia scanned/skipped, exclusão deliberada, skip inesperado e erro do mecanismo. `ERROR`/`HIGH`/`CRITICAL` são bloqueantes; `WARNING`/`MEDIUM` são hotspots.
 
 ### `src/PsalmTaintParser.php`
 

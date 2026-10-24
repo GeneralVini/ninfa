@@ -101,9 +101,13 @@ try {
                     'published' => '2026-09-01T00:00:00Z',
                     'modified' => '2026-09-02T00:00:00Z',
                     'database_specific' => ['severity' => 'HIGH'],
-                    'references' => [['type' => 'ADVISORY', 'url' => 'https://example.test/osv-runtime']],
+                    'references' => [
+                        ['type' => 'ADVISORY', 'url' => 'https://example.test/osv-runtime'],
+                        ['type' => 'FIX', 'url' => 'https://example.test/fix'],
+                    ],
                     'affected' => [[
                         'package' => ['name' => 'acme/runtime', 'ecosystem' => 'Packagist'],
+                        'ranges' => [['type' => 'ECOSYSTEM', 'events' => [['introduced' => '0'], ['fixed' => '1.2.4']]]],
                     ]],
                 ];
             }
@@ -133,6 +137,46 @@ try {
     assert(($osvFindings[0]->metadata['component']['name'] ?? null) === 'acme/runtime');
     assert(($osvFindings[0]->metadata['component']['relationship'] ?? null) === 'direct');
     assert(in_array($osvFindings[0]->severity, ['high', 'medium'], true));
+    foreach ($osvFindings as $finding) {
+        if ($finding->rule === 'GHSA-test-runtime') {
+            assert(count($finding->metadata['advisory']['references'] ?? []) === 2);
+            assert(($finding->metadata['advisory']['affected'][0]['ranges'][0]['events'][1]['fixed'] ?? null) === '1.2.4');
+        }
+    }
+
+    // Respostas inconsistentes devem falhar, sem associar advisory errado ou paginar indefinidamente.
+    foreach (['cycle', 'id-mismatch'] as $failure) {
+        $calls = 0;
+        $brokenTransport = static function (string $method, string $path, ?array $payload) use ($failure, &$calls): array {
+            if ($method === 'GET') {
+                return ['id' => 'OSV-WRONG'];
+            }
+            $calls++;
+            assert($calls <= 2, 'Token repetido precisa interromper a paginação.');
+            return ['results' => array_map(
+                static fn (array $query): array => $failure === 'cycle'
+                    ? ['next_page_token' => 'repeated']
+                    : ['vulns' => [['id' => 'OSV-EXPECTED']]],
+                $payload['queries'],
+            )];
+        };
+        try {
+            (new OsvClient($brokenTransport))->scan($inventory);
+            assert(false, 'Resposta OSV inconsistente deve ser rejeitada.');
+        } catch (UnexpectedValueException) {
+        }
+    }
+
+    foreach ([['vulns' => null], ['vulns' => [null]], ['vulns' => [['id' => ' ']]], ['next_page_token' => 42]] as $invalidItem) {
+        $invalidTransport = static fn (string $method, string $path, ?array $payload): array => [
+            'results' => array_fill(0, count($payload['queries']), $invalidItem),
+        ];
+        try {
+            (new OsvClient($invalidTransport))->scan($inventory);
+            assert(false, 'Item OSV inválido não pode produzir auditoria limpa.');
+        } catch (UnexpectedValueException) {
+        }
+    }
 
     $composerJson = json_encode([
         'advisories' => [

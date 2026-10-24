@@ -139,6 +139,9 @@ final class OsvClient
         foreach ($matches as $vulnerabilityId => $components) {
             /** @var array<string,mixed> $record */
             $record = $this->request('GET', '/vulns/' . rawurlencode($vulnerabilityId));
+            if (($record['id'] ?? null) !== $vulnerabilityId) {
+                throw new UnexpectedValueException('Registro OSV não corresponde ao ID consultado.');
+            }
 
             // Advisory retirado não deve continuar aparecendo como vulnerabilidade vigente.
             if (isset($record['withdrawn']) && is_string($record['withdrawn']) && $record['withdrawn'] !== '') {
@@ -192,6 +195,8 @@ final class OsvClient
             static fn (array $package): array => ['component' => $package, 'page_token' => null],
             $packages,
         );
+        /** @var array<string,array<string,bool>> $seenTokens Tokens já recebidos por componente. */
+        $seenTokens = [];
 
         // Cada iteração consome uma página de todos os componentes ainda pendentes.
         while ($pending !== []) {
@@ -226,7 +231,7 @@ final class OsvClient
             $results = $response['results'] ?? null;
 
             // A correlação usa posição; contagem divergente tornaria o mapeamento inseguro.
-            if (!is_array($results) || count($results) !== count($pending)) {
+            if (!is_array($results) || !array_is_list($results) || count($results) !== count($pending)) {
                 throw new UnexpectedValueException('OSV querybatch retornou quantidade de resultados incompatível com a consulta.');
             }
 
@@ -241,22 +246,29 @@ final class OsvClient
 
                 $component = $entry['component'];
                 $componentKey = $component['name'] . '@' . $component['version'] . ':' . ($component['scope'] ?? 'unknown');
-                $vulnerabilities = $result['vulns'] ?? [];
-                if (!is_array($vulnerabilities)) {
+                $vulnerabilities = array_key_exists('vulns', $result) ? $result['vulns'] : [];
+                if (!is_array($vulnerabilities) || !array_is_list($vulnerabilities)) {
                     throw new UnexpectedValueException('OSV querybatch retornou campo vulns inválido.');
                 }
 
-                // Registra apenas IDs válidos; detalhes são obtidos depois em /vulns/{id}.
+                // IDs ilegíveis invalidam a resposta; não são descartados como resultado limpo.
                 foreach ($vulnerabilities as $vulnerability) {
-                    if (!is_array($vulnerability) || !is_string($vulnerability['id'] ?? null) || $vulnerability['id'] === '') {
-                        continue;
+                    if (!is_array($vulnerability) || !is_string($vulnerability['id'] ?? null) || trim($vulnerability['id']) === '') {
+                        throw new UnexpectedValueException('OSV querybatch retornou vulnerabilidade sem ID válido.');
                     }
                     $matches[$vulnerability['id']][$componentKey] = $component;
                 }
 
                 // Apenas componentes paginados retornam para a próxima rodada.
                 $token = $result['next_page_token'] ?? null;
+                if (array_key_exists('next_page_token', $result) && !is_string($token)) {
+                    throw new UnexpectedValueException('OSV querybatch retornou token de paginação inválido.');
+                }
                 if (is_string($token) && $token !== '') {
+                    if (isset($seenTokens[$componentKey][$token])) {
+                        throw new UnexpectedValueException('OSV repetiu token de paginação para o componente.');
+                    }
+                    $seenTokens[$componentKey][$token] = true;
                     $next[] = ['component' => $component, 'page_token' => $token];
                 }
             }
@@ -320,6 +332,8 @@ final class OsvClient
                     'published' => self::firstString($record['published'] ?? null),
                     'modified' => self::firstString($record['modified'] ?? null),
                     'reference' => $reference,
+                    'references' => is_array($record['references'] ?? null) ? $record['references'] : [],
+                    'affected' => is_array($record['affected'] ?? null) ? $record['affected'] : [],
                     'severity' => is_array($record['severity'] ?? null) ? $record['severity'] : [],
                 ], static fn (mixed $value): bool => $value !== null && $value !== []),
             ],

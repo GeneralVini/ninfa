@@ -1,0 +1,65 @@
+{
+  "task": "SEC-04.02",
+  "status": "VALIDATED",
+  "responsible": "Codex",
+  "started_at": "2026-10-24T13:20:30-03:00",
+  "completed_at": "2026-10-24T13:24:29-03:00",
+  "identity_version": 1,
+  "catalog_version": "1.0.0",
+  "checks": [
+    {
+      "command": "make syntax profile-test",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-02-regression.log"
+    },
+    {
+      "command": "php -d zend.assertions=1 -d assert.exception=1 tests/security-test-identity.php",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-02-identity.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "src/SecurityTestIdentity.php",
+      "sha256": "bd64b1a9ab016dc397c2ef5e988fbba73c55883cc1d064f7e6b65be34790fd61"
+    },
+    {
+      "path": "tests/security-test-identity.php",
+      "sha256": "be3ca5cc666b85c091b6e88411555d400fe75b7ad1214320c273ea59cb35dbb6"
+    },
+    {
+      "path": "docs/SECURITY-TEST-IDENTITY.md",
+      "sha256": "1a1d0045884c5586105cb68d5fcaf5818481ce24d8a594dab75d8fa7b6fdeb35"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-02-regression.log",
+      "sha256": "b0e335a8421aed6f08687a0728a96b8634f255dbf0c716257ed13f22761c6a40"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-02-identity.log",
+      "sha256": "43ef82bd01d4a198b5e99110008f754145c1ebd7047a5e349d74b45b6f297654"
+    }
+  ],
+  "coverage": [
+    "Canonical mapping order and stable identity across runs with complete context.",
+    "Context, project, authorization, source/deploy/host snapshots, role/session, method, vector and asset separation.",
+    "Engine/runtime/config/rule/data/condition/payload bindings; six source types.",
+    "Unknown facts isolated with nonce and comparison disabled, including within one run.",
+    "Invalid schemas, raw extra fields, incompatible assets, versions and rule bindings rejected.",
+    "Shared Psalm execution and complete Nuclei template granularity documented."
+  ],
+  "limits": [
+    "Identity only; no public scan scheduling, ledger or coverage reuse implemented.",
+    "Adapter must verify origin and semantics of snapshots/digests and retain evidence; format validation cannot attest these facts.",
+    "Equal verified identity does not imply successful execution or valid coverage.",
+    "No consumer scan or external target requested."
+  ],
+  "notes": [
+    "Regression exited 0; pre-existing mkdir File exists warning in tests/yii2-view-resolution.php:15 remains."
+  ],
+  "next_task": "SEC-04.03"
+}

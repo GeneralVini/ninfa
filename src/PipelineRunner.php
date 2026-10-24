@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . "/EvidenceStore.php";
 
 require_once __DIR__ . '/ProcessRunner.php';
 require_once __DIR__ . '/PipelinePlan.php';
@@ -25,8 +26,8 @@ require_once __DIR__ . '/GlpiPluginRuleEngine.php';
  *
  * Em `security`, cria e grava SecurityInventory antes dos scanners, executa
  * OSV pelo cliente interno, normaliza Psalm Taint/Semgrep e, ao final, grava
- * `security-report.json`. Findings Semgrep `ERROR` bloqueiam o gate; `WARNING`
- * permanece hotspot para revisão sem reprovar uma execução íntegra.
+ * `security-report.json`. Findings Semgrep ERROR/HIGH/CRITICAL bloqueiam o gate; WARNING/MEDIUM
+ * permanecem hotspots para revisão sem reprovar uma execução íntegra.
  *
  * A variável NINFA_DAST apenas gera aviso: esta classe não executa ZAP. O
  * runner também não aplica o recheck posterior ao `fix`; essa política fica em
@@ -133,8 +134,8 @@ final class PipelineRunner
                 try {
                     $results[] = $this->runGlpiSemantic($context, $started);
                 } catch (Throwable $error) {
-                    fwrite(STDERR, CliStyle::error('✗ glpi-semantic: ' . $error->getMessage()) . PHP_EOL);
-                    $results[] = ToolResult::error('glpi-semantic', $error->getMessage(), $this->elapsedMs($started));
+                    fwrite(STDERR, CliStyle::error('✗ glpi-semantic: ' . EvidenceSanitizer::text($error->getMessage())) . PHP_EOL);
+                    $results[] = ToolResult::error('glpi-semantic', EvidenceSanitizer::text($error->getMessage()), $this->elapsedMs($started));
                 }
                 continue;
             }
@@ -157,8 +158,8 @@ final class PipelineRunner
                 try {
                     [$status, $findings] = $this->runOsv($securityInventory);
                 } catch (Throwable $error) {
-                    fwrite(STDERR, CliStyle::error('✗ osv: ' . $error->getMessage()) . PHP_EOL);
-                    $results[] = ToolResult::error('osv', $error->getMessage(), $this->elapsedMs($started));
+                    fwrite(STDERR, CliStyle::error('✗ osv: ' . EvidenceSanitizer::text($error->getMessage())) . PHP_EOL);
+                    $results[] = ToolResult::error('osv', EvidenceSanitizer::text($error->getMessage()), $this->elapsedMs($started));
                     continue;
                 }
 
@@ -170,12 +171,12 @@ final class PipelineRunner
             try {
                 $command = $this->commandFor($hook['id'], $hook['mode'], $context, $configs);
             } catch (ToolUnavailableException $error) {
-                fwrite(STDERR, CliStyle::warning('! ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
-                $results[] = ToolResult::unavailable($hook['id'], $error->getMessage(), $this->elapsedMs($started));
+                fwrite(STDERR, CliStyle::warning('! ' . $hook['id'] . ': ' . EvidenceSanitizer::text($error->getMessage())) . PHP_EOL);
+                $results[] = ToolResult::unavailable($hook['id'], EvidenceSanitizer::text($error->getMessage()), $this->elapsedMs($started));
                 continue;
             } catch (Throwable $error) {
-                fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
-                $results[] = ToolResult::error($hook['id'], $error->getMessage(), $this->elapsedMs($started));
+                fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . EvidenceSanitizer::text($error->getMessage())) . PHP_EOL);
+                $results[] = ToolResult::error($hook['id'], EvidenceSanitizer::text($error->getMessage()), $this->elapsedMs($started));
                 continue;
             }
 
@@ -201,7 +202,9 @@ final class PipelineRunner
                     if (!$securityInventory instanceof SecurityInventory) {
                         throw new LogicException('Inventário de segurança ausente para Composer Audit.');
                     }
-                    [$status, $findings] = $this->runComposerAudit($command, $context, $securityInventory);
+                    $toolResult = $this->runComposerAudit($command, $context, $securityInventory, $started);
+                    $status = $toolResult->exitCode ?? 1;
+                    $findings = $toolResult->findings;
                 } elseif ($structured) {
                     [$status, $findings] = $this->runStaticAnalysis($hook['id'], $command, $context);
                 } else {
@@ -210,8 +213,8 @@ final class PipelineRunner
                         : $this->processRunner->run($command, $context->root());
                 }
             } catch (Throwable $error) {
-                fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . $error->getMessage()) . PHP_EOL);
-                $results[] = ToolResult::error($hook['id'], $error->getMessage(), $this->elapsedMs($started));
+                fwrite(STDERR, CliStyle::error('✗ ' . $hook['id'] . ': ' . EvidenceSanitizer::text($error->getMessage())) . PHP_EOL);
+                $results[] = ToolResult::error($hook['id'], EvidenceSanitizer::text($error->getMessage()), $this->elapsedMs($started));
                 continue;
             }
 
@@ -235,8 +238,8 @@ final class PipelineRunner
                 $reportFile = $this->writeSecurityReport($context, $securityInventory, $runResult);
                 echo CliStyle::info('[NINFA] Relatório de segurança: ' . $reportFile) . PHP_EOL;
             } catch (Throwable $error) {
-                fwrite(STDERR, CliStyle::error('✗ security-report: ' . $error->getMessage()) . PHP_EOL);
-                $results[] = ToolResult::error('security-report', $error->getMessage());
+                fwrite(STDERR, CliStyle::error('✗ security-report: ' . EvidenceSanitizer::text($error->getMessage())) . PHP_EOL);
+                $results[] = ToolResult::error('security-report', EvidenceSanitizer::text($error->getMessage()));
                 $runResult = new RunResult($operation, $results);
             }
         }
@@ -392,12 +395,12 @@ final class PipelineRunner
                 ? FindingRenderer::phpStan($result->stdout, $context->root())
                 : FindingRenderer::psalm($result->stdout, $context->root());
         } catch (JsonException $error) {
-            fwrite(STDERR, CliStyle::error('[ERRO] Saida estruturada invalida de ' . $tool . ': ' . $error->getMessage()) . PHP_EOL);
+            fwrite(STDERR, CliStyle::error('[ERRO] Saida estruturada invalida de ' . $tool . ': ' . EvidenceSanitizer::text($error->getMessage())) . PHP_EOL);
             if (trim($result->stdout) !== '') {
-                fwrite(STDERR, $result->stdout . PHP_EOL);
+                fwrite(STDERR, EvidenceSanitizer::text($result->stdout) . PHP_EOL);
             }
             if (trim($result->stderr) !== '') {
-                fwrite(STDERR, $result->stderr . PHP_EOL);
+                fwrite(STDERR, EvidenceSanitizer::text($result->stderr) . PHP_EOL);
             }
 
             return [$result->exitCode === 0 ? 1 : $result->exitCode, []];
@@ -406,10 +409,10 @@ final class PipelineRunner
         if ($findings === []) {
             if ($result->exitCode !== 0) {
                 if (trim($result->stderr) !== '') {
-                    fwrite(STDERR, $result->stderr . PHP_EOL);
+                    fwrite(STDERR, EvidenceSanitizer::text($result->stderr) . PHP_EOL);
                 }
                 if (trim($result->stdout) !== '') {
-                    fwrite(STDERR, $result->stdout . PHP_EOL);
+                    fwrite(STDERR, EvidenceSanitizer::text($result->stdout) . PHP_EOL);
                 }
                 fwrite(STDERR, CliStyle::error('✗ ' . $tool . ': terminou com codigo ' . $result->exitCode . '.') . PHP_EOL);
             } else {
@@ -431,14 +434,16 @@ final class PipelineRunner
      * @param list<string> $command Comando defensivo de Composer Audit.
      * @param ProjectContext $context Contexto que fornece cwd.
      * @param SecurityInventory $inventory Inventário usado pelo parser para correlacionar componentes.
-     * @return array{0:int,1:list<Finding>} Status e findings normalizados.
+     * @param int $started Marca monotônica usada para duração.
+     * @return ToolResult Estado, gate, findings e código nativo separados.
      * @throws RuntimeException Quando a saída/execução não pode ser interpretada com segurança.
      */
     private function runComposerAudit(
         array $command,
         ProjectContext $context,
         SecurityInventory $inventory,
-    ): array {
+        int $started,
+    ): ToolResult {
         $result = $this->processRunner->runCaptured($command, $context->root());
 
         try {
@@ -446,31 +451,33 @@ final class PipelineRunner
             $findings = ComposerAuditParser::parse($result->stdout, $inventory);
         } catch (JsonException|UnexpectedValueException $error) {
             if (trim($result->stderr) !== '') {
-                fwrite(STDERR, $result->stderr . PHP_EOL);
-            }
-            if (trim($result->stdout) !== '') {
-                fwrite(STDERR, $result->stdout . PHP_EOL);
+                fwrite(STDERR, EvidenceSanitizer::text($result->stderr) . PHP_EOL);
             }
             throw new RuntimeException(
-                'Composer Audit não retornou JSON estruturado válido: ' . $error->getMessage(),
+                'Composer Audit não retornou JSON estruturado válido: ' . EvidenceSanitizer::text($error->getMessage()),
                 0,
                 $error,
             );
         }
 
-        if ($findings === []) {
-            if ($result->exitCode !== 0) {
-                if (trim($result->stderr) !== '') {
-                    fwrite(STDERR, $result->stderr . PHP_EOL);
-                }
-                throw new RuntimeException(
-                    'Composer Audit terminou com código ' . $result->exitCode
-                    . ' sem finding normalizado; trate como falha de infraestrutura ou política não suportada.',
-                );
-            }
+        // Payload aproveitável não transforma falha de processo em auditoria concluída.
+        if (!in_array($result->exitCode, [0, 1, 2, 3], true) || ($result->exitCode !== 0 && $findings === [])) {
+            return new ToolResult(
+                'composer-audit',
+                ToolResult::ERROR,
+                1,
+                'Composer Audit terminou sem conclusão verificável; código nativo: ' . $result->exitCode,
+                $findings,
+                $this->elapsedMs($started),
+                ['status' => 'unknown', 'native_exit_code' => $result->exitCode],
+            );
+        }
 
+        if ($findings === []) {
             echo CliStyle::success('✓ composer-audit: nenhum advisory ou policy finding.') . PHP_EOL;
-            return [0, []];
+            return ToolResult::completed('composer-audit', 0, [], $this->elapsedMs($started), [
+                'status' => 'declared', 'native_exit_code' => $result->exitCode,
+            ]);
         }
 
         FindingRenderer::render($findings, true);
@@ -478,14 +485,17 @@ final class PipelineRunner
             '✗ composer-audit: ' . count($findings) . ' finding(s) SCA/policy.',
         ) . PHP_EOL;
 
-        return [$result->exitCode === 0 ? 1 : $result->exitCode, $findings];
+        return ToolResult::completed(
+            'composer-audit', $result->exitCode === 0 ? 1 : $result->exitCode, $findings,
+            $this->elapsedMs($started), ['status' => 'declared', 'native_exit_code' => $result->exitCode],
+        );
     }
 
     /**
      * Executa um scanner SAST estruturado e preserva findings e cobertura observada.
      *
-     * Psalm Taint mantém qualquer finding como bloqueante. No Semgrep, `ERROR`
-     * bloqueia e `WARNING` é hotspot não bloqueante; falha do mecanismo ou
+     * Psalm Taint mantém qualquer finding como bloqueante. No Semgrep, ERROR/HIGH/CRITICAL
+     * bloqueiam e WARNING/MEDIUM são hotspots não bloqueantes; falha do mecanismo ou
      * cobertura parcial continua sendo erro operacional independentemente da severidade.
      *
      * @param string $tool `psalm-taint` ou `semgrep`.
@@ -515,10 +525,12 @@ final class PipelineRunner
             }
         } catch (JsonException|UnexpectedValueException $error) {
             if (trim($process->stderr) !== '') {
-                fwrite(STDERR, $process->stderr . PHP_EOL);
+                fwrite(STDERR, EvidenceSanitizer::text($process->stderr) . PHP_EOL);
             }
-            throw new RuntimeException($tool . ' não retornou JSON SAST válido: ' . $error->getMessage(), 0, $error);
+            throw new RuntimeException($tool . ' não retornou JSON SAST válido: ' . EvidenceSanitizer::text($error->getMessage()), 0, $error);
         }
+
+        $coverage['native_exit_code'] = $process->exitCode;
 
         // Integridade do scanner tem precedência sobre a triagem de severidade; cobertura incompleta nunca é “aprovada”.
         if ($errors !== [] || ($coverage['status'] ?? null) === 'partial') {
@@ -535,21 +547,22 @@ final class PipelineRunner
             );
         }
 
-        // Sem erro estruturado, exit não zero indica falha do mecanismo/CLI e não deve ser interpretado como finding limpo.
-        if ($process->exitCode !== 0) {
+        // Psalm usa 2 para issues bloqueantes; o gate local continua separado do retorno nativo.
+        $psalmIssues = $tool === 'psalm-taint' && $process->exitCode === 2 && $findings !== [];
+        if ($process->exitCode !== 0 && !$psalmIssues) {
             throw new RuntimeException($tool . ' terminou com código ' . $process->exitCode . ' sem erro estruturado do scanner.');
         }
 
         if ($tool === 'semgrep') {
-            /** @var list<Finding> $blocking Findings Semgrep de severidade ERROR. */
+            /** @var list<Finding> $blocking Findings Semgrep de severidade ERROR/HIGH/CRITICAL. */
             $blocking = array_values(array_filter(
                 $findings,
-                static fn (Finding $finding): bool => strtolower((string) $finding->severity) === 'error',
+                static fn (Finding $finding): bool => in_array(strtolower((string) $finding->severity), ['error', 'high', 'critical'], true),
             ));
-            /** @var list<Finding> $hotspots Findings Semgrep WARNING/INFO não bloqueantes. */
+            /** @var list<Finding> $hotspots Demais severidades Semgrep conhecidas não bloqueantes. */
             $hotspots = array_values(array_filter(
                 $findings,
-                static fn (Finding $finding): bool => strtolower((string) $finding->severity) !== 'error',
+                static fn (Finding $finding): bool => !in_array(strtolower((string) $finding->severity), ['error', 'high', 'critical'], true),
             ));
 
             if ($findings !== []) {
@@ -557,7 +570,7 @@ final class PipelineRunner
             }
             $this->renderSemgrepCoverage($coverage, 0);
 
-            // A política local separa vulnerabilidade/higher-signal ERROR de hotspot WARNING sem esconder nenhum finding.
+            // A política local separa vulnerabilidade/ERROR/HIGH/CRITICAL dos hotspots WARNING/MEDIUM sem esconder nenhum finding.
             if ($blocking !== []) {
                 echo CliStyle::error('✗ semgrep: ' . count($blocking) . ' bloqueante(s) e ' . count($hotspots) . ' hotspot(s).') . PHP_EOL;
                 return ToolResult::completed(
@@ -660,10 +673,10 @@ final class PipelineRunner
     {
         $result = $this->processRunner->runCaptured($command, $context->root());
         if ($result->stdout !== '') {
-            echo $result->stdout;
+            echo EvidenceSanitizer::text($result->stdout);
         }
         if ($result->stderr !== '') {
-            fwrite(STDERR, $result->stderr);
+            fwrite(STDERR, EvidenceSanitizer::text($result->stderr));
         }
 
         // Exit 0 acompanhado de “no tests” não comprova qualidade e é convertido em falha do hook.
@@ -748,10 +761,10 @@ final class PipelineRunner
     private function writeSecurityInventory(ProjectContext $context, SecurityInventory $inventory): string
     {
         $file = $context->workspace()->file('security-inventory.json');
-        $written = file_put_contents(
+        $written = EvidenceStore::atomicWrite(
             $file,
             json_encode(
-                $inventory,
+                EvidenceSanitizer::value($inventory),
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
             ) . PHP_EOL,
         );
@@ -777,10 +790,10 @@ final class PipelineRunner
         RunResult $runResult,
     ): string {
         $file = $context->workspace()->file('security-report.json');
-        $written = file_put_contents(
+        $written = EvidenceStore::atomicWrite(
             $file,
             json_encode(
-                new SecurityReport($inventory, $runResult),
+                EvidenceSanitizer::value(new SecurityReport($inventory, $runResult)),
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
             ) . PHP_EOL,
         );

@@ -28,7 +28,7 @@ i Semgrep — exclusões por política: 1
 ✓ Semgrep — erros do mecanismo: 0
 ```
 
-Findings `ERROR` do Semgrep bloqueiam a etapa. Findings `WARNING` são renderizados como hotspots e não transformam sozinhos a etapa em falha. Cobertura parcial inesperada ou erro do mecanismo permanece bloqueante.
+Findings `ERROR`/`HIGH`/`CRITICAL` do Semgrep bloqueiam a etapa. Findings `WARNING`/`MEDIUM` são renderizados como hotspots e não transformam sozinhos a etapa em falha. Cobertura parcial inesperada ou erro do mecanismo permanece bloqueante.
 
 Uma falha não impede etapas independentes de executar. O comando retorna o primeiro código diferente de zero para preservar a ordem do pipeline. Estados conhecidos podem aparecer como `not_applicable`, `unavailable`, `partial` ou `skipped`, conforme o motivo real; eles não são colapsados em um único rótulo.
 

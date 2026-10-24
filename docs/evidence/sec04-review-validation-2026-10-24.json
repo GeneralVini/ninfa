@@ -1,0 +1,380 @@
+{
+  "task": "SEC-04 review against SEC-01/02/03",
+  "status": "VALIDATED",
+  "responsible": "Codex",
+  "started_at": "2026-10-24T15:35:34-03:00",
+  "completed_at": "2026-10-24T15:41:14-03:00",
+  "checks": [
+    {
+      "command": "make syntax profile-test security-contract-test",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-review-regression.log"
+    },
+    {
+      "command": "python3 scripts/web-security-tools.py doctor --network",
+      "exit_code": 0,
+      "output": "runtime/security-validation-2026-10-24/sec04-review-doctor.json"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "check": "Historical SEC-04 artifact SHA-256 and pre-review archives",
+      "verified_artifacts": 30,
+      "verified_archives": 9,
+      "result": "all matched; original validation manifests unchanged"
+    }
+  ],
+  "fixes": [
+    "Accept SEC-01 plugin scope only with glpi-plugin profile; exclude DAST unless explicit web-full.",
+    "Prevent coverage reuse when created_at is in the future after clock rollback.",
+    "Reject historical reuse decisions with wrong execution/group units or incoherent coverage, operation, session and validity snapshots.",
+    "Refresh implemented API links and SEC-01/02/03 dependency mapping without claiming public DAST integration."
+  ],
+  "compatibility": {
+    "identity_version": 1,
+    "plan_version": 1,
+    "ledger_version": 1,
+    "public_schema": 3,
+    "approved_cross_engine_equivalences": 0
+  },
+  "preflight": {
+    "completed": 14,
+    "total": 14,
+    "audit_executed": false,
+    "full_web_ready": false,
+    "browser": "Playwright/Chromium local DOM smoke",
+    "network": "Controlled public OSV query; no consumer scan"
+  },
+  "regressions": [
+    "plugin profile acceptance and rejection; DAST scope exclusion",
+    "clock rollback invalidates coverage reuse",
+    "failed operation, future creation, expired validity and wrong execution rejected in historical report",
+    "real ZAP/Nuclei fixture findings and empty outputs retain unknown coverage through ledger; second attempt requires explicit retry",
+    "existing catalog, identities, plans, concurrent execution, interruption/recovery, evidence, parsers and six-source non-repetition suites passed",
+    "seven native tooling tests passed; stage-reference regression included in profile-test"
+  ],
+  "artifacts": [
+    {
+      "path": "src/SecurityScanPlan.php",
+      "sha256": "d8f959088d9e1462f0aff4034c6f1d9ac962644bf6c62cf05fef0c01a0a74ddc"
+    },
+    {
+      "path": "src/SecurityExecutionLedger.php",
+      "sha256": "5b7b1b9a75cc7dae43216a901b0c02dbd66d5482f002c6bac2266abd8d979662"
+    },
+    {
+      "path": "src/SecurityCoordinationReport.php",
+      "sha256": "b6c3ad48550c3b90ae39501021dfe1b8b78a2c96013e02f9ef22b0d1ae363d26"
+    },
+    {
+      "path": "docs/SECURITY-EXECUTION-CONTRACT.md",
+      "sha256": "edb8ccc46e14081ac904ef8e27b84d964098680ed5e9500235d21ca1cde85b6e"
+    },
+    {
+      "path": "docs/SECURITY-TEST-IDENTITY.md",
+      "sha256": "09f7ab1bdc1548563321df235c96eeeff75dbaed9496f99f2daae427c4fdb5c1"
+    },
+    {
+      "path": "docs/SECURITY-SCAN-PLAN.md",
+      "sha256": "2e6ccb731c6cc274323a56b6ca0a0f8270e8f91222e09535a1b4210e78b40c76"
+    },
+    {
+      "path": "docs/SECURITY-EXECUTION-LEDGER.md",
+      "sha256": "1e12b49a2058d6a975d2b2a28633884f1998c9edcb3edf942828493eebf8e444"
+    },
+    {
+      "path": "docs/SECURITY-CAPABILITY-CATALOG.md",
+      "sha256": "98106af276dd5c303017430dafd5b63569646af20be59fb24d38937af339e01d"
+    },
+    {
+      "path": "docs/SECURITY-NON-REPETITION.md",
+      "sha256": "c5a1d4c96a82941e66d0b6fcc0a3d0de17dc571030dfe8ded8179a31edbef8d4"
+    },
+    {
+      "path": "Makefile",
+      "sha256": "5ad52cfb4ba4bc1a0850f9b1359a0ac7eb4a83ac4245eb8a4f82e0755a0e2752"
+    },
+    {
+      "path": "tests/security-stage-references.php",
+      "sha256": "f7ebb69ba742298b33e5169e03b9185ce26dae1b4f8d9569e27729b5296f1bcc"
+    },
+    {
+      "path": "docs/REVISAO-SEC-04-2026-10-24.md",
+      "sha256": "3dda50433e5bccdc982f52d75bc7bd8b1a824861c6727fcc7625865836260c2d"
+    },
+    {
+      "path": "docs/EAP-SECURITY-ORCHESTRATION.md",
+      "sha256": "9bef524087ea342727c5c39fe500a1c400c6093be96cd519935a4f301dd043b3"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-review-regression.log",
+      "sha256": "2c1686f51523356998d1dcfbf45aa6d5a9c415106f633b5374d07af075b9e778"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-review-doctor.json",
+      "sha256": "43e752fad52f9b675db1221c0c163b706fe6bf6ae328d431b6368ffa197c06eb"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-review-before-manifest.json",
+      "sha256": "7ffed99f081ae96ddad961703709cef56701ec467c27262663d977fe4e5aa3fe"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-review-history.json",
+      "sha256": "a3b11fa82a01c833dd70e1f0c8a891a007f69e9433ede5b2ef0ad094a55154ce"
+    }
+  ],
+  "revisions": [
+    {
+      "path": "src/SecurityScanPlan.php",
+      "archive": "runtime/security-validation-2026-10-24/sec04-review-before/src/SecurityScanPlan.php",
+      "sha256": "3040fd80bb311bfec1aefe6f8d0f17306c3f27d124751a99e0cb022eb17613c3",
+      "current_sha256": "d8f959088d9e1462f0aff4034c6f1d9ac962644bf6c62cf05fef0c01a0a74ddc"
+    },
+    {
+      "path": "src/SecurityExecutionLedger.php",
+      "archive": "runtime/security-validation-2026-10-24/sec04-review-before/src/SecurityExecutionLedger.php",
+      "sha256": "ad1841e27d01b6c928568127b571855f4b4c30dc3d84e7e362c9fef3c5d9fb28",
+      "current_sha256": "5b7b1b9a75cc7dae43216a901b0c02dbd66d5482f002c6bac2266abd8d979662"
+    },
+    {
+      "path": "src/SecurityCoordinationReport.php",
+      "archive": "runtime/security-validation-2026-10-24/sec04-review-before/src/SecurityCoordinationReport.php",
+      "sha256": "63748bab59b33860d247b790f83a3a4f3bdbfa20bbfdb1f5adf417153da5cc9f",
+      "current_sha256": "b6c3ad48550c3b90ae39501021dfe1b8b78a2c96013e02f9ef22b0d1ae363d26"
+    },
+    {
+      "path": "docs/SECURITY-EXECUTION-CONTRACT.md",
+      "archive": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-EXECUTION-CONTRACT.md",
+      "sha256": "b7968d0d8b7f1a4055ba14cd9ffc6691791b374ca156e37820e3d18d6f17e6f6",
+      "current_sha256": "edb8ccc46e14081ac904ef8e27b84d964098680ed5e9500235d21ca1cde85b6e"
+    },
+    {
+      "path": "docs/SECURITY-TEST-IDENTITY.md",
+      "archive": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-TEST-IDENTITY.md",
+      "sha256": "1a1d0045884c5586105cb68d5fcaf5818481ce24d8a594dab75d8fa7b6fdeb35",
+      "current_sha256": "09f7ab1bdc1548563321df235c96eeeff75dbaed9496f99f2daae427c4fdb5c1"
+    },
+    {
+      "path": "docs/SECURITY-SCAN-PLAN.md",
+      "archive": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-SCAN-PLAN.md",
+      "sha256": "cc35a866dfaec69d3386bea5233ca24173e33a2ba72e4a8592cecbd74657650d",
+      "current_sha256": "2e6ccb731c6cc274323a56b6ca0a0f8270e8f91222e09535a1b4210e78b40c76"
+    },
+    {
+      "path": "docs/SECURITY-EXECUTION-LEDGER.md",
+      "archive": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-EXECUTION-LEDGER.md",
+      "sha256": "920944d030faa4e2d4441c80c61968ec24d35a6ffc97c62c53c9322b6a4d025c",
+      "current_sha256": "1e12b49a2058d6a975d2b2a28633884f1998c9edcb3edf942828493eebf8e444"
+    },
+    {
+      "path": "docs/SECURITY-CAPABILITY-CATALOG.md",
+      "archive": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-CAPABILITY-CATALOG.md",
+      "sha256": "f257132ced0c93f190493f5bd9e409da6c1899378c41fb2de31aa8f62a61b9b9",
+      "current_sha256": "98106af276dd5c303017430dafd5b63569646af20be59fb24d38937af339e01d"
+    },
+    {
+      "path": "docs/SECURITY-NON-REPETITION.md",
+      "archive": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-NON-REPETITION.md",
+      "sha256": "f4423e14c7ca992d76f533b46e784156accdfd684e9ede7c9cc75d205d83b639",
+      "current_sha256": "c5a1d4c96a82941e66d0b6fcc0a3d0de17dc571030dfe8ded8179a31edbef8d4"
+    }
+  ],
+  "historical_artifacts": [
+    {
+      "manifest": "docs/evidence/sec04-01-validation-2026-10-24.json",
+      "path": "security/capabilities.v1.json",
+      "sha256": "07966ff5added13926b4a368717489e4d03057af2d78808a08bbbc19483964c0",
+      "verified_at": "security/capabilities.v1.json"
+    },
+    {
+      "manifest": "docs/evidence/sec04-01-validation-2026-10-24.json",
+      "path": "src/CapabilityCatalog.php",
+      "sha256": "6f49e2ed1c5f30900edbfc777e914cc328944793c655852b482357fe08728d14",
+      "verified_at": "src/CapabilityCatalog.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-01-validation-2026-10-24.json",
+      "path": "tests/capability-catalog.php",
+      "sha256": "ca4c494c712cc4cca9ec507f8e7fda8b20be8205a26aebc55051738da28d099c",
+      "verified_at": "tests/capability-catalog.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-01-validation-2026-10-24.json",
+      "path": "docs/SECURITY-CAPABILITY-CATALOG.md",
+      "sha256": "f257132ced0c93f190493f5bd9e409da6c1899378c41fb2de31aa8f62a61b9b9",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-CAPABILITY-CATALOG.md"
+    },
+    {
+      "manifest": "docs/evidence/sec04-01-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-01-regression.log",
+      "sha256": "46761f7918c6f2f6c603768f24cf1244b3e0849eb2315bd3065417892f49eb8a",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-01-regression.log"
+    },
+    {
+      "manifest": "docs/evidence/sec04-01-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-01-catalog.log",
+      "sha256": "191a52c2ff562828d08504f734a5730676e5bbc4a6c7c334984bbe0f47acc20e",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-01-catalog.log"
+    },
+    {
+      "manifest": "docs/evidence/sec04-02-validation-2026-10-24.json",
+      "path": "src/SecurityTestIdentity.php",
+      "sha256": "bd64b1a9ab016dc397c2ef5e988fbba73c55883cc1d064f7e6b65be34790fd61",
+      "verified_at": "src/SecurityTestIdentity.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-02-validation-2026-10-24.json",
+      "path": "tests/security-test-identity.php",
+      "sha256": "be3ca5cc666b85c091b6e88411555d400fe75b7ad1214320c273ea59cb35dbb6",
+      "verified_at": "tests/security-test-identity.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-02-validation-2026-10-24.json",
+      "path": "docs/SECURITY-TEST-IDENTITY.md",
+      "sha256": "1a1d0045884c5586105cb68d5fcaf5818481ce24d8a594dab75d8fa7b6fdeb35",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-TEST-IDENTITY.md"
+    },
+    {
+      "manifest": "docs/evidence/sec04-02-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-02-regression.log",
+      "sha256": "b0e335a8421aed6f08687a0728a96b8634f255dbf0c716257ed13f22761c6a40",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-02-regression.log"
+    },
+    {
+      "manifest": "docs/evidence/sec04-02-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-02-identity.log",
+      "sha256": "43ef82bd01d4a198b5e99110008f754145c1ebd7047a5e349d74b45b6f297654",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-02-identity.log"
+    },
+    {
+      "manifest": "docs/evidence/sec04-03-validation-2026-10-24.json",
+      "path": "src/SecurityScanPlan.php",
+      "sha256": "3040fd80bb311bfec1aefe6f8d0f17306c3f27d124751a99e0cb022eb17613c3",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-review-before/src/SecurityScanPlan.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-03-validation-2026-10-24.json",
+      "path": "tests/security-scan-plan.php",
+      "sha256": "fc27039e3d5829aff5045265c2c812d32751465d35950f6e83c406f8907d0d99",
+      "verified_at": "tests/security-scan-plan.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-03-validation-2026-10-24.json",
+      "path": "docs/SECURITY-SCAN-PLAN.md",
+      "sha256": "cc35a866dfaec69d3386bea5233ca24173e33a2ba72e4a8592cecbd74657650d",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-SCAN-PLAN.md"
+    },
+    {
+      "manifest": "docs/evidence/sec04-03-validation-2026-10-24.json",
+      "path": "docs/evidence/sec04-03-example-plan.json",
+      "sha256": "60aa3602337fa4755163934014520b475a9dc8c4776bdb4b66481b458d4d0ccc",
+      "verified_at": "docs/evidence/sec04-03-example-plan.json"
+    },
+    {
+      "manifest": "docs/evidence/sec04-03-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-03-regression.log",
+      "sha256": "d4e3f09cc86a890adce69f0819a66c8b01cac28297f79eb9e5ea4595f8fd9eff",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-03-regression.log"
+    },
+    {
+      "manifest": "docs/evidence/sec04-03-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-03-plan.log",
+      "sha256": "6851206335365a4c09c2b7a0c7ab9a9cc3ea577a7b56208d66f4f23416842b6e",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-03-plan.log"
+    },
+    {
+      "manifest": "docs/evidence/sec04-04-validation-2026-10-24.json",
+      "path": "src/SecurityExecutionLedger.php",
+      "sha256": "13e3595b071ad04aea83e8d3bd3dfc6eca1a06c9602c1c1939a9a03010b25c52",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-04-SecurityExecutionLedger.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-04-validation-2026-10-24.json",
+      "path": "tests/security-execution-ledger.php",
+      "sha256": "85875efd19b7bd83d9daa820f4b6f12b5f3db548b9a7f60ebe507e36300b4633",
+      "verified_at": "tests/security-execution-ledger.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-04-validation-2026-10-24.json",
+      "path": "docs/SECURITY-EXECUTION-LEDGER.md",
+      "sha256": "920944d030faa4e2d4441c80c61968ec24d35a6ffc97c62c53c9322b6a4d025c",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-EXECUTION-LEDGER.md"
+    },
+    {
+      "manifest": "docs/evidence/sec04-04-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-04-regression.log",
+      "sha256": "3fab646632f871e665ea438dd3a2793eab272032bbd1f478173b692162cee0f6",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-04-regression.log"
+    },
+    {
+      "manifest": "docs/evidence/sec04-05-validation-2026-10-24.json",
+      "path": "src/SecurityCoordinationReport.php",
+      "sha256": "63748bab59b33860d247b790f83a3a4f3bdbfa20bbfdb1f5adf417153da5cc9f",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-review-before/src/SecurityCoordinationReport.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-05-validation-2026-10-24.json",
+      "path": "src/SecurityExecutionLedger.php",
+      "sha256": "ad1841e27d01b6c928568127b571855f4b4c30dc3d84e7e362c9fef3c5d9fb28",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-review-before/src/SecurityExecutionLedger.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-05-validation-2026-10-24.json",
+      "path": "tests/security-non-repetition.php",
+      "sha256": "01eca2b13a00443b141b4a04d34c9679393f3e67a2c14592d14ab5785d859b8d",
+      "verified_at": "tests/security-non-repetition.php"
+    },
+    {
+      "manifest": "docs/evidence/sec04-05-validation-2026-10-24.json",
+      "path": "docs/SECURITY-NON-REPETITION.md",
+      "sha256": "f4423e14c7ca992d76f533b46e784156accdfd684e9ede7c9cc75d205d83b639",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-review-before/docs/SECURITY-NON-REPETITION.md"
+    },
+    {
+      "manifest": "docs/evidence/sec04-05-validation-2026-10-24.json",
+      "path": "docs/evidence/sec04-05-coordination-example.json",
+      "sha256": "3f06f571fbf3a97f9acbadc888c0b8f5a3444805bd30a20911671798e772b778",
+      "verified_at": "docs/evidence/sec04-05-coordination-example.json"
+    },
+    {
+      "manifest": "docs/evidence/sec04-05-validation-2026-10-24.json",
+      "path": "docs/evidence/sec04-05-coordination-example.md",
+      "sha256": "6eb8c7feb23583fb719b60c33924f3659dc8d7f7493e3e41e60f2c2b056b3bb6",
+      "verified_at": "docs/evidence/sec04-05-coordination-example.md"
+    },
+    {
+      "manifest": "docs/evidence/sec04-05-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-05-proof.log",
+      "sha256": "ce276927ad9e026cafb7f9251d9c66d11f9290f6bcea3a6a99451ea6af37d2e1",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-05-proof.log"
+    },
+    {
+      "manifest": "docs/evidence/sec04-05-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-05-regression.log",
+      "sha256": "740aa690faea8817b2df24e6289beba7f6b835b84d947f6731d96f90eb6d8518",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-05-regression.log"
+    },
+    {
+      "manifest": "docs/evidence/sec04-05-validation-2026-10-24.json",
+      "path": "runtime/security-validation-2026-10-24/sec04-04-SecurityExecutionLedger.php",
+      "sha256": "13e3595b071ad04aea83e8d3bd3dfc6eca1a06c9602c1c1939a9a03010b25c52",
+      "verified_at": "runtime/security-validation-2026-10-24/sec04-04-SecurityExecutionLedger.php"
+    }
+  ],
+  "notes": [
+    "Pre-existing mkdir(): File exists warning at tests/yii2-view-resolution.php:15; regression exit 0.",
+    "Original SEC-04 delivery datetimes preserved; review has its own start/end."
+  ],
+  "limits": [
+    "Coordination API validated; no real consumer audit or native scanner transport proof.",
+    "Effective configuration, session, native rule selection, process termination and coverage attestation remain adapter responsibilities for SEC-05/06.",
+    "Required source absence remains missing; verified non-applicability policy for consumer inventories still requires integration.",
+    "Historical report checks frozen snapshot consistency; it does not revalidate current evidence files or sessions.",
+    "Private coordination metadata retention/compaction must preserve uncertain reservations; EvidenceStore payload cleanup does not clean the journal.",
+    "Full Markdown/PDF findings report remains SEC-07/08; full_web_ready remains false.",
+    "Changes remain local; no commit or push performed."
+  ],
+  "next_task": "SEC-05.01"
+}

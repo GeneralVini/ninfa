@@ -1,0 +1,79 @@
+{
+  "task": "SEC-04.03",
+  "status": "VALIDATED",
+  "responsible": "Codex",
+  "started_at": "2026-10-24T13:27:07-03:00",
+  "completed_at": "2026-10-24T13:30:37-03:00",
+  "plan_version": 1,
+  "catalog_version": "1.0.0",
+  "checks": [
+    {
+      "command": "make syntax profile-test",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-03-regression.log"
+    },
+    {
+      "command": "php -d zend.assertions=1 -d assert.exception=1 tests/security-scan-plan.php",
+      "exit_code": 0,
+      "log": "runtime/security-validation-2026-10-24/sec04-03-plan.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "src/SecurityScanPlan.php",
+      "sha256": "3040fd80bb311bfec1aefe6f8d0f17306c3f27d124751a99e0cb022eb17613c3"
+    },
+    {
+      "path": "tests/security-scan-plan.php",
+      "sha256": "fc27039e3d5829aff5045265c2c812d32751465d35950f6e83c406f8907d0d99"
+    },
+    {
+      "path": "docs/SECURITY-SCAN-PLAN.md",
+      "sha256": "cc35a866dfaec69d3386bea5233ca24173e33a2ba72e4a8592cecbd74657650d"
+    },
+    {
+      "path": "docs/evidence/sec04-03-example-plan.json",
+      "sha256": "60aa3602337fa4755163934014520b475a9dc8c4776bdb4b66481b458d4d0ccc"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-03-regression.log",
+      "sha256": "d4e3f09cc86a890adce69f0819a66c8b01cac28297f79eb9e5ea4595f8fd9eff"
+    },
+    {
+      "path": "runtime/security-validation-2026-10-24/sec04-03-plan.log",
+      "sha256": "6851206335365a4c09c2b7a0c7ab9a9cc3ea577a7b56208d66f4f23416842b6e"
+    }
+  ],
+  "validated": [
+    "Exact verified duplicate exclusion with justification and reference.",
+    "Shared Psalm and Semgrep execution groups; distinct roles/vectors remain separate.",
+    "Incomplete identities are neither suppressed nor grouped.",
+    "ZAP/Nuclei header bundle overlap warned; all twelve matchers retained.",
+    "Scope/profile exclusions with evidence; applicability/selection/DAST-limit blocks.",
+    "Mandatory missing sources explicit; six sources selected in synthetic example.",
+    "Order-stable verified proposals; no process execution or coverage-completion claim."
+  ],
+  "example": {
+    "synthetic": true,
+    "sources": 6,
+    "units": 7,
+    "executions": 7,
+    "unrequested_capabilities": 45,
+    "execution_status": "not-started"
+  },
+  "limits": [
+    "Standalone planning API; public workflow/adapters integration remains future work.",
+    "Adapters must prove supplied facts and controls; planner does not attest them.",
+    "No cross-engine equivalence approved in catalog v1.",
+    "Source selection does not prove full baseline or completed coverage.",
+    "Ledger, locks, retries, fallback and resumed-run reuse belong to SEC-04.04."
+  ],
+  "notes": [
+    "Regression exited 0; pre-existing mkdir File exists warning in tests/yii2-view-resolution.php:15 remains."
+  ],
+  "next_task": "SEC-04.04"
+}

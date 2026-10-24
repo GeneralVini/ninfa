@@ -1,0 +1,25 @@
+{
+    "advisories": {
+        "ninfa/fixture": [
+            {
+                "advisoryId": "PKSA-fixture-test-0001",
+                "packageName": "ninfa/fixture",
+                "affectedVersions": "<1.0.1",
+                "title": "Controlled fixture advisory",
+                "cve": null,
+                "link": "https://example.invalid/advisory",
+                "reportedAt": "2026-10-23T00:00:00+00:00",
+                "sources": [
+                    {
+                        "name": "fixture",
+                        "remoteId": "fixture-1"
+                    }
+                ],
+                "severity": "high"
+            }
+        ]
+    },
+    "abandoned": {
+        "ninfa/fixture": null
+    }
+}

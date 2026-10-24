@@ -1,0 +1,32 @@
+{
+  "origin": "real",
+  "tool": "semgrep",
+  "version": "1.177.0",
+  "captured_at": "2026-10-23T23:58:06.559811+00:00",
+  "native_exit_code": 0,
+  "artifact": "semgrep.json",
+  "sha256": "902000a013f2e48a7f7a560f8052aceca2c44e7f8464d89a8302d1013d4dbd0b",
+  "configuration": {
+    "rules": [
+      {
+        "id": "ninfa-contract-echo",
+        "languages": [
+          "php"
+        ],
+        "message": "Controlled output fixture",
+        "severity": "WARNING",
+        "pattern": "echo $X;"
+      }
+    ]
+  },
+  "configuration_sha256": "f8030792fdd8fe9c5293870d953b9728a5a933bf65666c513dd389050d4dc187",
+  "stderr": "               \n               \n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Scan Status \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n  Scanning 1 file with 1 Code rule:\n  Scanning 1 file.\n                \n                \n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Scan Summary \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n\u2705 Scan completed successfully.\n \u2022 Findings: 1 (1 blocking)\n \u2022 Rules run: 1\n \u2022 Targets scanned: 1\n \u2022 Parsed lines: ~100.0%\n \u2022 No ignore information available\nRan 1 rule on 1 file: 1 finding.\n",
+  "transformations": [
+    "EvidenceSanitizer before persistence",
+    "temporary root -> /fixture",
+    "target loopback port -> 18080",
+    "payload fields redacted",
+    "temporary Semgrep rule namespace -> fixture"
+  ],
+  "limits": "controlled fixture; positive output contract, not production coverage"
+}

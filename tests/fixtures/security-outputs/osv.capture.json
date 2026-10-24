@@ -1,0 +1,29 @@
+{
+  "origin": "real",
+  "tool": "osv",
+  "version": "HTTP v1",
+  "captured_at": "2026-10-23T23:58:11.362272+00:00",
+  "native_exit_code": null,
+  "artifact": "osv.json",
+  "sha256": "0efc32c97ca1185d673db63dfa6ca5f5eae98ff35ca08d9366fb1115eef23134",
+  "configuration": {
+    "queries": [
+      {
+        "package": {
+          "name": "monolog/monolog",
+          "ecosystem": "Packagist"
+        },
+        "version": "1.10.0"
+      }
+    ]
+  },
+  "configuration_sha256": "db1971332577692a4f3522a5760ee7ee9f91497a07c81a382eedc59245c88791",
+  "stderr": "",
+  "transformations": [
+    "EvidenceSanitizer before persistence",
+    "temporary root -> /fixture",
+    "target loopback port -> 18080",
+    "payload fields redacted"
+  ],
+  "limits": "controlled fixture; positive output contract, not production coverage"
+}

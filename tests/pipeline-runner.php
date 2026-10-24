@@ -19,6 +19,8 @@ $root = sys_get_temp_dir() . '/ninfa-runner-' . bin2hex(random_bytes(4));
 $projectRoot = $root . '/project';
 $workspaceRoot = $root . '/workspace';
 $log = $root . '/steps.log';
+$ninfaRoot = $root . '/ninfa';
+$originalPath = getenv('PATH');
 
 /** @param list<string> $lines */
 function createFakeTool(string $path, string $log, array $lines, int $exitCode, string $stdout = ''): void
@@ -45,6 +47,23 @@ function createFakeComposerAudit(string $path, string $log, string $stdout, int 
 }
 
 try {
+    // Isola o CLI das ferramentas reais ignoradas em .tools/vendor e do PATH do host.
+    foreach (['src', 'bin', 'templates', 'security'] as $directory) {
+        $source = dirname(__DIR__) . '/' . $directory;
+        mkdir($ninfaRoot . '/' . $directory, 0775, true);
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST,
+        );
+        foreach ($files as $file) {
+            $destination = $ninfaRoot . '/' . $directory . substr($file->getPathname(), strlen($source));
+            $file->isDir() ? mkdir($destination, 0775, true) : copy($file->getPathname(), $destination);
+        }
+    }
+    mkdir($root . '/path', 0775, true);
+    symlink(PHP_BINARY, $root . '/path/php');
+    putenv('PATH=' . $root . '/path');
+
     mkdir($projectRoot . '/src', 0775, true);
     mkdir($projectRoot . '/vendor/bin', 0775, true);
     file_put_contents($projectRoot . '/src/Example.php', "<?php final class Example {}\n");
@@ -122,7 +141,7 @@ try {
 
     $result = (new ProcessRunner())->runCaptured([
         PHP_BINARY,
-        dirname(__DIR__) . '/bin/ninfa',
+        $ninfaRoot . '/bin/ninfa',
         'security',
         $projectRoot,
     ], $projectRoot);
@@ -150,13 +169,84 @@ try {
     assert(count($report['sast']['findings'] ?? []) === 1);
     assert(($report['sast']['sources'][1]['coverage']['scanned_files'] ?? null) === 1);
 
+    // Psalm 2 com issues é análise concluída com gate bloqueante; outros retornos seguem como erro.
+    $psalmJson = json_encode([[
+        'type' => 'TaintedHtml',
+        'file_path' => $projectRoot . '/src/Example.php',
+        'line_from' => 1,
+        'message' => 'Tainted HTML',
+    ]], JSON_THROW_ON_ERROR);
+    foreach ([[2, $psalmJson, 'failed', 2], [2, '[]', 'error', 1], [1, $psalmJson, 'error', 1]] as [$exitCode, $stdout, $state, $findingCount]) {
+        createFakeTool($projectRoot . '/vendor/bin/psalm', $log, ['psalm-taint'], $exitCode, $stdout);
+        $scenario = (new ProcessRunner())->runCaptured([
+            PHP_BINARY, $ninfaRoot . '/bin/ninfa', 'security', $projectRoot,
+        ], $projectRoot);
+        assert($scenario->exitCode === 3); // Primeiro gate bloqueante continua sendo Composer.
+        $scenarioReport = json_decode((string) file_get_contents($reportFile), true, 512, JSON_THROW_ON_ERROR);
+        $psalmSource = $scenarioReport['sast']['sources'][0];
+        assert($psalmSource['state'] === $state);
+        assert(count($scenarioReport['sast']['findings']) === $findingCount);
+        if ($state === 'failed') {
+            assert($psalmSource['detail'] === null);
+            assert($psalmSource['exit_code'] === 1);
+            assert($psalmSource['coverage']['native_exit_code'] === 2);
+        }
+    }
+
+    createFakeTool($projectRoot . '/vendor/bin/psalm', $log, ['psalm-taint'], 0, '[]');
+    foreach (['ERROR', 'HIGH', 'CRITICAL', 'WARNING', 'MEDIUM', 'LOW', 'INFO', 'INVENTORY', 'EXPERIMENT'] as $severity) {
+        $severityPayload = json_decode($semgrepJson, true, 512, JSON_THROW_ON_ERROR);
+        $severityPayload['results'][0]['extra']['severity'] = $severity;
+        createFakeTool($projectRoot . '/vendor/bin/semgrep', $log, ['semgrep'], 0, json_encode($severityPayload, JSON_THROW_ON_ERROR));
+        $severityRun = (new ProcessRunner())->runCaptured([
+            PHP_BINARY, $ninfaRoot . '/bin/ninfa', 'security', $projectRoot,
+        ], $projectRoot);
+        assert($severityRun->exitCode === 3);
+        $severityReport = json_decode((string) file_get_contents($reportFile), true, 512, JSON_THROW_ON_ERROR);
+        $semgrepSource = $severityReport['sast']['sources'][1];
+        $isBlocking = in_array($severity, ['ERROR', 'HIGH', 'CRITICAL'], true);
+        assert($semgrepSource['state'] === ($isBlocking ? 'failed' : 'ok'));
+        assert($semgrepSource['exit_code'] === ($isBlocking ? 1 : 0));
+        assert($severityReport['sast']['findings'][0]['severity'] === strtolower($severity));
+    }
+    $skippedRulePayload = json_decode($semgrepJson, true, 512, JSON_THROW_ON_ERROR);
+    $skippedRulePayload['skipped_rules'] = [['rule_id' => 'unsupported-rule', 'details' => 'unsupported engine']];
+    createFakeTool($projectRoot . '/vendor/bin/semgrep', $log, ['semgrep'], 0, json_encode($skippedRulePayload, JSON_THROW_ON_ERROR));
+    (new ProcessRunner())->runCaptured([
+        PHP_BINARY, $ninfaRoot . '/bin/ninfa', 'security', $projectRoot,
+    ], $projectRoot);
+    $skippedRuleReport = json_decode((string) file_get_contents($reportFile), true, 512, JSON_THROW_ON_ERROR);
+    assert($skippedRuleReport['sast']['sources'][1]['state'] === 'partial');
+    assert(count($skippedRuleReport['sast']['sources'][1]['coverage']['skipped_rules']) === 1);
+    assert(count($skippedRuleReport['sast']['findings']) === 1);
+    createFakeTool($projectRoot . '/vendor/bin/semgrep', $log, ['semgrep'], 0, $semgrepJson);
+
+    // Advisory válido não esconde falha operacional; stdout inválido não é despejado no terminal.
+    createFakeComposerAudit($projectRoot . '/vendor/bin/composer', $log, $auditJson, 127);
+    $operationalRun = (new ProcessRunner())->runCaptured([
+        PHP_BINARY, $ninfaRoot . '/bin/ninfa', 'security', $projectRoot,
+    ], $projectRoot);
+    assert($operationalRun->exitCode === 1);
+    $operationalReport = json_decode((string) file_get_contents($reportFile), true, 512, JSON_THROW_ON_ERROR);
+    assert($operationalReport['sca']['sources'][0]['state'] === 'error');
+    assert($operationalReport['sca']['sources'][0]['coverage']['native_exit_code'] === 127);
+    assert(count($operationalReport['sca']['vulnerabilities']) === 1);
+    assert(count($operationalReport['sca']['policies']) === 1);
+    createFakeComposerAudit($projectRoot . '/vendor/bin/composer', $log, '{invalid secret=fixture-private-marker', 0);
+    $invalidAudit = (new ProcessRunner())->runCaptured([
+        PHP_BINARY, $ninfaRoot . '/bin/ninfa', 'security', $projectRoot,
+    ], $projectRoot);
+    assert($invalidAudit->exitCode === 1);
+    assert(!str_contains($invalidAudit->stdout . $invalidAudit->stderr, 'fixture-private-marker'));
+    createFakeComposerAudit($projectRoot . '/vendor/bin/composer', $log, $auditJson, 3);
+
     unlink($projectRoot . '/composer.lock');
     unlink($projectRoot . '/vendor/bin/psalm');
     file_put_contents($log, '');
 
     $partial = (new ProcessRunner())->runCaptured([
         PHP_BINARY,
-        dirname(__DIR__) . '/bin/ninfa',
+        $ninfaRoot . '/bin/ninfa',
         'security',
         $projectRoot,
     ], $projectRoot);
@@ -183,7 +273,7 @@ try {
 
     $customTests = (new ProcessRunner())->runCaptured([
         PHP_BINARY,
-        dirname(__DIR__) . '/bin/ninfa',
+        $ninfaRoot . '/bin/ninfa',
         'check',
         $projectRoot,
     ], $projectRoot);
@@ -207,7 +297,7 @@ try {
 
     $emptyTests = (new ProcessRunner())->runCaptured([
         PHP_BINARY,
-        dirname(__DIR__) . '/bin/ninfa',
+        $ninfaRoot . '/bin/ninfa',
         'check',
         $projectRoot,
     ], $projectRoot);
@@ -219,6 +309,7 @@ try {
 
     echo "[OK] Runner consolida SCA/SAST, aplica gate Semgrep por severidade, desabilita DAST e preserva check/testes.\n";
 } finally {
+    $originalPath === false ? putenv('PATH') : putenv('PATH=' . $originalPath);
     putenv('NINFA_WORKSPACE_ROOT');
     putenv('NINFA_OSV_FIXTURE');
     putenv('NO_COLOR');
